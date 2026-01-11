@@ -1,0 +1,105 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rmacd-framework.org/schema/v1/profile-2d.json",
+  "title": "RMACD Two-Dimensional Permission Profile",
+  "description": "Permission profile for the Two-Dimensional Model (RMACD + HITL, without data classification)",
+  "type": "object",
+  "required": ["profile_id", "profile_name", "model", "version", "permissions"],
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "const": "https://rmacd-framework.org/schema/v1/profile-2d.json"
+    },
+    "profile_id": {
+      "type": "string",
+      "description": "Unique identifier for this profile",
+      "pattern": "^rmacd-2d-[a-z0-9-]+$"
+    },
+    "profile_name": {
+      "type": "string",
+      "description": "Human-readable profile name"
+    },
+    "model": {
+      "type": "string",
+      "const": "two-dimensional",
+      "description": "Implementation model identifier"
+    },
+    "version": {
+      "type": "string",
+      "description": "Profile version",
+      "pattern": "^[0-9]+\\.[0-9]+$"
+    },
+    "description": {
+      "type": "string",
+      "description": "Description of the profile's purpose"
+    },
+    "permissions": {
+      "type": "array",
+      "description": "Granted RMACD operations",
+      "items": {
+        "type": "string",
+        "enum": ["R", "M", "A", "C", "D"]
+      },
+      "uniqueItems": true
+    },
+    "autonomy_overrides": {
+      "type": "object",
+      "description": "Override default autonomy levels for specific operations",
+      "patternProperties": {
+        "^[RMACD]$": {
+          "type": "string",
+          "enum": ["autonomous", "logged", "notification", "approval", "elevated_approval", "prohibited"]
+        }
+      },
+      "additionalProperties": false
+    },
+    "constraints": {
+      "type": "object",
+      "description": "Operational constraints",
+      "properties": {
+        "environments": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Allowed environments"
+        },
+        "rate_limits": {
+          "type": "object",
+          "properties": {
+            "queries_per_minute": { "type": "integer" },
+            "operations_per_hour": { "type": "integer" },
+            "data_volume_mb_per_hour": { "type": "integer" }
+          }
+        },
+        "time_windows": {
+          "type": "object",
+          "description": "Time-based restrictions"
+        },
+        "change_controls": {
+          "type": "object",
+          "properties": {
+            "require_backup_before_change": { "type": "boolean" },
+            "require_rollback_plan": { "type": "boolean" },
+            "max_blast_radius_percentage": { "type": "integer" }
+          }
+        }
+      }
+    },
+    "metadata": {
+      "type": "object",
+      "properties": {
+        "created": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "author": {
+          "type": "string"
+        },
+        "approved_by": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}

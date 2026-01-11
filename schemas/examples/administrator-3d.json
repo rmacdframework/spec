@@ -1,0 +1,40 @@
+{
+  "$schema": "https://rmacd-framework.org/schema/v1/profile-3d.json",
+  "profile_id": "rmacd-3d-administrator-v1",
+  "profile_name": "Administrator (3D)",
+  "model": "three-dimensional",
+  "version": "1.0",
+  "description": "Maximum agent permissions with classification-aware controls. Note: Change and Delete on Restricted data remain prohibited.",
+  "permissions": {
+    "public": ["R", "M", "A", "C", "D"],
+    "internal": ["R", "M", "A", "C", "D"],
+    "confidential": ["R", "M", "A", "C"],
+    "restricted": ["R", "M"]
+  },
+  "autonomy_overrides": {
+    "public.D": "approval",
+    "internal.D": "elevated_approval",
+    "confidential.C": "elevated_approval",
+    "restricted.M": "elevated_approval"
+  },
+  "constraints": {
+    "environments": ["development", "staging", "production"],
+    "change_controls": {
+      "require_backup_before_change": true,
+      "require_rollback_plan": true,
+      "max_blast_radius_percentage": 10,
+      "canary_deployment_required": true
+    },
+    "delete_controls": {
+      "soft_delete_grace_period_days": 7,
+      "require_dependency_check": true,
+      "require_legal_hold_check": true,
+      "two_person_rule_for_confidential": true
+    }
+  },
+  "metadata": {
+    "created": "2026-01-11T00:00:00Z",
+    "author": "rmacd-framework",
+    "approved_by": "ciso"
+  }
+}

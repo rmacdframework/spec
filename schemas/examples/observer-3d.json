@@ -1,0 +1,30 @@
+{
+  "$schema": "https://rmacd-framework.org/schema/v1/profile-3d.json",
+  "profile_id": "rmacd-3d-observer-v1",
+  "profile_name": "Observer (3D)",
+  "model": "three-dimensional",
+  "version": "1.0",
+  "description": "Read-only monitoring agent with classification-aware access controls",
+  "permissions": {
+    "public": ["R"],
+    "internal": ["R"],
+    "confidential": ["R"],
+    "restricted": ["R"]
+  },
+  "autonomy_overrides": {
+    "confidential.R": "logged",
+    "restricted.R": "notification"
+  },
+  "constraints": {
+    "environments": ["development", "staging", "production"],
+    "rate_limits": {
+      "queries_per_minute": 100,
+      "data_volume_mb_per_hour": 500
+    }
+  },
+  "metadata": {
+    "created": "2026-01-11T00:00:00Z",
+    "author": "rmacd-framework",
+    "approved_by": "security-team"
+  }
+}

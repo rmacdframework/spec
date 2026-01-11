@@ -1,0 +1,26 @@
+cff-version: 1.2.0
+message: "If you use the RMACD Framework, please cite it as below."
+title: "RMACD: Agent Governance Framework"
+abstract: "A flexible governance model integrating operational permissions (Read, Move, Add, Change, Delete), human-in-the-loop controls, and enterprise data classification for governing autonomous AI agents in enterprise IT operations."
+type: software
+authors:
+  - given-names: "Kash"
+    family-names: "Kashyap"
+    email: "kash@rmacd-framework.org"
+    orcid: "https://orcid.org/0009-0005-0127-6265"
+version: "1.0.0"
+date-released: "2026-01-11"
+url: "https://rmacd-framework.org"
+repository-code: "https://github.com/rmacdframework/spec"
+license: "CC-BY-4.0"
+keywords:
+  - ai-governance
+  - autonomous-agents
+  - itil
+  - agent-permissions
+  - human-in-the-loop
+  - ai-safety
+  - enterprise-governance
+  - devops
+  - it-service-management
+  - data-classification

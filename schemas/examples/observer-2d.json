@@ -1,0 +1,22 @@
+{
+  "$schema": "https://rmacd-framework.org/schema/v1/profile-2d.json",
+  "profile_id": "rmacd-2d-observer-v1",
+  "profile_name": "Observer (2D)",
+  "model": "two-dimensional",
+  "version": "1.0",
+  "description": "Read-only monitoring and analysis agent for organizations without formal data classification",
+  "permissions": ["R"],
+  "autonomy_overrides": {},
+  "constraints": {
+    "environments": ["development", "staging", "production"],
+    "rate_limits": {
+      "queries_per_minute": 100,
+      "data_volume_mb_per_hour": 500
+    }
+  },
+  "metadata": {
+    "created": "2026-01-11T00:00:00Z",
+    "author": "rmacd-framework",
+    "approved_by": "security-team"
+  }
+}

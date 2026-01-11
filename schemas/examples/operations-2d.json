@@ -1,0 +1,28 @@
+{
+  "$schema": "https://rmacd-framework.org/schema/v1/profile-2d.json",
+  "profile_id": "rmacd-2d-operations-v1",
+  "profile_name": "Operations (2D)",
+  "model": "two-dimensional",
+  "version": "1.0",
+  "description": "Full operations agent without delete capability for organizations without formal data classification",
+  "permissions": ["R", "M", "A", "C"],
+  "autonomy_overrides": {
+    "C": "approval"
+  },
+  "constraints": {
+    "environments": ["development", "staging", "production"],
+    "rate_limits": {
+      "operations_per_hour": 50
+    },
+    "change_controls": {
+      "require_backup_before_change": true,
+      "require_rollback_plan": true,
+      "max_blast_radius_percentage": 10
+    }
+  },
+  "metadata": {
+    "created": "2026-01-11T00:00:00Z",
+    "author": "rmacd-framework",
+    "approved_by": "cab-committee"
+  }
+}
