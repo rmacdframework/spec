@@ -9,7 +9,7 @@ for Governing Autonomous AI Agents in Enterprise IT Operations
 *Extending ITIL's MACD Heritage to the Agentic AI Era*
 
 Version 1.0 | January 2026
-**Author: Kash**
+**Author: Kash Kashyap**
 
 # **Abstract**
 
