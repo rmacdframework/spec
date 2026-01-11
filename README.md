@@ -1,4 +1,4 @@
-# RMACD: Agent Governance Framework
+# RMACD: AI Agent Governance Framework
 
 **ITIL for the Agentic Era**
 
@@ -117,7 +117,7 @@ If you use the RMACD Framework in your work, please cite:
 ```bibtex
 @misc{rmacd2026,
   author = {Kash Kashyap},
-  title = {RMACD: Agent Governance Framework},
+  title = {RMACD: AI Agent Governance Framework},
   year = {2026},
   url = {https://rmacd-framework.org},
   note = {Version 1.0}
@@ -153,4 +153,4 @@ LinkedIn: [linkedin.com/in/kashkashyap](https://linkedin.com/in/kashkashyap)
 
 ---
 
-*RMACD: Agent Governance Framework — ITIL for the Agentic Era*
+*RMACD: AI Agent Governance Framework — ITIL for the Agentic Era*

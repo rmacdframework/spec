@@ -1,6 +1,6 @@
 cff-version: 1.2.0
 message: "If you use the RMACD Framework, please cite it as below."
-title: "RMACD: Agent Governance Framework"
+title: "RMACD: AI Agent Governance Framework"
 abstract: "A flexible governance model integrating operational permissions (Read, Move, Add, Change, Delete), human-in-the-loop controls, and enterprise data classification for governing autonomous AI agents in enterprise IT operations."
 type: software
 authors:
