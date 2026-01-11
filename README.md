@@ -19,6 +19,14 @@ RMACD answers the fundamental governance question: *"What can this agent do, to 
 
 ---
 
+## Framework Diagram
+
+![RMACD Framework Diagram](docs/RMACD_Framework_Diagram.drawio.png)
+
+*[Edit diagram (draw.io)](docs/RMACD_Framework_Diagram.drawio)*
+
+---
+
 ## Quick Start
 
 ### The Five Operations
@@ -56,6 +64,8 @@ RMACD answers the fundamental governance question: *"What can this agent do, to 
 
 - [Full Specification (Markdown)](docs/RMACD_Framework_v1.0.md) — Recommended for reading on GitHub
 - [Full Specification (Word)](docs/RMACD_Framework_v1.0.docx) — Original document format
+- [Framework Diagram (PNG)](docs/RMACD_Framework_Diagram.drawio.png) — Visual overview
+- [Framework Diagram (draw.io)](docs/RMACD_Framework_Diagram.drawio) — Editable source
 - [Implementation Guide](docs/implementation.md)
 - [JSON Schema Templates](schemas/)
 - [Website](https://rmacd-framework.org)
