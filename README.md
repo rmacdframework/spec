@@ -54,9 +54,11 @@ RMACD answers the fundamental governance question: *"What can this agent do, to 
 
 ## Documentation
 
-- [Full Specification (Word)](docs/RMACD_Framework_v1.0.docx)
-- [Website](https://rmacd-framework.org)
+- [Full Specification (Markdown)](docs/RMACD_Framework_v1.0.md) — Recommended for reading on GitHub
+- [Full Specification (Word)](docs/RMACD_Framework_v1.0.docx) — Original document format
+- [Implementation Guide](docs/implementation.md)
 - [JSON Schema Templates](schemas/)
+- [Website](https://rmacd-framework.org)
 
 ---
 
