@@ -407,194 +407,204 @@ The following JSON templates define machine-readable permission profiles that ca
 
 Each permission profile follows a standardized schema that defines the agent's operational boundaries across data classifications:
 
+```json
 {
-"$schema": "https://rmacd.io/schema/v1/profile.json",
-"profile_id": "string",
-"profile_name": "string",
-"version": "1.0",
-"description": "string",
-"permissions": {
-"public": ["R", "M", "A", "C", "D"],
-"internal": ["R", "M", "A", "C", "D"],
-"confidential": ["R", "M", "A", "C"],
-"restricted": ["R", "M"]
-},
-"autonomy_overrides": {
-"<classification>.<operation>": "<autonomy_level>"
-},
-"constraints": {
-"environments": ["development", "staging", "production"],
-"time_windows": { ... },
-"rate_limits": { ... },
-"resource_quotas": { ... }
-},
-"metadata": {
-"created": "ISO-8601",
-"author": "string",
-"approved_by": "string"
+  "$schema": "https://rmacd.io/schema/v1/profile.json",
+  "profile_id": "string",
+  "profile_name": "string",
+  "version": "1.0",
+  "description": "string",
+  "permissions": {
+    "public": ["R", "M", "A", "C", "D"],
+    "internal": ["R", "M", "A", "C", "D"],
+    "confidential": ["R", "M", "A", "C"],
+    "restricted": ["R", "M"]
+  },
+  "autonomy_overrides": {
+    "<classification>.<operation>": "<autonomy_level>"
+  },
+  "constraints": {
+    "environments": ["development", "staging", "production"],
+    "time_windows": { "..." },
+    "rate_limits": { "..." },
+    "resource_quotas": { "..." }
+  },
+  "metadata": {
+    "created": "ISO-8601",
+    "author": "string",
+    "approved_by": "string"
+  }
 }
-}
+```
 
 ## **B.2 Observer Profile**
 
 Read-only access across all data classifications. Ideal for monitoring, compliance auditing, and recommendation agents.
 
+```json
 {
-"$schema": "https://rmacd.io/schema/v1/profile.json",
-"profile_id": "rmacd-observer-v1",
-"profile_name": "Observer",
-"version": "1.0",
-"description": "Read-only monitoring and analysis agent",
-"permissions": {
-"public": ["R"],
-"internal": ["R"],
-"confidential": ["R"],
-"restricted": ["R"]
-},
-"autonomy_overrides": {
-"confidential.R": "logged",
-"restricted.R": "notification"
-},
-"constraints": {
-"environments": ["development", "staging", "production"],
-"rate_limits": {
-"queries_per_minute": 100,
-"data_volume_mb_per_hour": 500
+  "$schema": "https://rmacd.io/schema/v1/profile.json",
+  "profile_id": "rmacd-observer-v1",
+  "profile_name": "Observer",
+  "version": "1.0",
+  "description": "Read-only monitoring and analysis agent",
+  "permissions": {
+    "public": ["R"],
+    "internal": ["R"],
+    "confidential": ["R"],
+    "restricted": ["R"]
+  },
+  "autonomy_overrides": {
+    "confidential.R": "logged",
+    "restricted.R": "notification"
+  },
+  "constraints": {
+    "environments": ["development", "staging", "production"],
+    "rate_limits": {
+      "queries_per_minute": 100,
+      "data_volume_mb_per_hour": 500
+    }
+  },
+  "metadata": {
+    "created": "2026-01-10T00:00:00Z",
+    "author": "rmacd-framework",
+    "approved_by": "security-team"
+  }
 }
-},
-"metadata": {
-"created": "2026-01-10T00:00:00Z",
-"author": "rmacd-framework",
-"approved_by": "security-team"
-}
-}
+```
 
 ## **B.3 Logistics Profile**
 
 Read and Move permissions for data transfer and workload balancing operations.
 
+```json
 {
-"$schema": "https://rmacd.io/schema/v1/profile.json",
-"profile_id": "rmacd-logistics-v1",
-"profile_name": "Logistics",
-"version": "1.0",
-"description": "Data transfer and workload balancing agent",
-"permissions": {
-"public": ["R", "M"],
-"internal": ["R", "M"],
-"confidential": ["R"],
-"restricted": []
-},
-"autonomy_overrides": {
-"public.M": "autonomous",
-"internal.M": "notification",
-"confidential.R": "logged"
-},
-"constraints": {
-"environments": ["development", "staging", "production"],
-"allowed_destinations": [
-"storage-tier-*",
-"backup-region-*",
-"dr-site-*"
-],
-"prohibited_destinations": [
-"external-*",
-"public-*"
-]
-},
-"metadata": {
-"created": "2026-01-10T00:00:00Z",
-"author": "rmacd-framework",
-"approved_by": "operations-team"
+  "$schema": "https://rmacd.io/schema/v1/profile.json",
+  "profile_id": "rmacd-logistics-v1",
+  "profile_name": "Logistics",
+  "version": "1.0",
+  "description": "Data transfer and workload balancing agent",
+  "permissions": {
+    "public": ["R", "M"],
+    "internal": ["R", "M"],
+    "confidential": ["R"],
+    "restricted": []
+  },
+  "autonomy_overrides": {
+    "public.M": "autonomous",
+    "internal.M": "notification",
+    "confidential.R": "logged"
+  },
+  "constraints": {
+    "environments": ["development", "staging", "production"],
+    "allowed_destinations": [
+      "storage-tier-*",
+      "backup-region-*",
+      "dr-site-*"
+    ],
+    "prohibited_destinations": [
+      "external-*",
+      "public-*"
+    ]
+  },
+  "metadata": {
+    "created": "2026-01-10T00:00:00Z",
+    "author": "rmacd-framework",
+    "approved_by": "operations-team"
+  }
 }
-}
+```
 
 ## **B.4 Provisioning Profile**
 
 Read, Move, and Add permissions for resource provisioning and deployment operations.
 
+```json
 {
-"$schema": "https://rmacd.io/schema/v1/profile.json",
-"profile_id": "rmacd-provisioning-v1",
-"profile_name": "Provisioning",
-"version": "1.0",
-"description": "Resource provisioning and deployment agent",
-"permissions": {
-"public": ["R", "M", "A"],
-"internal": ["R", "M", "A"],
-"confidential": ["R", "M"],
-"restricted": ["R"]
-},
-"autonomy_overrides": {
-"public.A": "notification",
-"internal.A": "approval",
-"confidential.M": "approval",
-"restricted.R": "notification"
-},
-"constraints": {
-"environments": ["development", "staging"],
-"resource_quotas": {
-"max_vms_per_request": 10,
-"max_storage_gb_per_request": 500,
-"max_monthly_cost_usd": 5000
-},
-"required_templates": [
-"approved-vm-template-*",
-"hardened-container-*"
-],
-"auto_expiration_days": 30
-},
-"metadata": {
-"created": "2026-01-10T00:00:00Z",
-"author": "rmacd-framework",
-"approved_by": "cloud-governance"
+  "$schema": "https://rmacd.io/schema/v1/profile.json",
+  "profile_id": "rmacd-provisioning-v1",
+  "profile_name": "Provisioning",
+  "version": "1.0",
+  "description": "Resource provisioning and deployment agent",
+  "permissions": {
+    "public": ["R", "M", "A"],
+    "internal": ["R", "M", "A"],
+    "confidential": ["R", "M"],
+    "restricted": ["R"]
+  },
+  "autonomy_overrides": {
+    "public.A": "notification",
+    "internal.A": "approval",
+    "confidential.M": "approval",
+    "restricted.R": "notification"
+  },
+  "constraints": {
+    "environments": ["development", "staging"],
+    "resource_quotas": {
+      "max_vms_per_request": 10,
+      "max_storage_gb_per_request": 500,
+      "max_monthly_cost_usd": 5000
+    },
+    "required_templates": [
+      "approved-vm-template-*",
+      "hardened-container-*"
+    ],
+    "auto_expiration_days": 30
+  },
+  "metadata": {
+    "created": "2026-01-10T00:00:00Z",
+    "author": "rmacd-framework",
+    "approved_by": "cloud-governance"
+  }
 }
-}
+```
 
 ## **B.5 Operations Profile**
 
 Full operational capabilities except Delete for production change management.
 
+```json
 {
-"$schema": "https://rmacd.io/schema/v1/profile.json",
-"profile_id": "rmacd-operations-v1",
-"profile_name": "Operations",
-"version": "1.0",
-"description": "Production operations and change management agent",
-"permissions": {
-"public": ["R", "M", "A", "C"],
-"internal": ["R", "M", "A", "C"],
-"confidential": ["R", "M", "A"],
-"restricted": ["R"]
-},
-"autonomy_overrides": {
-"public.C": "approval",
-"internal.C": "approval",
-"confidential.A": "elevated_approval",
-"restricted.R": "notification"
-},
-"constraints": {
-"environments": ["development", "staging", "production"],
-"time_windows": {
-"production_changes": {
-"allowed_days": ["tuesday", "wednesday", "thursday"],
-"allowed_hours_utc": { "start": "06:00", "end": "14:00" },
-"blackout_dates": ["2026-12-24", "2026-12-25", "2026-12-31"]
+  "$schema": "https://rmacd.io/schema/v1/profile.json",
+  "profile_id": "rmacd-operations-v1",
+  "profile_name": "Operations",
+  "version": "1.0",
+  "description": "Production operations and change management agent",
+  "permissions": {
+    "public": ["R", "M", "A", "C"],
+    "internal": ["R", "M", "A", "C"],
+    "confidential": ["R", "M", "A"],
+    "restricted": ["R"]
+  },
+  "autonomy_overrides": {
+    "public.C": "approval",
+    "internal.C": "approval",
+    "confidential.A": "elevated_approval",
+    "restricted.R": "notification"
+  },
+  "constraints": {
+    "environments": ["development", "staging", "production"],
+    "time_windows": {
+      "production_changes": {
+        "allowed_days": ["tuesday", "wednesday", "thursday"],
+        "allowed_hours_utc": { "start": "06:00", "end": "14:00" },
+        "blackout_dates": ["2026-12-24", "2026-12-25", "2026-12-31"]
+      }
+    },
+    "change_controls": {
+      "require_backup_before_change": true,
+      "require_rollback_plan": true,
+      "max_blast_radius_percentage": 10,
+      "canary_deployment_required": true
+    }
+  },
+  "metadata": {
+    "created": "2026-01-10T00:00:00Z",
+    "author": "rmacd-framework",
+    "approved_by": "cab-committee"
+  }
 }
-},
-"change_controls": {
-"require_backup_before_change": true,
-"require_rollback_plan": true,
-"max_blast_radius_percentage": 10,
-"canary_deployment_required": true
-}
-},
-"metadata": {
-"created": "2026-01-10T00:00:00Z",
-"author": "rmacd-framework",
-"approved_by": "cab-committee"
-}
-}
+```
 
 ## **B.6 Administrator Profile**
 
@@ -717,6 +727,7 @@ When an AI agent attempts an operation, the following evaluation sequence occurs
 
 The following pseudocode illustrates the core policy evaluation algorithm:
 
+```text
 function evaluateOperation(agent, operation, resource):
 profile = loadProfile(agent.profile_id)
 classification = resource.data_classification
@@ -754,12 +765,14 @@ case "approval":
 return QUEUE_FOR_APPROVAL(approver="change_manager")
 case "elevated_approval":
 return QUEUE_FOR_APPROVAL(approver="cab_committee")
+```
 
 ## **C.4 Integration Patterns**
 
 RMACD enforcement can be integrated with agentic platforms through several patterns:
 **SDK Integration: **Embed the RMACD SDK directly into the agent runtime. The SDK intercepts tool calls and API requests, evaluating each against the assigned profile before execution.
 
+```python
 # Python SDK Example
 from rmacd import PolicyEnforcer, Profile
 
@@ -777,6 +790,7 @@ return infrastructure_api.update_config(server_id, config)
 # - If ALLOW: function executes normally
 # - If DENY: RMACDPermissionError raised
 # - If QUEUE: function blocks until approval received
+```
 
 **API Gateway Integration: **Deploy RMACD as a policy layer in the API gateway. All agent requests pass through the gateway, which evaluates permissions before forwarding to backend services.
 **Service Mesh Sidecar: **Deploy RMACD policy enforcement as a sidecar proxy alongside agent containers. The sidecar intercepts all outbound requests and applies policy decisions.
