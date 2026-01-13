@@ -5,6 +5,29 @@ All notable changes to the RMACD Framework will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] - 2026-01-13
+
+### Added
+
+- All 15 governance tables now present in Markdown specification
+- Tables 1-5: RMACD Hierarchy, Data Classification Tiers, Autonomy Levels, Governance Matrix (3D), Governance Matrix (2D)
+- Tables 11-13: GDPR Alignment, HIPAA Alignment, PCI-DSS Alignment
+- Table 15: Adoption Roadmap
+
+### Changed
+
+- Updated Tables 6-10 and Table 14 to match DOCX 4-column format with full content
+- Renamed specification files from v1.0 to v1.1
+- Version updated to 1.1 in both DOCX and Markdown documents
+
+### Fixed
+
+- Markdown formatting: proper code fences for pseudocode, Python, and JSON blocks
+- Markdown formatting: blank lines before bullet lists
+- Full parity between DOCX and Markdown versions (15 tables, 16 H1, 64 H2 headings)
+
+---
+
 ## [1.0.2] - 2026-01-11
 
 ### Added
@@ -110,6 +133,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+[1.1.0]: https://github.com/rmacdframework/spec/releases/tag/v1.1.0
 [1.0.2]: https://github.com/rmacdframework/spec/releases/tag/v1.0.2
 [1.0.1]: https://github.com/rmacdframework/spec/releases/tag/v1.0.1
 [1.0.0]: https://github.com/rmacdframework/spec/releases/tag/v1.0.0
