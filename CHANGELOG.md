@@ -119,10 +119,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Future Roadmap
 
-### Planned for v1.1
+### Planned for v1.2
 
+- Platform-specific integration guides (Kubernetes, AWS/Azure/GCP, LangChain)
 - Additional permission profile templates
-- Platform-specific integration guides
 - Enhanced compliance mappings
 
 ### Planned for v2.0
