@@ -8,8 +8,10 @@ for Governing Autonomous AI Agents in Enterprise IT Operations
 
 *Extending ITIL's MACD Heritage to the Agentic AI Era*
 
-Version 1.0 | January 2026
+Version 1.1 | January 2026
 **Author: Kash Kashyap**
+
+*Version 1.1 Update: Added all governance matrix tables to markdown format for improved readability and accessibility.*
 
 # **Abstract**
 
@@ -67,11 +69,26 @@ The intersection of these three dimensions creates a comprehensive governance ma
 
 The RMACD operational hierarchy extends traditional MACD with an explicit Read tier, creating five graduated permission levels:
 
+| Level | Operation | Risk Profile | Agent Capability |
+|---|---|---|---|
+| R | Read | Near-Zero (no state change) | Observe, query, analyze, report, recommend |
+| M | Move | Low-Medium (reversible) | Relocate, transfer, migrate, reassign |
+| A | Add | Medium (additive, auditable) | Create, provision, deploy, install |
+| C | Change | High (state mutation) | Modify, update, reconfigure, patch |
+| D | Delete | Critical (potentially irreversible) | Remove, decommission, terminate, purge |
+
 Permissions are cumulative: an agent granted 'Change' permissions implicitly possesses 'Add', 'Move', and 'Read' capabilities. This cumulative model reflects the reality that higher-risk operations typically require the lower-risk capabilities as prerequisites.
 
 ## **2.3 Dimension 2: Data Classification (PICR)**
 
 The RMACD Framework adopts the industry-standard four-tier data classification model, mapping each tier to specific protection requirements and agent access constraints:
+
+| Classification | Description | Examples |
+|---|---|---|
+| Public | Freely shareable; no impact from disclosure | Marketing materials, press releases, public documentation |
+| Internal | Business use only; low impact from disclosure | Internal memos, org charts, non-sensitive procedures |
+| Confidential | Sensitive; significant harm from disclosure | Customer PII, financial data, contracts, HR records |
+| Restricted | Highly sensitive; severe/catastrophic harm | Trade secrets, PHI, payment card data, credentials |
 
 The data classification dimension fundamentally transforms how operational permissions are interpreted. A 'Read' operation against Public data is categorically different from a 'Read' operation against Restricted data, despite being the same operational verb. The integrated RMACD model captures this distinction.
 
@@ -79,11 +96,28 @@ The data classification dimension fundamentally transforms how operational permi
 
 The third dimension specifies the required level of human-in-the-loop (HITL) oversight for any operation. The RMACD Framework defines six autonomy levels:
 
+| Autonomy Level | Description | Use Case |
+|---|---|---|
+| Autonomous | No human oversight required | Low-risk operations on non-sensitive data |
+| Logged | Autonomous with enhanced audit trail | Moderate-risk operations requiring traceability |
+| Notification | Human notified; no approval required | Operations requiring awareness but not blocking |
+| Approval | Human approval required before execution | Significant operations requiring explicit consent |
+| Elevated Approval | Senior/CAB approval required | High-risk operations on sensitive data |
+| Prohibited | Operation not permitted for agents | Catastrophic-risk operations; human-only |
+
 # **3. The Integrated RMACD Governance Matrix**
 
 ## **3.1 The Complete Three-Dimensional Model**
 
 The intersection of RMACD operations and data classification tiers produces a 5×4 matrix, where each cell specifies the required autonomy control level. This matrix serves as the definitive governance reference for AI agent operations:
+
+| Operation | Public | Internal | Confidential | Restricted |
+|---|---|---|---|---|
+| Read | Autonomous | Autonomous | Logged | Notification |
+| Move | Autonomous | Notification | Approval | Elevated Approval |
+| Add | Notification | Approval | Elevated Approval | Elevated Approval |
+| Change | Approval | Approval | Elevated Approval | Prohibited |
+| Delete | Approval | Elevated Approval | Elevated Approval | Prohibited |
 
 This matrix represents the default governance posture. Organizations may adjust individual cells based on their risk tolerance, regulatory requirements, and operational maturity, but the matrix provides a sound baseline for initial deployment.
 
@@ -99,6 +133,15 @@ The matrix encodes several fundamental governance principles:
 ## **3.3 Approval Authority Mapping**
 
 Each autonomy level maps to specific approval authorities, enabling integration with existing organizational governance structures:
+
+| Autonomy Level | Approval Authority | Audit Requirement |
+|---|---|---|
+| Autonomous | Pre-authorized (no approval) | Standard operational logging |
+| Logged | Pre-authorized (no approval) | Enhanced logging with retention |
+| Notification | Agent Owner / Operator | Action logging + notification record |
+| Approval | Team Lead / Change Manager | RFC documentation + approval chain |
+| Elevated Approval | CAB / Senior Management / CISO | Full RFC + impact assessment + PIR |
+| Prohibited | Human execution only | N/A for agents; human audit applies |
 
 # **4. Read Operations: The Foundation of Safe Autonomy**
 
@@ -121,12 +164,12 @@ However, when an autonomous AI agent performs Read operations, the distinction b
 
 ## **4.3 Read Operations Across Data Classifications**
 
-| Data Classification | Autonomy Level | Rationale |
-|---------------------|----------------|-----------|
-| Public | Autonomous | No state change; freely available information poses zero risk |
-| Internal | Logged | Business data access requires audit trail for accountability |
-| Confidential | Notification | Sensitive data access requires stakeholder awareness |
-| Restricted | Notification | Highest sensitivity requires oversight notification; enhanced logging mandatory |
+| Data Tier | Autonomy | Logging Requirement | Rationale |
+|---|---|---|---|
+| Public | Autonomous | Standard operational logs | Zero harm from disclosure |
+| Internal | Autonomous | Standard operational logs | Low harm; business context only |
+| Confidential | Logged | Enhanced audit trail; 90-day retention | Compliance; breach notification prep |
+| Restricted | Notification | Real-time alerts; 1-year retention | Human awareness of sensitive access |
 
 ## **4.4 Read-Only Agent Patterns**
 
@@ -174,12 +217,12 @@ The data classification of the asset being moved significantly impacts the risk 
 
 ## **5.3 Move Operations Across Data Classifications**
 
-| Data Classification | Autonomy Level | Rationale |
-|---------------------|----------------|-----------|
-| Public | Autonomous | Low risk relocation; reversible with minimal impact |
-| Internal | Logged | Business data movements require audit trail |
-| Confidential | Approval | Sensitive data relocation requires explicit authorization |
-| Restricted | Approval | Highest sensitivity requires approval; destination validation mandatory |
+| Data Tier | Autonomy | Pre-Conditions | Post-Conditions |
+|---|---|---|---|
+| Public | Autonomous | None | Audit log entry |
+| Internal | Notification | Destination validation | Notify asset owner; rollback plan ready |
+| Confidential | Approval | Security assessment; DLP check | Verification; compliance attestation |
+| Restricted | Elevated Approval | CAB review; legal/compliance sign-off | Chain of custody; encryption verification |
 
 ## **5.4 Move Operation Agent Patterns**
 
@@ -225,12 +268,12 @@ The data classification for Add operations relates to what data the new resource
 
 ## **6.3 Add Operations Across Data Classifications**
 
-| Data Classification | Autonomy Level | Rationale |
-|---------------------|----------------|-----------|
-| Public | Logged | Resource creation tracked; template enforcement required |
-| Internal | Notification | New business resources require stakeholder awareness |
-| Confidential | Approval | Sensitive resource provisioning requires explicit authorization |
-| Restricted | Elevated Approval | High-sensitivity resource creation requires CAB/senior approval |
+| Data Tier | Autonomy | Pre-Conditions | Post-Conditions |
+|---|---|---|---|
+| Public | Notification | Template compliance check | Asset registration; owner assignment |
+| Internal | Approval | Budget verification; standard config | CMDB update; monitoring enabled |
+| Confidential | Elevated Approval | Security review; hardened config | Security scan; compliance attestation |
+| Restricted | Elevated Approval | CAB + Security + Legal review | Penetration test; full audit trail |
 
 ## **6.4 Add Operation Agent Patterns**
 
@@ -275,12 +318,12 @@ Change operations carry a High risk profile with critical considerations:
 
 ## **7.3 Change Operations Across Data Classifications**
 
-| Data Classification | Autonomy Level | Rationale |
-|---------------------|----------------|-----------|
-| Public | Approval | State modification requires review even for public data |
-| Internal | Approval | Business configuration changes require authorization |
-| Confidential | Elevated Approval | Sensitive data changes require CAB/senior approval |
-| Restricted | Prohibited | No autonomous changes permitted; human execution only |
+| Data Tier | Autonomy | Pre-Conditions | Post-Conditions |
+|---|---|---|---|
+| Public | Approval | Backup created; rollback tested | Verification; smoke test; monitoring |
+| Internal | Approval | Impact assessment; change window | PIR scheduled; rollback window defined |
+| Confidential | Elevated Approval | CAB review; security assessment | Security scan; compliance check; PIR |
+| Restricted | PROHIBITED | Human execution only | Agent may recommend; human executes |
 
 Note: Change operations against Restricted data are Prohibited for autonomous agents. This represents a fundamental safety boundary: the combination of high-risk operations with highly sensitive data creates unacceptable risk for autonomous execution.
 
@@ -329,12 +372,12 @@ Delete operations carry a Critical risk profile with severe considerations:
 
 ## **8.3 Delete Operations Across Data Classifications**
 
-| Data Classification | Autonomy Level | Rationale |
-|---------------------|----------------|-----------|
-| Public | Approval | Even low-risk deletions require explicit review |
-| Internal | Elevated Approval | Business data destruction requires CAB/senior approval |
-| Confidential | Elevated Approval | Sensitive data deletion requires two-person rule |
-| Restricted | Prohibited | No autonomous deletion permitted; human execution only |
+| Data Tier | Autonomy | Pre-Conditions | Post-Conditions |
+|---|---|---|---|
+| Public | Approval | Dependency check; backup verified | Inventory update; retention log |
+| Internal | Elevated Approval | Owner confirmation; retention check | Deletion certificate; audit record |
+| Confidential | Elevated Approval | Legal/compliance review; hold check | Secure destruction cert; compliance attestation |
+| Restricted | PROHIBITED | Human execution only | Agent may identify; human executes |
 
 Note: Delete operations against Restricted data are Prohibited for autonomous agents. Additionally, Delete operations generally require the highest autonomy controls at every data classification level compared to other operations.
 
@@ -370,15 +413,37 @@ Note: Delete operations against Restricted data are Prohibited for autonomous ag
 
 RMACD permissions can be expressed as profiles that define an agent's operational boundaries across data classifications. The following templates provide starting points for common agent roles:
 
+| Agent Profile | Public | Internal | Confidential | Restricted |
+|---|---|---|---|---|
+| Observer | R | R | R | R (notify) |
+| Logistics | RM | RM | R | — |
+| Provisioning | RMA | RMA | RM | R |
+| Operations | RMAC | RMAC | RMA | R |
+| Administrator | RMACD | RMACD | RMAC | RM |
+
 Note: Even Administrator agents do not receive full RMACD permissions on Restricted data. Change and Delete operations on Restricted data remain human-only in the default model.
 
 ## **9.2 Environment-Based Differentiation**
 
 The same agent should have different permission profiles across environments. Production environments warrant stricter controls than development or staging:
 
+| Environment | DevOps Agent | Security Agent | Data Scope |
+|---|---|---|---|
+| Development | RMACD (all tiers) | RMAC | Synthetic only |
+| Staging | RMAC (to Confid.) | RMA | Anonymized |
+| Production | RM (to Internal) | R only | Full classification |
+
 ## **9.3 Integration with Change Management**
 
 RMACD integrates naturally with existing ITIL change management processes. The combination of operation type and data classification determines the appropriate change category:
+
+| RMACD Operation | Public/Internal | Confidential | Restricted |
+|---|---|---|---|
+| Read | No RFC required | No RFC required | Standard Change |
+| Move | Standard Change | Normal Change | Major Change |
+| Add | Standard Change | Normal Change | Major Change |
+| Change | Normal Change | Major Change | Human Only |
+| Delete | Normal Change | Major Change | Human Only |
 
 # **10. Regulatory Compliance Mapping**
 
@@ -393,14 +458,13 @@ The RMACD Framework's three-dimensional model provides natural alignment with ma
 
 ## **10.2 Compliance Matrix**
 
-| Regulatory Framework | Data Classification Mapping | Key RMACD Controls | Audit Requirements |
-|---------------------|----------------------------|-------------------|-------------------|
-| GDPR | Personal Data → Confidential; Special Categories → Restricted | Read enables access rights; Change enables rectification; Delete enables erasure | Enhanced logging for all personal data operations |
-| HIPAA | PHI → Restricted | R-only default; approval required for mutative operations | Minimum necessary access; comprehensive audit trails |
-| PCI-DSS | Cardholder Data → Restricted | Prohibited autonomous Change/Delete; elevated approval for Move | Real-time monitoring; quarterly access reviews |
-| SOX | Financial Data → Confidential | Separation of duties via differentiated profiles | Retention minimum 7 years; tamper-evident logs |
-| ISO 27001 | Based on organization classification | Full RMACD matrix alignment | Annual audits; continuous monitoring |
-| NIST CSF | Risk-based classification | Graduated autonomy controls | Risk assessment documentation |
+| Regulation | Data Classification | Key RMACD Control | Audit Requirement |
+|---|---|---|---|
+| GDPR | Confidential/Restricted | HITL for C/D operations | Processing activity logs |
+| HIPAA | Restricted | R-only default; prohibit C/D | 6-year retention |
+| PCI-DSS | Restricted | Prohibit autonomous C/D | 1-year online, archive |
+| SOX | Confidential | Elevated approval for C | 7-year retention |
+| ISO 27001 | All tiers | Classification-based controls | As per risk assessment |
 
 # **11. Adoption Roadmap**
 
@@ -458,6 +522,14 @@ The agentic AI era demands that we reconsider how we govern operational permissi
 The following condensed reference captures the essential RMACD governance matrix for rapid consultation:
 
 **RMACD GOVERNANCE MATRIX - QUICK REFERENCE**
+
+|  | PUBLIC | INTERNAL | CONFIDENTIAL | RESTRICTED |
+|---|---|---|---|---|
+| READ | AUTO | AUTO | LOG | NOTIFY |
+| MOVE | AUTO | NOTIFY | APPROVE | ELEVATED |
+| ADD | NOTIFY | APPROVE | ELEVATED | ELEVATED |
+| CHANGE | APPROVE | APPROVE | ELEVATED | PROHIBIT |
+| DELETE | APPROVE | ELEVATED | ELEVATED | PROHIBIT |
 
 **Autonomy Level Key:** AUTO = Autonomous (no human required) | LOG = Autonomous + Enhanced Logging | NOTIFY = Human Notified | APPROVE = Approval Required | ELEVATED = CAB/Senior Approval | PROHIBIT = Human Only
 
