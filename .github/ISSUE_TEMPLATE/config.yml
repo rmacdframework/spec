@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Questions & Discussions
+    url: https://github.com/rmacdframework/spec/discussions
+    about: Ask questions and discuss the RMACD Framework with the community
+  - name: Security Vulnerabilities
+    url: https://github.com/rmacdframework/spec/security/policy
+    about: Report security vulnerabilities privately via our security policy

@@ -1,0 +1,89 @@
+name: Feature Request
+description: Suggest a new feature or enhancement for the RMACD Framework
+title: "[Feature]: "
+labels: ["enhancement", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for suggesting a feature! Please describe your idea below.
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: Component
+      description: Which part of the RMACD Framework would this feature affect?
+      options:
+        - Framework Specification
+        - JSON Schema
+        - Python SDK
+        - CLI Tool
+        - Documentation
+        - Example Profiles
+        - New Compliance Mapping
+        - New Integration
+        - Other
+    validations:
+      required: true
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      description: How important is this feature to you?
+      options:
+        - Nice to have
+        - Important
+        - Critical for my use case
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem Statement
+      description: What problem does this feature solve? Is it related to a frustration or limitation?
+      placeholder: I'm frustrated when...
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed Solution
+      description: Describe the solution you'd like to see.
+      placeholder: I would like...
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives Considered
+      description: Have you considered any alternative solutions or workarounds?
+      placeholder: I've also thought about...
+    validations:
+      required: false
+
+  - type: textarea
+    id: usecase
+    attributes:
+      label: Use Case
+      description: |
+        Describe your use case for this feature.
+        - What type of AI agents are you managing?
+        - What industry or domain?
+        - What compliance requirements do you have?
+      placeholder: Our organization needs this because...
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: contribution
+    attributes:
+      label: Contribution
+      description: Would you be willing to contribute to implementing this feature?
+      options:
+        - label: I would be willing to submit a PR for this feature
+        - label: I can help with testing
+        - label: I can provide feedback on design/implementation

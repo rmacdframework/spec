@@ -1,0 +1,107 @@
+{
+  "$schema": "https://rmacd-framework.org/schema/v1/profile-3d.json",
+  "profile_id": "rmacd-3d-incident-responder-v1",
+  "profile_name": "Incident Responder",
+  "model": "three-dimensional",
+  "version": "1.0",
+  "description": "Security incident response agent with pre-authorized emergency escalation capabilities. Designed for rapid containment during active security incidents.",
+  "permissions": {
+    "public": ["R", "M", "A"],
+    "internal": ["R", "M", "A"],
+    "confidential": ["R", "M"],
+    "restricted": ["R"]
+  },
+  "autonomy_overrides": {
+    "public.M": "autonomous",
+    "public.A": "notification",
+    "internal.M": "autonomous",
+    "internal.A": "notification",
+    "confidential.M": "notification",
+    "restricted.R": "logged"
+  },
+  "emergency_escalation": {
+    "enabled": true,
+    "trigger_conditions": [
+      "soc_declared_incident",
+      "automated_threat_detection"
+    ],
+    "escalated_permissions": {
+      "public": ["R", "M", "A", "C"],
+      "internal": ["R", "M", "A", "C"],
+      "confidential": ["R", "M", "A"],
+      "restricted": ["R", "M"]
+    },
+    "max_duration_minutes": 60,
+    "require_post_incident_review": true,
+    "notification_targets": [
+      "soc@company.com",
+      "ciso@company.com",
+      "incident-response@company.com"
+    ],
+    "cooldown_minutes": 15
+  },
+  "constraints": {
+    "environments": ["production", "staging"],
+    "rate_limits": {
+      "queries_per_minute": 200,
+      "operations_per_hour": 100
+    },
+    "time_windows": {
+      "timezone": "UTC",
+      "allowed_days": ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"],
+      "allowed_hours": {
+        "start": "00:00",
+        "end": "23:59"
+      }
+    },
+    "change_controls": {
+      "require_backup_before_change": false,
+      "require_rollback_plan": true,
+      "max_blast_radius_percentage": 25,
+      "canary_deployment_required": false
+    }
+  },
+  "audit_requirements": {
+    "log_level": "verbose",
+    "retention_days": 730,
+    "real_time_alerts": ["confidential.M", "confidential.A", "restricted.R", "restricted.M"],
+    "alert_channels": [
+      {
+        "type": "pagerduty",
+        "target": "security-oncall"
+      },
+      {
+        "type": "slack",
+        "target": "#security-incidents"
+      },
+      {
+        "type": "siem",
+        "target": "splunk-security"
+      }
+    ],
+    "immutable_logging": true,
+    "pii_masking": false,
+    "compliance_tags": ["HIPAA", "PCI-DSS", "SOX"]
+  },
+  "approval_authority": {
+    "approval": {
+      "approvers": ["security-analyst", "soc-lead"],
+      "timeout_minutes": 15,
+      "escalation_after_minutes": 10,
+      "escalation_target": "security-manager"
+    },
+    "elevated_approval": {
+      "approvers": ["ciso", "security-director"],
+      "timeout_minutes": 30,
+      "require_multiple_approvers": false
+    }
+  },
+  "metadata": {
+    "created": "2026-01-17T00:00:00Z",
+    "author": "security-operations",
+    "approved_by": "ciso",
+    "status": "active",
+    "review_date": "2026-07-17",
+    "tags": ["security", "incident-response", "emergency", "containment"]
+  }
+}

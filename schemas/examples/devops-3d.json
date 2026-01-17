@@ -1,0 +1,135 @@
+{
+  "$schema": "https://rmacd-framework.org/schema/v1/profile-3d.json",
+  "profile_id": "rmacd-3d-devops-v1",
+  "profile_name": "DevOps Agent",
+  "model": "three-dimensional",
+  "version": "1.0",
+  "description": "DevOps automation agent for CI/CD pipelines, infrastructure management, and deployment operations. Balanced permissions with strong change controls.",
+  "permissions": {
+    "public": ["R", "M", "A", "C", "D"],
+    "internal": ["R", "M", "A", "C"],
+    "confidential": ["R", "M"],
+    "restricted": ["R"]
+  },
+  "autonomy_overrides": {
+    "public.C": "notification",
+    "public.D": "approval",
+    "internal.C": "approval",
+    "confidential.M": "approval",
+    "restricted.R": "notification"
+  },
+  "emergency_escalation": {
+    "enabled": true,
+    "trigger_conditions": [
+      "business_continuity_event",
+      "manual_authorization"
+    ],
+    "escalated_permissions": {
+      "public": ["R", "M", "A", "C", "D"],
+      "internal": ["R", "M", "A", "C", "D"],
+      "confidential": ["R", "M", "A"],
+      "restricted": ["R"]
+    },
+    "max_duration_minutes": 120,
+    "require_post_incident_review": true,
+    "notification_targets": [
+      "platform-team@company.com",
+      "oncall-devops@company.com"
+    ],
+    "cooldown_minutes": 60
+  },
+  "constraints": {
+    "environments": ["development", "staging", "production"],
+    "rate_limits": {
+      "queries_per_minute": 300,
+      "operations_per_hour": 50,
+      "data_volume_mb_per_hour": 1000
+    },
+    "time_windows": {
+      "timezone": "America/New_York",
+      "allowed_days": ["monday", "tuesday", "wednesday", "thursday", "friday"],
+      "allowed_hours": {
+        "start": "06:00",
+        "end": "22:00"
+      },
+      "blackout_dates": [
+        "2026-12-24",
+        "2026-12-25",
+        "2026-12-31",
+        "2027-01-01"
+      ],
+      "maintenance_windows": [
+        {
+          "name": "Weekly Maintenance",
+          "start": "2026-01-19T02:00:00Z",
+          "end": "2026-01-19T06:00:00Z",
+          "recurring": "weekly"
+        }
+      ]
+    },
+    "change_controls": {
+      "require_backup_before_change": true,
+      "require_rollback_plan": true,
+      "max_blast_radius_percentage": 10,
+      "canary_deployment_required": true,
+      "change_freeze_periods": [
+        {
+          "name": "Q4 Code Freeze",
+          "start": "2026-12-15",
+          "end": "2027-01-02"
+        }
+      ]
+    },
+    "delete_controls": {
+      "soft_delete_grace_period_days": 14,
+      "require_dependency_check": true,
+      "require_legal_hold_check": false,
+      "retention_compliance_check": true
+    },
+    "resource_quotas": {
+      "max_resources_per_request": 20,
+      "max_storage_gb_per_request": 500,
+      "max_monthly_cost_usd": 10000,
+      "auto_expiration_days": 90
+    }
+  },
+  "audit_requirements": {
+    "log_level": "enhanced",
+    "retention_days": 365,
+    "real_time_alerts": ["internal.C", "internal.D", "confidential.M"],
+    "alert_channels": [
+      {
+        "type": "slack",
+        "target": "#devops-alerts"
+      },
+      {
+        "type": "webhook",
+        "target": "https://ops.company.com/webhooks/rmacd"
+      }
+    ],
+    "immutable_logging": false,
+    "pii_masking": true,
+    "compliance_tags": ["SOX", "ISO27001"]
+  },
+  "approval_authority": {
+    "approval": {
+      "approvers": ["devops-lead", "platform-engineer"],
+      "timeout_minutes": 60,
+      "escalation_after_minutes": 45,
+      "escalation_target": "engineering-manager"
+    },
+    "elevated_approval": {
+      "approvers": ["vp-engineering", "cto"],
+      "timeout_minutes": 240,
+      "require_multiple_approvers": false
+    }
+  },
+  "metadata": {
+    "created": "2026-01-17T00:00:00Z",
+    "author": "platform-engineering",
+    "approved_by": "vp-engineering",
+    "status": "active",
+    "review_date": "2026-04-17",
+    "tags": ["devops", "ci-cd", "automation", "infrastructure"]
+  }
+}

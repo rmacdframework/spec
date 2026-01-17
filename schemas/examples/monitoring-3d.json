@@ -1,0 +1,62 @@
+{
+  "$schema": "https://rmacd-framework.org/schema/v1/profile-3d.json",
+  "profile_id": "rmacd-3d-monitoring-v1",
+  "profile_name": "Monitoring Agent",
+  "model": "three-dimensional",
+  "version": "1.0",
+  "description": "Read-only monitoring agent for observability, health checks, and SRE operations. Provides broad read access with real-time alerting capabilities.",
+  "permissions": {
+    "public": ["R"],
+    "internal": ["R"],
+    "confidential": ["R"],
+    "restricted": ["R"]
+  },
+  "autonomy_overrides": {
+    "public.R": "autonomous",
+    "internal.R": "autonomous",
+    "confidential.R": "logged",
+    "restricted.R": "notification"
+  },
+  "emergency_escalation": {
+    "enabled": false
+  },
+  "constraints": {
+    "environments": ["development", "staging", "production"],
+    "rate_limits": {
+      "queries_per_minute": 500,
+      "data_volume_mb_per_hour": 2000
+    },
+    "time_windows": {
+      "timezone": "UTC",
+      "allowed_days": ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"],
+      "allowed_hours": {
+        "start": "00:00",
+        "end": "23:59"
+      }
+    }
+  },
+  "audit_requirements": {
+    "log_level": "enhanced",
+    "retention_days": 90,
+    "real_time_alerts": ["confidential.R", "restricted.R"],
+    "alert_channels": [
+      {
+        "type": "slack",
+        "target": "#sre-alerts"
+      },
+      {
+        "type": "pagerduty",
+        "target": "monitoring-service"
+      }
+    ],
+    "pii_masking": true,
+    "compliance_tags": ["SOX", "ISO27001"]
+  },
+  "metadata": {
+    "created": "2026-01-17T00:00:00Z",
+    "author": "sre-team",
+    "approved_by": "platform-engineering",
+    "status": "active",
+    "tags": ["observability", "monitoring", "read-only", "sre"]
+  }
+}

@@ -26,8 +26,8 @@
     },
     "version": {
       "type": "string",
-      "description": "Profile version",
-      "pattern": "^[0-9]+\\.[0-9]+$"
+      "description": "Profile version (semantic versioning)",
+      "pattern": "^[0-9]+\\.[0-9]+(\\.[0-9]+)?$"
     },
     "description": {
       "type": "string",
@@ -55,7 +55,8 @@
         "restricted": {
           "type": "array",
           "items": { "type": "string", "enum": ["R", "M", "A", "C", "D"] },
-          "uniqueItems": true
+          "uniqueItems": true,
+          "description": "Note: C and D operations on Restricted data are prohibited for autonomous agents per governance matrix"
         }
       },
       "required": ["public", "internal", "confidential", "restricted"]
@@ -71,61 +72,477 @@
       },
       "additionalProperties": false
     },
+    "emergency_escalation": {
+      "type": "object",
+      "description": "Pre-authorized emergency permission escalation for incident response",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "description": "Whether emergency escalation is enabled for this profile",
+          "default": false
+        },
+        "trigger_conditions": {
+          "type": "array",
+          "description": "Conditions that can trigger emergency escalation",
+          "items": {
+            "type": "string",
+            "enum": [
+              "soc_declared_incident",
+              "automated_threat_detection",
+              "business_continuity_event",
+              "compliance_emergency",
+              "manual_authorization"
+            ]
+          },
+          "minItems": 1
+        },
+        "escalated_permissions": {
+          "type": "object",
+          "description": "Temporarily elevated permissions during emergency",
+          "properties": {
+            "public": {
+              "type": "array",
+              "items": { "type": "string", "enum": ["R", "M", "A", "C", "D"] },
+              "uniqueItems": true
+            },
+            "internal": {
+              "type": "array",
+              "items": { "type": "string", "enum": ["R", "M", "A", "C", "D"] },
+              "uniqueItems": true
+            },
+            "confidential": {
+              "type": "array",
+              "items": { "type": "string", "enum": ["R", "M", "A", "C", "D"] },
+              "uniqueItems": true
+            },
+            "restricted": {
+              "type": "array",
+              "items": { "type": "string", "enum": ["R", "M"] },
+              "uniqueItems": true,
+              "description": "Even during emergency, C and D on Restricted remain prohibited"
+            }
+          }
+        },
+        "max_duration_minutes": {
+          "type": "integer",
+          "description": "Maximum duration of emergency escalation",
+          "minimum": 1,
+          "maximum": 480,
+          "default": 60
+        },
+        "require_post_incident_review": {
+          "type": "boolean",
+          "description": "Whether post-incident review is mandatory",
+          "default": true
+        },
+        "notification_targets": {
+          "type": "array",
+          "description": "Email addresses or channels to notify on escalation",
+          "items": { "type": "string" },
+          "minItems": 1
+        },
+        "cooldown_minutes": {
+          "type": "integer",
+          "description": "Minimum time between consecutive escalations",
+          "minimum": 0,
+          "default": 30
+        }
+      },
+      "required": ["enabled"],
+      "if": {
+        "properties": { "enabled": { "const": true } }
+      },
+      "then": {
+        "required": ["trigger_conditions", "max_duration_minutes", "notification_targets"]
+      }
+    },
     "constraints": {
       "type": "object",
       "description": "Operational constraints",
       "properties": {
         "environments": {
           "type": "array",
-          "items": { "type": "string" },
-          "description": "Allowed environments"
+          "items": {
+            "type": "string",
+            "enum": ["development", "staging", "production", "disaster-recovery", "sandbox"]
+          },
+          "description": "Allowed environments",
+          "minItems": 1
         },
         "rate_limits": {
           "type": "object",
+          "description": "Rate limiting constraints",
           "properties": {
-            "queries_per_minute": { "type": "integer" },
-            "operations_per_hour": { "type": "integer" },
-            "data_volume_mb_per_hour": { "type": "integer" }
+            "queries_per_minute": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 10000,
+              "description": "Maximum read queries per minute"
+            },
+            "operations_per_hour": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 10000,
+              "description": "Maximum mutating operations per hour"
+            },
+            "data_volume_mb_per_hour": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100000,
+              "description": "Maximum data volume processed per hour in MB"
+            }
           }
         },
         "time_windows": {
           "type": "object",
-          "description": "Time-based restrictions"
+          "description": "Time-based operational restrictions",
+          "properties": {
+            "timezone": {
+              "type": "string",
+              "description": "IANA timezone identifier (e.g., America/New_York, UTC)",
+              "default": "UTC"
+            },
+            "allowed_days": {
+              "type": "array",
+              "description": "Days of week when operations are permitted",
+              "items": {
+                "type": "string",
+                "enum": ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
+              },
+              "minItems": 1,
+              "uniqueItems": true
+            },
+            "allowed_hours": {
+              "type": "object",
+              "description": "Hours during which operations are permitted",
+              "properties": {
+                "start": {
+                  "type": "string",
+                  "pattern": "^([01]?[0-9]|2[0-3]):[0-5][0-9]$",
+                  "description": "Start time in HH:MM format"
+                },
+                "end": {
+                  "type": "string",
+                  "pattern": "^([01]?[0-9]|2[0-3]):[0-5][0-9]$",
+                  "description": "End time in HH:MM format"
+                }
+              },
+              "required": ["start", "end"]
+            },
+            "blackout_dates": {
+              "type": "array",
+              "description": "Specific dates when operations are prohibited (ISO 8601 format)",
+              "items": {
+                "type": "string",
+                "format": "date"
+              }
+            },
+            "maintenance_windows": {
+              "type": "array",
+              "description": "Pre-approved maintenance windows for elevated operations",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "name": { "type": "string" },
+                  "start": { "type": "string", "format": "date-time" },
+                  "end": { "type": "string", "format": "date-time" },
+                  "recurring": {
+                    "type": "string",
+                    "enum": ["once", "weekly", "monthly"],
+                    "default": "once"
+                  }
+                },
+                "required": ["name", "start", "end"]
+              }
+            }
+          }
         },
         "change_controls": {
           "type": "object",
+          "description": "Controls for Change (C) operations",
           "properties": {
-            "require_backup_before_change": { "type": "boolean" },
-            "require_rollback_plan": { "type": "boolean" },
-            "max_blast_radius_percentage": { "type": "integer" },
-            "canary_deployment_required": { "type": "boolean" }
+            "require_backup_before_change": {
+              "type": "boolean",
+              "description": "Require backup/snapshot before any change",
+              "default": true
+            },
+            "require_rollback_plan": {
+              "type": "boolean",
+              "description": "Require documented rollback procedure",
+              "default": true
+            },
+            "max_blast_radius_percentage": {
+              "type": "integer",
+              "description": "Maximum percentage of systems affected by single change",
+              "minimum": 0,
+              "maximum": 100,
+              "default": 10
+            },
+            "canary_deployment_required": {
+              "type": "boolean",
+              "description": "Require staged/canary rollout",
+              "default": false
+            },
+            "change_freeze_periods": {
+              "type": "array",
+              "description": "Periods when changes are prohibited",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "name": { "type": "string" },
+                  "start": { "type": "string", "format": "date" },
+                  "end": { "type": "string", "format": "date" }
+                },
+                "required": ["name", "start", "end"]
+              }
+            }
           }
         },
         "delete_controls": {
           "type": "object",
+          "description": "Controls for Delete (D) operations",
           "properties": {
-            "soft_delete_grace_period_days": { "type": "integer" },
-            "require_dependency_check": { "type": "boolean" },
-            "require_legal_hold_check": { "type": "boolean" },
-            "two_person_rule_for_confidential": { "type": "boolean" }
+            "soft_delete_grace_period_days": {
+              "type": "integer",
+              "description": "Days to retain soft-deleted items before permanent deletion",
+              "minimum": 1,
+              "maximum": 365,
+              "default": 7
+            },
+            "require_dependency_check": {
+              "type": "boolean",
+              "description": "Check for dependencies before deletion",
+              "default": true
+            },
+            "require_legal_hold_check": {
+              "type": "boolean",
+              "description": "Verify no legal holds exist on data",
+              "default": true
+            },
+            "two_person_rule_for_confidential": {
+              "type": "boolean",
+              "description": "Require two approvers for Confidential data deletion",
+              "default": true
+            },
+            "retention_compliance_check": {
+              "type": "boolean",
+              "description": "Verify retention requirements are satisfied",
+              "default": true
+            }
           }
+        },
+        "resource_quotas": {
+          "type": "object",
+          "description": "Resource creation limits for Add (A) operations",
+          "properties": {
+            "max_resources_per_request": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 1000,
+              "description": "Maximum resources created in single operation"
+            },
+            "max_storage_gb_per_request": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "Maximum storage provisioned per request in GB"
+            },
+            "max_monthly_cost_usd": {
+              "type": "number",
+              "minimum": 0,
+              "description": "Maximum monthly cost allowed in USD"
+            },
+            "auto_expiration_days": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 365,
+              "description": "Days until created resources auto-expire"
+            }
+          }
+        }
+      }
+    },
+    "audit_requirements": {
+      "type": "object",
+      "description": "Audit and logging requirements for this profile",
+      "properties": {
+        "log_level": {
+          "type": "string",
+          "description": "Minimum logging level for operations",
+          "enum": ["standard", "enhanced", "verbose", "debug"],
+          "default": "standard"
+        },
+        "retention_days": {
+          "type": "integer",
+          "description": "Minimum audit log retention period in days",
+          "minimum": 30,
+          "maximum": 2555,
+          "default": 365
+        },
+        "real_time_alerts": {
+          "type": "array",
+          "description": "Operations that trigger real-time alerts",
+          "items": {
+            "type": "string",
+            "pattern": "^(public|internal|confidential|restricted)\\.[RMACD]$"
+          }
+        },
+        "alert_channels": {
+          "type": "array",
+          "description": "Channels for real-time alerts",
+          "items": {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": ["email", "slack", "pagerduty", "webhook", "siem"]
+              },
+              "target": {
+                "type": "string",
+                "description": "Channel-specific target (email address, webhook URL, etc.)"
+              }
+            },
+            "required": ["type", "target"]
+          }
+        },
+        "immutable_logging": {
+          "type": "boolean",
+          "description": "Require tamper-evident logging (WORM storage)",
+          "default": false
+        },
+        "include_request_payload": {
+          "type": "boolean",
+          "description": "Include full request payload in audit logs",
+          "default": false
+        },
+        "include_response_payload": {
+          "type": "boolean",
+          "description": "Include full response payload in audit logs",
+          "default": false
+        },
+        "pii_masking": {
+          "type": "boolean",
+          "description": "Automatically mask PII in audit logs",
+          "default": true
+        },
+        "compliance_tags": {
+          "type": "array",
+          "description": "Regulatory frameworks this profile must comply with",
+          "items": {
+            "type": "string",
+            "enum": ["GDPR", "HIPAA", "PCI-DSS", "SOX", "ISO27001", "CCPA", "FedRAMP", "NIST-CSF"]
+          }
+        }
+      }
+    },
+    "approval_authority": {
+      "type": "object",
+      "description": "Mapping of autonomy levels to approval authorities",
+      "properties": {
+        "approval": {
+          "type": "object",
+          "description": "Settings for 'approval' autonomy level",
+          "properties": {
+            "approvers": {
+              "type": "array",
+              "description": "Roles or individuals who can approve",
+              "items": { "type": "string" },
+              "minItems": 1
+            },
+            "timeout_minutes": {
+              "type": "integer",
+              "description": "Timeout before request expires",
+              "minimum": 1,
+              "maximum": 10080,
+              "default": 60
+            },
+            "escalation_after_minutes": {
+              "type": "integer",
+              "description": "Time before escalating to next level",
+              "minimum": 1
+            },
+            "escalation_target": {
+              "type": "string",
+              "description": "Role or individual to escalate to"
+            }
+          },
+          "required": ["approvers"]
+        },
+        "elevated_approval": {
+          "type": "object",
+          "description": "Settings for 'elevated_approval' autonomy level",
+          "properties": {
+            "approvers": {
+              "type": "array",
+              "description": "Roles or individuals who can approve (typically CAB, CISO)",
+              "items": { "type": "string" },
+              "minItems": 1
+            },
+            "timeout_minutes": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 10080,
+              "default": 240
+            },
+            "require_multiple_approvers": {
+              "type": "boolean",
+              "description": "Require approval from multiple parties",
+              "default": false
+            },
+            "minimum_approvers": {
+              "type": "integer",
+              "description": "Minimum number of approvers if multiple required",
+              "minimum": 2,
+              "default": 2
+            }
+          },
+          "required": ["approvers"]
         }
       }
     },
     "metadata": {
       "type": "object",
+      "description": "Profile metadata",
       "properties": {
         "created": {
           "type": "string",
-          "format": "date-time"
+          "format": "date-time",
+          "description": "Profile creation timestamp"
+        },
+        "updated": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Last update timestamp"
         },
         "author": {
-          "type": "string"
+          "type": "string",
+          "description": "Profile author or creating team"
         },
         "approved_by": {
-          "type": "string"
+          "type": "string",
+          "description": "Approving authority"
+        },
+        "review_date": {
+          "type": "string",
+          "format": "date",
+          "description": "Next scheduled review date"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["draft", "active", "deprecated", "archived"],
+          "description": "Profile lifecycle status",
+          "default": "active"
+        },
+        "deprecation_notice": {
+          "type": "string",
+          "description": "Deprecation message and migration guidance (if status is deprecated)"
+        },
+        "tags": {
+          "type": "array",
+          "description": "Organizational tags for categorization",
+          "items": { "type": "string" }
         }
-      }
+      },
+      "required": ["created", "author"]
     }
   }
 }

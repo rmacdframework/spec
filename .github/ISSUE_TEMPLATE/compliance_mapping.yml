@@ -1,0 +1,105 @@
+name: Compliance Mapping Request
+description: Request a new compliance framework mapping for RMACD
+title: "[Compliance]: "
+labels: ["compliance", "documentation", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Request a mapping between RMACD Framework and a compliance standard.
+
+        Current mappings: GDPR, HIPAA, PCI-DSS, SOX, ISO 27001, CCPA/CPRA, FedRAMP, NIST-CSF
+
+  - type: input
+    id: framework
+    attributes:
+      label: Compliance Framework
+      description: Name of the compliance framework or regulation
+      placeholder: e.g., SOC 2, CMMC, NERC CIP
+    validations:
+      required: true
+
+  - type: dropdown
+    id: region
+    attributes:
+      label: Geographic Scope
+      description: What region does this compliance framework apply to?
+      options:
+        - Global
+        - United States
+        - European Union
+        - United Kingdom
+        - Canada
+        - Australia/New Zealand
+        - Asia Pacific
+        - Other (specify in description)
+    validations:
+      required: true
+
+  - type: dropdown
+    id: industry
+    attributes:
+      label: Industry
+      description: What industry or sector does this compliance framework primarily serve?
+      options:
+        - Cross-industry
+        - Healthcare
+        - Financial Services
+        - Government/Public Sector
+        - Energy/Utilities
+        - Defense/Aerospace
+        - Technology
+        - Retail
+        - Manufacturing
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: relevance
+    attributes:
+      label: Relevance to AI Governance
+      description: How does this compliance framework relate to AI agent governance and data handling?
+      placeholder: |
+        Describe which requirements or controls are relevant to:
+        - Data classification
+        - Access controls
+        - Audit logging
+        - Human oversight
+        - Automated decision-making
+    validations:
+      required: true
+
+  - type: textarea
+    id: key_requirements
+    attributes:
+      label: Key Requirements
+      description: List the main requirements that should be mapped to RMACD concepts.
+      placeholder: |
+        1. Requirement A - Description
+        2. Requirement B - Description
+        3. ...
+    validations:
+      required: false
+
+  - type: textarea
+    id: resources
+    attributes:
+      label: Resources
+      description: Links to official documentation or resources for this compliance framework.
+      placeholder: |
+        - Official website:
+        - Documentation:
+        - Relevant controls:
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: expertise
+    attributes:
+      label: Expertise
+      description: Do you have expertise with this compliance framework?
+      options:
+        - label: I have professional experience implementing this compliance framework
+        - label: I can help review/validate the mapping
+        - label: I can provide test scenarios or use cases
