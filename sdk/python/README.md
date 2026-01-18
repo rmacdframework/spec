@@ -5,16 +5,13 @@ Reference implementation for the RMACD (Read, Move, Add, Change, Delete) Framewo
 ## Installation
 
 ```bash
-# Using pip
-pip install rmacd
-
-# Using uv
-uv add rmacd
-
 # From source
 git clone https://github.com/rmacdframework/spec.git
 cd spec/sdk/python
 pip install -e .
+
+# Or using uv
+uv pip install -e .
 ```
 
 ## Quick Start
