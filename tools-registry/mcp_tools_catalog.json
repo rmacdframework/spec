@@ -1,0 +1,297 @@
+{
+  "registry_id": "mcp-demo",
+  "version": "1.0.0",
+  "exported_at": "2026-01-18T05:30:19.987426",
+  "tool_count": 9,
+  "tools": [
+    {
+      "tool_id": "filesystem_read",
+      "tool_name": "filesystem-read",
+      "rmacd_level": "R",
+      "rmacd_description": "Observe, query, analyze — no state change",
+      "description": "Read file contents from the filesystem",
+      "operations": [
+        "read",
+        "get"
+      ],
+      "data_access": "internal",
+      "required_hitl": "logged",
+      "risk_score": 1.06,
+      "tags": [
+        "auto-classified",
+        "mcp"
+      ],
+      "metadata": {
+        "source": "mcp",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "path": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "created_at": "2026-01-18T05:30:19.984265"
+    },
+    {
+      "tool_id": "database_query",
+      "tool_name": "database-query",
+      "rmacd_level": "R",
+      "rmacd_description": "Observe, query, analyze — no state change",
+      "description": "Execute SELECT queries on database",
+      "operations": [
+        "query",
+        "select"
+      ],
+      "data_access": "internal",
+      "required_hitl": "logged",
+      "risk_score": 1.06,
+      "tags": [
+        "auto-classified",
+        "mcp"
+      ],
+      "metadata": {
+        "source": "mcp",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "query": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "created_at": "2026-01-18T05:30:19.984953"
+    },
+    {
+      "tool_id": "filesystem_move",
+      "tool_name": "filesystem-move",
+      "rmacd_level": "M",
+      "rmacd_description": "Relocate, transfer — reversible",
+      "description": "Move or rename files",
+      "operations": [
+        "move",
+        "rename"
+      ],
+      "data_access": "internal",
+      "required_hitl": "notify",
+      "risk_score": 1.69,
+      "tags": [
+        "auto-classified",
+        "mcp"
+      ],
+      "metadata": {
+        "source": "mcp",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "source": {
+              "type": "string"
+            },
+            "destination": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "created_at": "2026-01-18T05:30:19.985091"
+    },
+    {
+      "tool_id": "filesystem_create",
+      "tool_name": "filesystem-create",
+      "rmacd_level": "A",
+      "rmacd_description": "Create, provision — additive impact",
+      "description": "Create new files",
+      "operations": [
+        "create",
+        "write"
+      ],
+      "data_access": "internal",
+      "required_hitl": "approve",
+      "risk_score": 1.73,
+      "tags": [
+        "auto-classified",
+        "mcp"
+      ],
+      "metadata": {
+        "source": "mcp",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "path": {
+              "type": "string"
+            },
+            "content": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "created_at": "2026-01-18T05:30:19.985184"
+    },
+    {
+      "tool_id": "slack_post_message",
+      "tool_name": "slack-post-message",
+      "rmacd_level": "A",
+      "rmacd_description": "Create, provision — additive impact",
+      "description": "Post messages to Slack channels",
+      "operations": [
+        "post",
+        "send"
+      ],
+      "data_access": "internal",
+      "required_hitl": "approve",
+      "risk_score": 1.73,
+      "tags": [
+        "auto-classified",
+        "mcp"
+      ],
+      "metadata": {
+        "source": "mcp",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "channel": {
+              "type": "string"
+            },
+            "message": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "created_at": "2026-01-18T05:30:19.985291"
+    },
+    {
+      "tool_id": "filesystem_edit",
+      "tool_name": "filesystem-edit",
+      "rmacd_level": "C",
+      "rmacd_description": "Modify, update — state mutation",
+      "description": "Modify existing file contents",
+      "operations": [
+        "edit",
+        "modify",
+        "update"
+      ],
+      "data_access": "internal",
+      "required_hitl": "approve",
+      "risk_score": 2.33,
+      "tags": [
+        "auto-classified",
+        "mcp"
+      ],
+      "metadata": {
+        "source": "mcp",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "path": {
+              "type": "string"
+            },
+            "content": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "created_at": "2026-01-18T05:30:19.985378"
+    },
+    {
+      "tool_id": "github_commit",
+      "tool_name": "github-commit",
+      "rmacd_level": "C",
+      "rmacd_description": "Modify, update — state mutation",
+      "description": "Commit changes to GitHub repository",
+      "operations": [
+        "commit",
+        "push"
+      ],
+      "data_access": "internal",
+      "required_hitl": "approve",
+      "risk_score": 2.33,
+      "tags": [
+        "auto-classified",
+        "mcp"
+      ],
+      "metadata": {
+        "source": "mcp",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "repo": {
+              "type": "string"
+            },
+            "message": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "created_at": "2026-01-18T05:30:19.985487"
+    },
+    {
+      "tool_id": "filesystem_delete",
+      "tool_name": "filesystem-delete",
+      "rmacd_level": "D",
+      "rmacd_description": "Remove, destroy — potentially irreversible",
+      "description": "Delete files from filesystem",
+      "operations": [
+        "delete",
+        "remove"
+      ],
+      "data_access": "internal",
+      "required_hitl": "elevated",
+      "risk_score": 1.46,
+      "tags": [
+        "auto-classified",
+        "mcp"
+      ],
+      "metadata": {
+        "source": "mcp",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "path": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "created_at": "2026-01-18T05:30:19.985577"
+    },
+    {
+      "tool_id": "database_drop_table",
+      "tool_name": "database-drop-table",
+      "rmacd_level": "D",
+      "rmacd_description": "Remove, destroy — potentially irreversible",
+      "description": "Drop database tables",
+      "operations": [
+        "drop",
+        "delete"
+      ],
+      "data_access": "restricted",
+      "required_hitl": "elevated",
+      "risk_score": 2.0,
+      "tags": [
+        "auto-classified",
+        "mcp"
+      ],
+      "metadata": {
+        "source": "mcp",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "table": {
+              "type": "string"
+            },
+            "password": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "created_at": "2026-01-18T05:30:19.985656"
+    }
+  ]
+}

@@ -8,10 +8,10 @@ for Governing Autonomous AI Agents in Enterprise IT Operations
 
 *Extending ITIL's MACD Heritage to the Agentic AI Era*
 
-Version 1.1 | January 2026
+Version 1.2 | January 2026
 **Author: Kash Kashyap**
 
-*Version 1.1 Update: Added all governance matrix tables to markdown format for improved readability and accessibility.*
+*Version 1.2 Update: Added Python Tools Registry reference implementation for automated tool governance.*
 
 # **Abstract**
 
@@ -444,6 +444,132 @@ RMACD integrates naturally with existing ITIL change management processes. The c
 | Add | Standard Change | Normal Change | Major Change |
 | Change | Normal Change | Major Change | Human Only |
 | Delete | Normal Change | Major Change | Human Only |
+
+## **9.4 Python Tools Registry Implementation**
+
+The RMACD Framework includes a reference Python implementation called the **Tools Registry** that enables automated tool governance for AI agents. This implementation provides a production-ready foundation for enforcing RMACD permissions at runtime.
+
+### Core Capabilities
+
+The Tools Registry provides:
+
+- **Tool Registration and Classification** — Register tools with their RMACD level, data classification requirements, and HITL controls
+- **Permission Validation** — Validate tool access against agent permission profiles before execution
+- **Risk Scoring** — Automatically calculate risk scores for individual tools and multi-tool workflows
+- **Audit Logging** — Track all tool registrations, access validations, and policy decisions
+- **MCP Integration** — Auto-classify Model Context Protocol (MCP) tools based on their operations
+
+### Risk Scoring Algorithm
+
+The registry calculates risk scores using a weighted formula that combines all three RMACD dimensions:
+
+```
+risk_score = (rmacd_risk × 0.6 + data_risk × 0.4) × hitl_modifier × 10
+
+Where:
+  - rmacd_risk: 0.0 (Read) to 1.0 (Delete)
+  - data_risk: 0.0 (Public) to 1.0 (Restricted)
+  - hitl_modifier: 0.0 (Prohibited) to 1.0 (Autonomous)
+```
+
+This produces a 0-10 scale where higher scores indicate greater operational risk.
+
+### Basic Usage
+
+```python
+from rmacd_tools_registry import ToolsRegistry, quick_register
+
+# Create a registry for your organization
+registry = ToolsRegistry("my-organization")
+
+# Register a tool with RMACD classification
+quick_register(
+    registry,
+    tool_id="database_query",
+    tool_name="Database Query",
+    rmacd_level="R",
+    description="Execute read-only database queries",
+    data_access="confidential",
+    required_hitl="logged"
+)
+
+# Validate agent access before execution
+is_allowed, reason = registry.validate_tool_access(
+    tool_id="database_query",
+    allowed_levels=["R", "M"],      # Agent's RMACD permissions
+    data_tier="confidential"         # Agent's data access tier
+)
+
+if is_allowed:
+    # Execute the tool
+    pass
+else:
+    # Deny access, log violation
+    print(f"Access denied: {reason}")
+```
+
+### Workflow Risk Assessment
+
+The registry can analyze multi-tool workflows to identify risk concentrations:
+
+```python
+# Define a deployment workflow
+workflow_tools = ["github_commit", "kubernetes_deploy", "slack_notify"]
+
+# Calculate aggregate risk
+risk_analysis = registry.calculate_workflow_risk(workflow_tools)
+
+print(f"Total Risk: {risk_analysis['total_risk']}/10")
+print(f"Highest RMACD Level: {risk_analysis['highest_rmacd']}")
+print(f"Highest Risk Tool: {risk_analysis['highest_risk_tool']}")
+```
+
+### Pre-Configured Tool Catalog
+
+The implementation includes 27 pre-configured tools across all RMACD levels:
+
+| RMACD Level | Example Tools | Count |
+|-------------|---------------|-------|
+| Read | web_search, database_query, metrics_monitor | 5 |
+| Move | file_move, github_transfer, container_relocate | 4 |
+| Add | file_create, kubernetes_deploy, slack_post | 6 |
+| Change | file_edit, github_commit, config_update | 6 |
+| Delete | file_delete, database_delete, s3_bucket_delete | 6 |
+
+### Standard Permission Profiles
+
+Five standard permission profiles map to common agent roles:
+
+| Profile | Permissions | Use Cases |
+|---------|-------------|-----------|
+| Observer | R | Monitoring, reporting, analytics |
+| Coordinator | R, M | File organization, data migration |
+| Contributor | R, M, A | Content creation, resource provisioning |
+| Developer | R, M, A, C | Development, configuration management |
+| Administrator | R, M, A, C, D | System administration, data cleanup |
+
+### Integration Points
+
+The Tools Registry integrates with agent platforms through:
+
+- **Direct API Calls** — Import the registry module and call validation functions
+- **JSON Export/Import** — Exchange tool catalogs between systems
+- **MCP Bridge** — Auto-classify MCP tools and manage agent permissions
+
+### File Location
+
+The complete implementation is available in the repository:
+
+```
+tools-registry/
+├── rmacd_tools_registry.py       # Core implementation
+├── example_usage.py              # Usage examples
+├── test_registry.py              # Test suite (43 tests)
+├── mcp_integration.py            # MCP auto-classification
+├── rmacd_tools_catalog.json      # Pre-configured tools
+├── rmacd_permission_profiles.json # Standard profiles
+└── README.md                     # Documentation
+```
 
 # **10. Regulatory Compliance Mapping**
 
@@ -924,7 +1050,7 @@ The agentic AI era demands that we reconsider how we govern operational permissi
 
 * * *
 
-*RMACD Framework v1.0*
+*RMACD Framework v1.2*
 *Conceived and authored by Kash, January 2026*
 *Released under Creative Commons Attribution 4.0 (CC BY 4.0)*
 

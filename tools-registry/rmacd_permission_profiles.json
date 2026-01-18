@@ -1,0 +1,79 @@
+{
+  "profiles": [
+    {
+      "profile_id": "observer",
+      "profile_name": "Observer (Read-Only)",
+      "permissions": [
+        "R"
+      ],
+      "description": "Can only observe and query, no modifications",
+      "use_cases": [
+        "Monitoring",
+        "Reporting",
+        "Analytics"
+      ]
+    },
+    {
+      "profile_id": "coordinator",
+      "profile_name": "Coordinator (R, M)",
+      "permissions": [
+        "R",
+        "M"
+      ],
+      "description": "Can read and reorganize, but not create or modify",
+      "use_cases": [
+        "File organization",
+        "Data migration",
+        "Workflow orchestration"
+      ]
+    },
+    {
+      "profile_id": "contributor",
+      "profile_name": "Contributor (R, M, A)",
+      "permissions": [
+        "R",
+        "M",
+        "A"
+      ],
+      "description": "Can read, move, and add new resources",
+      "use_cases": [
+        "Content creation",
+        "Deployment",
+        "Resource provisioning"
+      ]
+    },
+    {
+      "profile_id": "developer",
+      "profile_name": "Developer (R, M, A, C)",
+      "permissions": [
+        "R",
+        "M",
+        "A",
+        "C"
+      ],
+      "description": "Can read, move, add, and modify resources",
+      "use_cases": [
+        "Development",
+        "Configuration",
+        "System updates"
+      ]
+    },
+    {
+      "profile_id": "admin",
+      "profile_name": "Administrator (R, M, A, C, D)",
+      "permissions": [
+        "R",
+        "M",
+        "A",
+        "C",
+        "D"
+      ],
+      "description": "Full permissions including deletion",
+      "use_cases": [
+        "System administration",
+        "Data cleanup",
+        "Emergency response"
+      ]
+    }
+  ]
+}

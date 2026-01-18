@@ -5,6 +5,29 @@ All notable changes to the RMACD Framework will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2026-01-18
+
+### Added
+
+- **Python Tools Registry** — Reference implementation for automated tool governance
+  - Core registry with tool registration and RMACD classification
+  - Permission validation against agent profiles
+  - Risk scoring algorithm combining all three RMACD dimensions
+  - Audit logging for compliance tracking
+  - MCP (Model Context Protocol) auto-classification bridge
+  - 27 pre-configured tools across all RMACD levels
+  - 5 standard permission profiles (Observer, Coordinator, Contributor, Developer, Administrator)
+  - Comprehensive test suite (43 tests)
+  - JSON export/import for tool catalogs
+
+### Changed
+
+- Added Section 9.4 "Python Tools Registry Implementation" to framework specification
+- Updated implementation guide with tools-registry reference
+- Documentation links updated to reference tools-registry directory
+
+---
+
 ## [1.1.0] - 2026-01-13
 
 ### Added
@@ -119,20 +142,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Future Roadmap
 
-### Planned for v1.2
+### Planned for v1.3
 
-- Platform-specific integration guides (Kubernetes, AWS/Azure/GCP, LangChain)
-- Additional permission profile templates
-- Enhanced compliance mappings
+- Platform-specific integration guides (Kubernetes, AWS/Azure/GCP)
+- LangChain / AutoGen / CrewAI integration modules
+- GraphQL API for registry management
 
 ### Planned for v2.0
 
 - Multi-agent coordination patterns
 - Delegation and escalation workflows
-- Runtime policy evaluation SDK
+- Web UI for registry management
 
 ---
 
+[1.2.0]: https://github.com/rmacdframework/spec/releases/tag/v1.2.0
 [1.1.0]: https://github.com/rmacdframework/spec/releases/tag/v1.1.0
 [1.0.2]: https://github.com/rmacdframework/spec/releases/tag/v1.0.2
 [1.0.1]: https://github.com/rmacdframework/spec/releases/tag/v1.0.1

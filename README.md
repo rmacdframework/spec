@@ -3,7 +3,7 @@
 **ITIL for the Agentic Era**
 
 [![License: CC BY 4.0](https://img.shields.io/badge/License-CC_BY_4.0-lightgrey.svg)](https://creativecommons.org/licenses/by/4.0/)
-[![Version](https://img.shields.io/badge/version-1.1-blue.svg)](https://github.com/rmacdframework/spec/releases)
+[![Version](https://img.shields.io/badge/version-1.2-blue.svg)](https://github.com/rmacdframework/spec/releases)
 
 ---
 
@@ -62,11 +62,12 @@ RMACD answers the fundamental governance question: *"What can this agent do, to 
 
 ## Documentation
 
-- [Full Specification (Markdown)](docs/RMACD_Framework_v1.1.md) — Recommended for reading on GitHub
-- [Full Specification (Word)](docs/RMACD_Framework_v1.1.docx) — Original document format
+- [Full Specification (Markdown)](docs/RMACD_Framework_v1.2.md) — Recommended for reading on GitHub
+- [Full Specification (Word)](docs/RMACD_Framework_v1.2.docx) — Original document format
 - [Framework Diagram (PNG)](docs/RMACD_Framework_Diagram.drawio.png) — Visual overview
 - [Framework Diagram (draw.io)](docs/RMACD_Framework_Diagram.drawio) — Editable source
 - [Implementation Guide](docs/implementation.md)
+- [Python Tools Registry](tools-registry/) — Reference implementation
 - [JSON Schema Templates](schemas/)
 - [Website](https://rmacd-framework.org)
 
@@ -120,7 +121,7 @@ If you use the RMACD Framework in your work, please cite:
   title = {RMACD: AI Agent Governance Framework},
   year = {2026},
   url = {https://rmacd-framework.org},
-  note = {Version 1.1}
+  note = {Version 1.2}
 }
 ```
 

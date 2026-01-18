@@ -81,6 +81,32 @@ Ongoing operations:
 
 ---
 
+## Python Tools Registry
+
+A reference Python implementation is available in the `tools-registry/` directory:
+
+```bash
+tools-registry/
+├── rmacd_tools_registry.py       # Core implementation (750+ lines)
+├── example_usage.py              # Usage examples with 27 pre-configured tools
+├── test_registry.py              # Test suite (43 tests)
+├── mcp_integration.py            # MCP auto-classification bridge
+├── rmacd_tools_catalog.json      # Pre-configured tool catalog
+├── rmacd_permission_profiles.json # Standard permission profiles
+└── README.md                     # Detailed documentation
+```
+
+Key features:
+- Tool registration with RMACD classification
+- Permission validation against agent profiles
+- Risk scoring for tools and workflows
+- Audit logging for compliance
+- MCP tool auto-classification
+
+See `tools-registry/README.md` for detailed usage instructions.
+
+---
+
 ## Platform-Specific Guides
 
 *Coming soon:*

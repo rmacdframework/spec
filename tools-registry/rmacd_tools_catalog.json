@@ -1,0 +1,588 @@
+{
+  "registry_id": "comprehensive-v1",
+  "version": "1.0.0",
+  "exported_at": "2026-01-18T05:27:10.146330",
+  "tool_count": 27,
+  "tools": [
+    {
+      "tool_id": "web_search",
+      "tool_name": "Web Search",
+      "rmacd_level": "R",
+      "rmacd_description": "Observe, query, analyze — no state change",
+      "description": "Search the web for information",
+      "operations": [
+        "query",
+        "search",
+        "retrieve"
+      ],
+      "data_access": "public",
+      "required_hitl": "auto",
+      "risk_score": 0.0,
+      "tags": [
+        "search",
+        "web",
+        "information"
+      ],
+      "metadata": {},
+      "created_at": "2026-01-18T05:27:10.142384"
+    },
+    {
+      "tool_id": "file_view",
+      "tool_name": "File Viewer",
+      "rmacd_level": "R",
+      "rmacd_description": "Observe, query, analyze — no state change",
+      "description": "View file contents without modification",
+      "operations": [
+        "read",
+        "display",
+        "preview"
+      ],
+      "data_access": "internal",
+      "required_hitl": "logged",
+      "risk_score": 1.06,
+      "tags": [
+        "view",
+        "read",
+        "file"
+      ],
+      "metadata": {},
+      "created_at": "2026-01-18T05:27:10.142539"
+    },
+    {
+      "tool_id": "database_query",
+      "tool_name": "Database Query (Read-Only)",
+      "rmacd_level": "R",
+      "rmacd_description": "Observe, query, analyze — no state change",
+      "description": "Execute SELECT queries on database",
+      "operations": [
+        "select",
+        "query",
+        "analyze"
+      ],
+      "data_access": "confidential",
+      "required_hitl": "logged",
+      "risk_score": 2.14,
+      "tags": [
+        "database",
+        "analytics",
+        "query"
+      ],
+      "metadata": {},
+      "created_at": "2026-01-18T05:27:10.142658"
+    },
+    {
+      "tool_id": "slack_read",
+      "tool_name": "Slack Message Reader",
+      "rmacd_level": "R",
+      "rmacd_description": "Observe, query, analyze — no state change",
+      "description": "Read Slack messages and channels",
+      "operations": [
+        "read_messages",
+        "search_messages"
+      ],
+      "data_access": "internal",
+      "required_hitl": "logged",
+      "risk_score": 1.06,
+      "tags": [
+        "slack",
+        "read",
+        "communication"
+      ],
+      "metadata": {},
+      "created_at": "2026-01-18T05:27:10.142740"
+    },
+    {
+      "tool_id": "metrics_monitor",
+      "tool_name": "System Metrics Monitor",
+      "rmacd_level": "R",
+      "rmacd_description": "Observe, query, analyze — no state change",
+      "description": "Monitor system performance and health",
+      "operations": [
+        "monitor",
+        "observe",
+        "analyze"
+      ],
+      "data_access": "internal",
+      "required_hitl": "auto",
+      "risk_score": 1.32,
+      "tags": [
+        "metrics",
+        "monitoring",
+        "observability"
+      ],
+      "metadata": {},
+      "created_at": "2026-01-18T05:27:10.142825"
+    },
+    {
+      "tool_id": "file_move",
+      "tool_name": "File Mover",
+      "rmacd_level": "M",
+      "rmacd_description": "Relocate, transfer — reversible",
+      "description": "Move or rename files between locations",
+      "operations": [
+        "move",
+        "rename",
+        "relocate"
+      ],
+      "data_access": "internal",
+      "required_hitl": "notify",
+      "risk_score": 1.69,
+      "tags": [
+        "organize",
+        "move",
+        "file"
+      ],
+      "metadata": {},
+      "created_at": "2026-01-18T05:27:10.142911"
+    },
+    {
+      "tool_id": "github_transfer",
+      "tool_name": "GitHub Repository Transfer",
+      "rmacd_level": "M",
+      "rmacd_description": "Relocate, transfer — reversible",
+      "description": "Transfer repositories between organizations",
+      "operations": [
+        "transfer",
+        "migrate"
+      ],
+      "data_access": "internal",
+      "required_hitl": "approve",
+      "risk_score": 1.13,
+      "tags": [
+        "repository",
+        "github",
+        "transfer"
+      ],
+      "metadata": {},
+      "created_at": "2026-01-18T05:27:10.142999"
+    },
+    {
+      "tool_id": "email_forward",
+      "tool_name": "Email Forwarder",
+      "rmacd_level": "M",
+      "rmacd_description": "Relocate, transfer — reversible",
+      "description": "Forward emails to different addresses",
+      "operations": [
+        "forward",
+        "redirect"
+      ],
+      "data_access": "confidential",
+      "required_hitl": "notify",
+      "risk_score": 2.51,
+      "tags": [
+        "email",
+        "communication",
+        "forward"
+      ],
+      "metadata": {},
+      "created_at": "2026-01-18T05:27:10.143065"
+    },
+    {
+      "tool_id": "container_relocate",
+      "tool_name": "Container Relocator",
+      "rmacd_level": "M",
+      "rmacd_description": "Relocate, transfer — reversible",
+      "description": "Move containers between clusters",
+      "operations": [
+        "migrate",
+        "relocate"
+      ],
+      "data_access": "internal",
+      "required_hitl": "approve",
+      "risk_score": 1.13,
+      "tags": [
+        "kubernetes",
+        "container",
+        "migration"
+      ],
+      "metadata": {},
+      "created_at": "2026-01-18T05:27:10.143137"
+    },
+    {
+      "tool_id": "file_create",
+      "tool_name": "File Creator",
+      "rmacd_level": "A",
+      "rmacd_description": "Create, provision — additive impact",
+      "description": "Create new files with content",
+      "operations": [
+        "create",
+        "write",
+        "generate"
+      ],
+      "data_access": "internal",
+      "required_hitl": "notify",
+      "risk_score": 2.59,
+      "tags": [
+        "create",
+        "file",
+        "write"
+      ],
+      "metadata": {},
+      "created_at": "2026-01-18T05:27:10.143251"
+    },
+    {
+      "tool_id": "github_create_repo",
+      "tool_name": "GitHub Repository Creator",
+      "rmacd_level": "A",
+      "rmacd_description": "Create, provision — additive impact",
+      "description": "Create new GitHub repositories",
+      "operations": [
+        "create_repository",
+        "initialize"
+      ],
+      "data_access": "internal",
+      "required_hitl": "approve",
+      "risk_score": 1.73,
+      "tags": [
+        "repository",
+        "create",
+        "github"
+      ],
+      "metadata": {},
+      "created_at": "2026-01-18T05:27:10.143324"
+    },
+    {
+      "tool_id": "database_insert",
+      "tool_name": "Database Record Creator",
+      "rmacd_level": "A",
+      "rmacd_description": "Create, provision — additive impact",
+      "description": "Insert new records into database",
+      "operations": [
+        "insert",
+        "create"
+      ],
+      "data_access": "confidential",
+      "required_hitl": "approve",
+      "risk_score": 2.27,
+      "tags": [
+        "database",
+        "insert",
+        "create"
+      ],
+      "metadata": {},
+      "created_at": "2026-01-18T05:27:10.143398"
+    },
+    {
+      "tool_id": "slack_post",
+      "tool_name": "Slack Message Poster",
+      "rmacd_level": "A",
+      "rmacd_description": "Create, provision — additive impact",
+      "description": "Post messages to Slack channels",
+      "operations": [
+        "post",
+        "send",
+        "publish"
+      ],
+      "data_access": "internal",
+      "required_hitl": "notify",
+      "risk_score": 2.59,
+      "tags": [
+        "slack",
+        "message",
+        "post"
+      ],
+      "metadata": {},
+      "created_at": "2026-01-18T05:27:10.143475"
+    },
+    {
+      "tool_id": "kubernetes_deploy",
+      "tool_name": "Kubernetes Deployment",
+      "rmacd_level": "A",
+      "rmacd_description": "Create, provision — additive impact",
+      "description": "Deploy new applications to Kubernetes",
+      "operations": [
+        "deploy",
+        "provision",
+        "create"
+      ],
+      "data_access": "internal",
+      "required_hitl": "approve",
+      "risk_score": 1.73,
+      "tags": [
+        "kubernetes",
+        "deploy",
+        "provision"
+      ],
+      "metadata": {},
+      "created_at": "2026-01-18T05:27:10.143546"
+    },
+    {
+      "tool_id": "aws_s3_upload",
+      "tool_name": "AWS S3 Uploader",
+      "rmacd_level": "A",
+      "rmacd_description": "Create, provision — additive impact",
+      "description": "Upload files to S3 buckets",
+      "operations": [
+        "upload",
+        "store"
+      ],
+      "data_access": "confidential",
+      "required_hitl": "logged",
+      "risk_score": 4.54,
+      "tags": [
+        "s3",
+        "upload",
+        "aws"
+      ],
+      "metadata": {},
+      "created_at": "2026-01-18T05:27:10.143613"
+    },
+    {
+      "tool_id": "file_edit",
+      "tool_name": "File Editor",
+      "rmacd_level": "C",
+      "rmacd_description": "Modify, update — state mutation",
+      "description": "Modify existing file contents",
+      "operations": [
+        "edit",
+        "modify",
+        "update"
+      ],
+      "data_access": "confidential",
+      "required_hitl": "approve",
+      "risk_score": 2.87,
+      "tags": [
+        "modify",
+        "file",
+        "edit"
+      ],
+      "metadata": {},
+      "created_at": "2026-01-18T05:27:10.143713"
+    },
+    {
+      "tool_id": "github_commit",
+      "tool_name": "GitHub Commit Creator",
+      "rmacd_level": "C",
+      "rmacd_description": "Modify, update — state mutation",
+      "description": "Commit changes to GitHub repositories",
+      "operations": [
+        "commit",
+        "push",
+        "modify"
+      ],
+      "data_access": "internal",
+      "required_hitl": "approve",
+      "risk_score": 2.33,
+      "tags": [
+        "commit",
+        "modify",
+        "github"
+      ],
+      "metadata": {},
+      "created_at": "2026-01-18T05:27:10.143806"
+    },
+    {
+      "tool_id": "database_update",
+      "tool_name": "Database Record Updater",
+      "rmacd_level": "C",
+      "rmacd_description": "Modify, update — state mutation",
+      "description": "Update existing database records",
+      "operations": [
+        "update",
+        "modify"
+      ],
+      "data_access": "confidential",
+      "required_hitl": "elevated",
+      "risk_score": 1.44,
+      "tags": [
+        "database",
+        "modify",
+        "update"
+      ],
+      "metadata": {},
+      "created_at": "2026-01-18T05:27:10.143875"
+    },
+    {
+      "tool_id": "user_permission_modify",
+      "tool_name": "User Permission Manager",
+      "rmacd_level": "C",
+      "rmacd_description": "Modify, update — state mutation",
+      "description": "Modify user access permissions",
+      "operations": [
+        "grant",
+        "revoke",
+        "modify"
+      ],
+      "data_access": "restricted",
+      "required_hitl": "elevated",
+      "risk_score": 1.7,
+      "tags": [
+        "security",
+        "access",
+        "permissions"
+      ],
+      "metadata": {},
+      "created_at": "2026-01-18T05:27:10.143942"
+    },
+    {
+      "tool_id": "config_update",
+      "tool_name": "Configuration Updater",
+      "rmacd_level": "C",
+      "rmacd_description": "Modify, update — state mutation",
+      "description": "Update system configuration files",
+      "operations": [
+        "update",
+        "reconfigure"
+      ],
+      "data_access": "internal",
+      "required_hitl": "approve",
+      "risk_score": 2.33,
+      "tags": [
+        "config",
+        "system",
+        "update"
+      ],
+      "metadata": {},
+      "created_at": "2026-01-18T05:27:10.144019"
+    },
+    {
+      "tool_id": "dns_record_modify",
+      "tool_name": "DNS Record Manager",
+      "rmacd_level": "C",
+      "rmacd_description": "Modify, update — state mutation",
+      "description": "Modify DNS records and zones",
+      "operations": [
+        "update",
+        "modify"
+      ],
+      "data_access": "internal",
+      "required_hitl": "elevated",
+      "risk_score": 1.16,
+      "tags": [
+        "modify",
+        "network",
+        "dns"
+      ],
+      "metadata": {},
+      "created_at": "2026-01-18T05:27:10.144086"
+    },
+    {
+      "tool_id": "file_delete",
+      "tool_name": "File Deleter",
+      "rmacd_level": "D",
+      "rmacd_description": "Remove, destroy — potentially irreversible",
+      "description": "Permanently delete files",
+      "operations": [
+        "delete",
+        "remove",
+        "destroy"
+      ],
+      "data_access": "confidential",
+      "required_hitl": "elevated",
+      "risk_score": 1.74,
+      "tags": [
+        "destroy",
+        "file",
+        "delete"
+      ],
+      "metadata": {},
+      "created_at": "2026-01-18T05:27:10.144162"
+    },
+    {
+      "tool_id": "github_delete_repo",
+      "tool_name": "GitHub Repository Deleter",
+      "rmacd_level": "D",
+      "rmacd_description": "Remove, destroy — potentially irreversible",
+      "description": "Delete GitHub repositories permanently",
+      "operations": [
+        "delete",
+        "destroy"
+      ],
+      "data_access": "internal",
+      "required_hitl": "elevated",
+      "risk_score": 1.46,
+      "tags": [
+        "destroy",
+        "github",
+        "delete"
+      ],
+      "metadata": {},
+      "created_at": "2026-01-18T05:27:10.144231"
+    },
+    {
+      "tool_id": "database_delete",
+      "tool_name": "Database Record Deleter",
+      "rmacd_level": "D",
+      "rmacd_description": "Remove, destroy — potentially irreversible",
+      "description": "Delete records from database",
+      "operations": [
+        "delete",
+        "remove"
+      ],
+      "data_access": "restricted",
+      "required_hitl": "prohibited",
+      "risk_score": 0.0,
+      "tags": [
+        "database",
+        "remove",
+        "delete"
+      ],
+      "metadata": {},
+      "created_at": "2026-01-18T05:27:10.144327"
+    },
+    {
+      "tool_id": "user_account_delete",
+      "tool_name": "User Account Deleter",
+      "rmacd_level": "D",
+      "rmacd_description": "Remove, destroy — potentially irreversible",
+      "description": "Delete user accounts and data",
+      "operations": [
+        "delete",
+        "deactivate",
+        "purge"
+      ],
+      "data_access": "restricted",
+      "required_hitl": "prohibited",
+      "risk_score": 0.0,
+      "tags": [
+        "user",
+        "security",
+        "delete"
+      ],
+      "metadata": {},
+      "created_at": "2026-01-18T05:27:10.144401"
+    },
+    {
+      "tool_id": "s3_bucket_delete",
+      "tool_name": "S3 Bucket Deleter",
+      "rmacd_level": "D",
+      "rmacd_description": "Remove, destroy — potentially irreversible",
+      "description": "Delete S3 buckets and all contents",
+      "operations": [
+        "delete",
+        "purge"
+      ],
+      "data_access": "confidential",
+      "required_hitl": "elevated",
+      "risk_score": 1.74,
+      "tags": [
+        "s3",
+        "aws",
+        "delete"
+      ],
+      "metadata": {},
+      "created_at": "2026-01-18T05:27:10.144478"
+    },
+    {
+      "tool_id": "kubernetes_delete",
+      "tool_name": "Kubernetes Resource Deleter",
+      "rmacd_level": "D",
+      "rmacd_description": "Remove, destroy — potentially irreversible",
+      "description": "Delete Kubernetes deployments and resources",
+      "operations": [
+        "delete",
+        "destroy"
+      ],
+      "data_access": "internal",
+      "required_hitl": "elevated",
+      "risk_score": 1.46,
+      "tags": [
+        "destroy",
+        "kubernetes",
+        "delete"
+      ],
+      "metadata": {},
+      "created_at": "2026-01-18T05:27:10.144543"
+    }
+  ]
+}
