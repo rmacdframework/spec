@@ -5,6 +5,10 @@
 [![License: CC BY 4.0](https://img.shields.io/badge/License-CC_BY_4.0-lightgrey.svg)](https://creativecommons.org/licenses/by/4.0/)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 
+> **Note:** This functionality is now integrated into the [RMACD Python SDK](../sdk/python/).
+> For new projects, use `from rmacd.registry import ToolsRegistry` after installing the SDK.
+> This standalone version remains for reference and backward compatibility.
+
 ---
 
 ## Overview

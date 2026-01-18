@@ -133,6 +133,88 @@ rmacd matrix profiles/devops.json
 rmacd matrix profiles/devops.json --json
 ```
 
+## Tools Registry
+
+The SDK includes a Tools Registry for managing and validating AI agent tool access.
+
+### Creating a Registry
+
+```python
+from rmacd.registry import ToolsRegistry, quick_register
+
+# Create registry
+registry = ToolsRegistry("my-organization")
+
+# Register tools
+quick_register(
+    registry,
+    tool_id="database_query",
+    tool_name="Database Query",
+    rmacd_level="R",
+    description="Execute read-only database queries",
+    data_access="confidential",
+    required_hitl="logged"
+)
+
+# Validate agent access
+is_allowed, reason = registry.validate_tool_access(
+    tool_id="database_query",
+    allowed_levels=["R", "M"],
+    data_tier="confidential"
+)
+
+print(f"Allowed: {is_allowed} - {reason}")
+```
+
+### Risk Assessment
+
+```python
+# Calculate workflow risk
+workflow_tools = ["github_commit", "kubernetes_deploy", "slack_notify"]
+risk = registry.calculate_workflow_risk(workflow_tools)
+
+print(f"Total Risk: {risk['total_risk']}/10")
+print(f"Highest RMACD: {risk['highest_rmacd']}")
+```
+
+### MCP Integration
+
+```python
+from rmacd.registry import MCPTool, MCPRegistryBridge
+
+# Create MCP bridge
+bridge = MCPRegistryBridge("mcp-demo")
+
+# Register MCP tool with auto-classification
+mcp_tool = MCPTool(
+    name="filesystem-read",
+    description="Read files from the filesystem",
+    inputSchema={"type": "object", "properties": {"path": {"type": "string"}}},
+    operations=["read", "list"]
+)
+bridge.register_mcp_tool(mcp_tool)
+
+# Check agent access
+allowed, reason = bridge.can_agent_use_tool(
+    "filesystem-read",
+    agent_permissions=["R", "M"],
+    agent_data_tier="internal"
+)
+```
+
+### Export/Import
+
+```python
+# Export registry to JSON
+registry.export_to_json("tools_catalog.json")
+
+# Import tools from JSON
+new_registry = ToolsRegistry("imported")
+new_registry.import_from_json("tools_catalog.json")
+```
+
+---
+
 ## Models
 
 ### Profile Types
