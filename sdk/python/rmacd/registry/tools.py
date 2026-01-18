@@ -5,7 +5,7 @@ RMACD Tools Registry - Core Implementation
 Tool registration, validation, and risk assessment for AI agent governance.
 
 Author: Kash Kashyap
-License: Apache-2.0
+License: CC BY 4.0
 """
 
 from dataclasses import dataclass, field

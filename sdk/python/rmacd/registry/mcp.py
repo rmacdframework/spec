@@ -5,7 +5,7 @@ RMACD Tools Registry - MCP Integration
 Integration with Model Context Protocol (MCP) for AI agent governance.
 
 Author: Kash Kashyap
-License: Apache-2.0
+License: CC BY 4.0
 """
 
 from dataclasses import dataclass, field
