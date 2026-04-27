@@ -85,6 +85,53 @@ class TestPolicyEvaluator3D:
         assert decision.autonomy_level == AutonomyLevel.NOTIFICATION
         assert decision.requires_notification is True
 
+    def test_default_autonomy_matrix_matches_spec(self, basic_3d_profile: Profile3D) -> None:
+        """Verify the default autonomy matrix matches the RMACD governance matrix in the spec."""
+        profile = Profile3D(
+            profile_id="rmacd-3d-full-v1",
+            profile_name="Full",
+            model="three-dimensional",
+            version="1.0",
+            permissions={
+                DataClassification.PUBLIC: [Operation.READ, Operation.MOVE, Operation.ADD, Operation.CHANGE, Operation.DELETE],
+                DataClassification.INTERNAL: [Operation.READ, Operation.MOVE, Operation.ADD, Operation.CHANGE, Operation.DELETE],
+                DataClassification.CONFIDENTIAL: [Operation.READ, Operation.MOVE, Operation.ADD, Operation.CHANGE, Operation.DELETE],
+                DataClassification.RESTRICTED: [Operation.READ, Operation.MOVE, Operation.ADD, Operation.CHANGE, Operation.DELETE],
+            },
+        )
+        evaluator = PolicyEvaluator(profile)
+
+        expected = {
+            # (classification, operation): autonomy_level
+            ("public", "R"): AutonomyLevel.AUTONOMOUS,
+            ("public", "M"): AutonomyLevel.AUTONOMOUS,
+            ("public", "A"): AutonomyLevel.NOTIFICATION,
+            ("public", "C"): AutonomyLevel.APPROVAL,
+            ("public", "D"): AutonomyLevel.APPROVAL,
+            ("internal", "R"): AutonomyLevel.AUTONOMOUS,
+            ("internal", "M"): AutonomyLevel.NOTIFICATION,
+            ("internal", "A"): AutonomyLevel.APPROVAL,
+            ("internal", "C"): AutonomyLevel.APPROVAL,
+            ("internal", "D"): AutonomyLevel.ELEVATED_APPROVAL,
+            ("confidential", "R"): AutonomyLevel.LOGGED,
+            ("confidential", "M"): AutonomyLevel.APPROVAL,
+            ("confidential", "A"): AutonomyLevel.ELEVATED_APPROVAL,
+            ("confidential", "C"): AutonomyLevel.ELEVATED_APPROVAL,
+            ("confidential", "D"): AutonomyLevel.ELEVATED_APPROVAL,
+            ("restricted", "R"): AutonomyLevel.NOTIFICATION,
+            ("restricted", "M"): AutonomyLevel.ELEVATED_APPROVAL,
+            ("restricted", "A"): AutonomyLevel.PROHIBITED,
+            ("restricted", "C"): AutonomyLevel.PROHIBITED,
+            ("restricted", "D"): AutonomyLevel.PROHIBITED,
+        }
+
+        for (classification, operation), expected_level in expected.items():
+            decision = evaluator.evaluate(operation, classification)
+            assert decision.autonomy_level == expected_level, (
+                f"{classification}.{operation}: expected {expected_level.value}, "
+                f"got {decision.autonomy_level.value}"
+            )
+
     def test_autonomy_override(self) -> None:
         """Test that autonomy overrides are respected."""
         profile = Profile3D(

@@ -1083,9 +1083,10 @@ Each permission profile follows a standardized schema that defines the agent's o
 
 ```json
 {
-  "$schema": "https://rmacd.io/schema/v1/profile.json",
-  "profile_id": "string",
+  "$schema": "https://rmacd-framework.org/schema/v1/profile-3d.json",
+  "profile_id": "rmacd-3d-<name>-v1",
   "profile_name": "string",
+  "model": "three-dimensional",
   "version": "1.0",
   "description": "string",
   "permissions": {
@@ -1117,9 +1118,10 @@ Read-only access across all data classifications. Ideal for monitoring, complian
 
 ```json
 {
-  "$schema": "https://rmacd.io/schema/v1/profile.json",
-  "profile_id": "rmacd-observer-v1",
+  "$schema": "https://rmacd-framework.org/schema/v1/profile-3d.json",
+  "profile_id": "rmacd-3d-observer-v1",
   "profile_name": "Observer",
+  "model": "three-dimensional",
   "version": "1.0",
   "description": "Read-only monitoring and analysis agent",
   "permissions": {
@@ -1153,9 +1155,10 @@ Read and Move permissions for data transfer and workload balancing operations.
 
 ```json
 {
-  "$schema": "https://rmacd.io/schema/v1/profile.json",
-  "profile_id": "rmacd-logistics-v1",
+  "$schema": "https://rmacd-framework.org/schema/v1/profile-3d.json",
+  "profile_id": "rmacd-3d-logistics-v1",
   "profile_name": "Logistics",
+  "model": "three-dimensional",
   "version": "1.0",
   "description": "Data transfer and workload balancing agent",
   "permissions": {
@@ -1195,9 +1198,10 @@ Read, Move, and Add permissions for resource provisioning and deployment operati
 
 ```json
 {
-  "$schema": "https://rmacd.io/schema/v1/profile.json",
-  "profile_id": "rmacd-provisioning-v1",
+  "$schema": "https://rmacd-framework.org/schema/v1/profile-3d.json",
+  "profile_id": "rmacd-3d-provisioning-v1",
   "profile_name": "Provisioning",
+  "model": "three-dimensional",
   "version": "1.0",
   "description": "Resource provisioning and deployment agent",
   "permissions": {
@@ -1239,9 +1243,10 @@ Full operational capabilities except Delete for production change management.
 
 ```json
 {
-  "$schema": "https://rmacd.io/schema/v1/profile.json",
-  "profile_id": "rmacd-operations-v1",
+  "$schema": "https://rmacd-framework.org/schema/v1/profile-3d.json",
+  "profile_id": "rmacd-3d-operations-v1",
   "profile_name": "Operations",
+  "model": "three-dimensional",
   "version": "1.0",
   "description": "Production operations and change management agent",
   "permissions": {
@@ -1286,9 +1291,10 @@ Maximum agent permissions with appropriate controls. Note: Restricted data C/D r
 
 ```json
 {
-  "$schema": "https://rmacd.io/schema/v1/profile.json",
-  "profile_id": "rmacd-administrator-v1",
+  "$schema": "https://rmacd-framework.org/schema/v1/profile-3d.json",
+  "profile_id": "rmacd-3d-administrator-v1",
   "profile_name": "Administrator",
+  "model": "three-dimensional",
   "version": "1.0",
   "description": "Full administrative agent with maximum permissions",
   "permissions": {
@@ -1331,9 +1337,10 @@ Specialized profile for security incident response with pre-authorized emergency
 
 ```json
 {
-  "$schema": "https://rmacd.io/schema/v1/profile.json",
-  "profile_id": "rmacd-security-ir-v1",
+  "$schema": "https://rmacd-framework.org/schema/v1/profile-3d.json",
+  "profile_id": "rmacd-3d-security-ir-v1",
   "profile_name": "Security Incident Response",
+  "model": "three-dimensional",
   "version": "1.0",
   "description": "Emergency response agent for security incidents",
   "permissions": {
@@ -1486,7 +1493,7 @@ When operations require human approval, RMACD integrates with existing workflow 
   "approval_request": {
     "request_id": "apr-20260110-001",
     "agent_id": "devops-agent-001",
-    "profile_id": "rmacd-operations-v1",
+    "profile_id": "rmacd-3d-operations-v1",
     "operation": {
       "type": "CHANGE",
       "target": "config://prod/app-server-01/nginx.conf",
@@ -1518,7 +1525,7 @@ All policy decisions and agent operations generate structured audit logs for com
     "record_id": "aud-20260110-143022-001",
     "timestamp": "2026-01-10T14:30:22.456Z",
     "agent_id": "devops-agent-001",
-    "profile_id": "rmacd-operations-v1",
+    "profile_id": "rmacd-3d-operations-v1",
     "operation": {
       "type": "CHANGE",
       "target": "config://prod/app-server-01/nginx.conf",

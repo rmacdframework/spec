@@ -163,7 +163,10 @@ class DeleteControls(BaseModel):
     soft_delete_grace_period_days: int = Field(default=7, ge=1, le=365)
     require_dependency_check: bool = Field(default=True)
     require_legal_hold_check: bool = Field(default=True)
-    retention_compliance_check: bool = Field(default=False)
+    two_person_rule_for_confidential: bool = Field(
+        default=True, description="Require two approvers for Confidential data deletion"
+    )
+    retention_compliance_check: bool = Field(default=True)
 
 
 class ResourceQuotas(BaseModel):

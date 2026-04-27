@@ -21,27 +21,27 @@ from rmacd.models import (
 DEFAULT_AUTONOMY_3D: dict[str, dict[str, AutonomyLevel]] = {
     "public": {
         "R": AutonomyLevel.AUTONOMOUS,
-        "M": AutonomyLevel.LOGGED,
+        "M": AutonomyLevel.AUTONOMOUS,
         "A": AutonomyLevel.NOTIFICATION,
-        "C": AutonomyLevel.NOTIFICATION,
+        "C": AutonomyLevel.APPROVAL,
         "D": AutonomyLevel.APPROVAL,
     },
     "internal": {
-        "R": AutonomyLevel.LOGGED,
+        "R": AutonomyLevel.AUTONOMOUS,
         "M": AutonomyLevel.NOTIFICATION,
         "A": AutonomyLevel.APPROVAL,
         "C": AutonomyLevel.APPROVAL,
         "D": AutonomyLevel.ELEVATED_APPROVAL,
     },
     "confidential": {
-        "R": AutonomyLevel.NOTIFICATION,
+        "R": AutonomyLevel.LOGGED,
         "M": AutonomyLevel.APPROVAL,
         "A": AutonomyLevel.ELEVATED_APPROVAL,
         "C": AutonomyLevel.ELEVATED_APPROVAL,
-        "D": AutonomyLevel.PROHIBITED,
+        "D": AutonomyLevel.ELEVATED_APPROVAL,
     },
     "restricted": {
-        "R": AutonomyLevel.APPROVAL,
+        "R": AutonomyLevel.NOTIFICATION,
         "M": AutonomyLevel.ELEVATED_APPROVAL,
         "A": AutonomyLevel.PROHIBITED,
         "C": AutonomyLevel.PROHIBITED,
