@@ -51,7 +51,7 @@ from rmacd.evaluator import PolicyEvaluator
 from rmacd.loader import ProfileLoader
 from rmacd.validator import ProfileValidator
 
-__version__ = "0.2.0"
+__version__ = "0.2.1"
 __all__ = [
     "AutonomyLevel",
     "DataClassification",

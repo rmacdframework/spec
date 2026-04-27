@@ -5,6 +5,24 @@ All notable changes to the RMACD Framework will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.1] - 2026-04-27
+
+### Fixed
+
+- **Governance matrix bug** — `DEFAULT_AUTONOMY_3D` in Python SDK `evaluator.py` did not match the
+  specification matrix; corrected six cells: `public.M`, `public.C`, `internal.R`,
+  `confidential.R`, `confidential.D`, and `restricted.R`
+- **Python SDK `DeleteControls` model** — Added missing `two_person_rule_for_confidential` field
+  and corrected `retention_compliance_check` default (`false` → `true`) to match JSON schema
+- **CLI version string** — Hardcoded `0.1.0` in `cli.py` updated to `0.2.1`
+- **Appendix B profile schemas** — Fixed wrong domain (`rmacd.io` → `rmacd-framework.org`),
+  missing `"model": "three-dimensional"` field, and missing `rmacd-3d-` ID prefix across all
+  six example profiles; runtime example records in Appendix C updated to match
+- **Test coverage** — Added `test_default_autonomy_matrix_matches_spec` covering all 20 cells
+  of the governance matrix
+
+---
+
 ## [1.2.0] - 2026-01-18
 
 ### Added
@@ -156,6 +174,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+[1.2.1]: https://github.com/rmacdframework/spec/releases/tag/v1.2.1
 [1.2.0]: https://github.com/rmacdframework/spec/releases/tag/v1.2.0
 [1.1.0]: https://github.com/rmacdframework/spec/releases/tag/v1.1.0
 [1.0.2]: https://github.com/rmacdframework/spec/releases/tag/v1.0.2

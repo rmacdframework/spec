@@ -8,10 +8,11 @@ for Governing Autonomous AI Agents in Enterprise IT Operations
 
 *Extending ITIL's MACD Heritage to the Agentic AI Era*
 
-Version 1.2 | January 2026
+Version 1.2.1 | April 2026
 **Author: Kash Kashyap**
 
 *Version 1.2 Update: Added Python Tools Registry reference implementation for automated tool governance.*
+*Version 1.2.1 Update: Corrected governance matrix defaults in SDK, fixed Appendix B profile schemas.*
 
 # **Abstract**
 
@@ -1050,7 +1051,7 @@ The agentic AI era demands that we reconsider how we govern operational permissi
 
 * * *
 
-*RMACD Framework v1.2*
+*RMACD Framework v1.2.1*
 *Conceived and authored by Kash, January 2026*
 *Released under Creative Commons Attribution 4.0 (CC BY 4.0)*
 
