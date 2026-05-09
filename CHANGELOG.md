@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.3.0] - 2026-05-09
 
+### SDK 0.3.1 amendment (2026-05-09, packaging only)
+
+- **Distribution name renamed**: `rmacd` → `rmacd-framework` on PyPI. The import name is
+  unchanged (`from rmacd import ...`), so existing code is unaffected. Aligns with the
+  GitHub org (`rmacdframework`), the website (`rmacd-framework.org`), and the citation
+  key. Done before first PyPI publish to avoid post-release deprecation shims.
+- **SDK version** bumped `0.3.0` → `0.3.1` (no functional code changes).
+- **`publish-sdk.yml` CVE audit step** fixed earlier the same day to audit declared
+  dependencies via `uv export` rather than the live environment, which prevented
+  first-publish on a never-yet-on-PyPI package.
+
+
+
 ### Added
 
 - **Data-Classification Two-Dimensional variant (DC2D)** — A second 2D projection of the

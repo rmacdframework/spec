@@ -9,14 +9,19 @@ Reference implementation for the RMACD (Read, Move, Add, Change, Delete) Framewo
 ## Installation
 
 ```bash
-# From source
+# From PyPI
+pip install rmacd-framework
+
+# Or from source
 git clone https://github.com/rmacdframework/spec.git
 cd spec/sdk/python
 pip install -e .
 
 # Or using uv
-uv pip install -e .
+uv pip install rmacd-framework
 ```
+
+The distribution name on PyPI is `rmacd-framework`; the import name remains `rmacd` (`from rmacd import ...`).
 
 ## Quick Start
 
