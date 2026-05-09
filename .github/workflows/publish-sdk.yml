@@ -22,7 +22,12 @@ jobs:
         run: uv sync
 
       - name: CVE audit
-        run: uv run --with pip-audit pip-audit --strict
+        # Audit declared dependencies only, not the rmacd package itself.
+        # Auditing the live environment with --strict fails on first publish,
+        # since the package being released isn't on PyPI yet.
+        run: |
+          uv export --format requirements-txt --no-dev --no-emit-project > /tmp/audit-reqs.txt
+          uv run --with pip-audit pip-audit -r /tmp/audit-reqs.txt --strict
 
       - name: Static analysis
         run: uv run --with bandit bandit -r rmacd/ -ll
