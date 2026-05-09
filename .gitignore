@@ -9,3 +9,6 @@ htmlcov/
 
 # uv lockfile
 uv.lock
+
+# Personal scratch / operational notes
+todo.md
