@@ -5,12 +5,16 @@ import pytest
 from rmacd.evaluator import PolicyEvaluator
 from rmacd.models import (
     AutonomyLevel,
+    DataAccess,
     DataClassification,
     EmergencyEscalation3D,
+    EmergencyEscalationDC2D,
     EvaluationContext,
     Operation,
     Profile2D,
     Profile3D,
+    ProfileDC2D,
+    TierPolicy,
     TriggerCondition,
 )
 
@@ -259,3 +263,168 @@ class TestPermissionMatrix:
         assert "public" in matrix
         assert "R" in matrix["public"]
         assert matrix["public"]["R"] == "autonomous"
+
+
+# --- DC2D tests ---
+
+
+@pytest.fixture
+def basic_dc2d_profile() -> ProfileDC2D:
+    """A DC2D profile mirroring the Appendix D recommended-default matrix."""
+    return ProfileDC2D(
+        profile_id="rmacd-dc2d-defaults-v1",
+        profile_name="DC2D Defaults",
+        model="data-classification-2d",
+        version="1.0",
+        data_access=DataAccess(
+            public=TierPolicy(allowed=True, autonomy=AutonomyLevel.AUTONOMOUS),
+            internal=TierPolicy(allowed=True, autonomy=AutonomyLevel.LOGGED),
+            confidential=TierPolicy(allowed=True, autonomy=AutonomyLevel.APPROVAL),
+            restricted=TierPolicy(
+                allowed=False, autonomy=AutonomyLevel.PROHIBITED,
+                justification="separately authorized profile",
+            ),
+        ),
+    )
+
+
+class TestPolicyEvaluatorDC2D:
+    """Tests for DC2D profile evaluation."""
+
+    def test_missing_classification_raises(self, basic_dc2d_profile: ProfileDC2D) -> None:
+        evaluator = PolicyEvaluator(basic_dc2d_profile)
+        with pytest.raises(ValueError, match="data_classification is required"):
+            evaluator.evaluate("R")
+
+    def test_public_autonomous(self, basic_dc2d_profile: ProfileDC2D) -> None:
+        evaluator = PolicyEvaluator(basic_dc2d_profile)
+        decision = evaluator.evaluate("R", "public")
+        assert decision.allowed is True
+        assert decision.autonomy_level == AutonomyLevel.AUTONOMOUS
+        assert decision.requires_approval is False
+        assert decision.requires_notification is False
+
+    def test_internal_logged(self, basic_dc2d_profile: ProfileDC2D) -> None:
+        evaluator = PolicyEvaluator(basic_dc2d_profile)
+        decision = evaluator.evaluate("M", "internal")
+        assert decision.allowed is True
+        assert decision.autonomy_level == AutonomyLevel.LOGGED
+
+    def test_confidential_requires_approval(self, basic_dc2d_profile: ProfileDC2D) -> None:
+        evaluator = PolicyEvaluator(basic_dc2d_profile)
+        decision = evaluator.evaluate("C", "confidential")
+        assert decision.allowed is True
+        assert decision.autonomy_level == AutonomyLevel.APPROVAL
+        assert decision.requires_approval is True
+
+    def test_restricted_denied(self, basic_dc2d_profile: ProfileDC2D) -> None:
+        evaluator = PolicyEvaluator(basic_dc2d_profile)
+        decision = evaluator.evaluate("R", "restricted")
+        assert decision.allowed is False
+        assert "restricted" in (decision.blocked_reason or "")
+
+    def test_operation_is_metadata_only(self, basic_dc2d_profile: ProfileDC2D) -> None:
+        """Operation does not affect the DC2D autonomy decision."""
+        evaluator = PolicyEvaluator(basic_dc2d_profile)
+        for op in ["R", "M", "A", "C", "D"]:
+            decision = evaluator.evaluate(op, "internal")
+            assert decision.autonomy_level == AutonomyLevel.LOGGED, (
+                f"DC2D autonomy must be tier-driven; operation {op} should not change it"
+            )
+            assert decision.operation.value == op
+
+    def test_emergency_escalates_tier(self) -> None:
+        """Emergency escalation grants access to a previously denied tier."""
+        profile = ProfileDC2D(
+            profile_id="rmacd-dc2d-emergency-v1",
+            profile_name="Emergency",
+            model="data-classification-2d",
+            version="1.0",
+            data_access=DataAccess(
+                public=TierPolicy(allowed=True, autonomy=AutonomyLevel.AUTONOMOUS),
+                internal=TierPolicy(allowed=True, autonomy=AutonomyLevel.LOGGED),
+                confidential=TierPolicy(allowed=False, autonomy=AutonomyLevel.PROHIBITED),
+                restricted=TierPolicy(allowed=False, autonomy=AutonomyLevel.PROHIBITED),
+            ),
+            emergency_escalation=EmergencyEscalationDC2D(
+                enabled=True,
+                trigger_conditions=[TriggerCondition.SOC_DECLARED_INCIDENT],
+                escalated_tiers=[DataClassification.CONFIDENTIAL],
+                escalated_autonomy=AutonomyLevel.APPROVAL,
+                max_duration_minutes=60,
+                notification_targets=["soc@example.com"],
+            ),
+        )
+        evaluator = PolicyEvaluator(profile)
+
+        # Without emergency, confidential is denied
+        assert evaluator.evaluate("R", "confidential").allowed is False
+
+        # With emergency, confidential is allowed under approval
+        ctx = EvaluationContext(
+            emergency_active=True,
+            emergency_trigger=TriggerCondition.SOC_DECLARED_INCIDENT,
+        )
+        decision = evaluator.evaluate("R", "confidential", ctx)
+        assert decision.allowed is True
+        assert decision.autonomy_level == AutonomyLevel.APPROVAL
+        assert decision.emergency_mode is True
+
+        # Restricted is not in escalated_tiers, stays denied
+        assert evaluator.evaluate("R", "restricted", ctx).allowed is False
+
+    def test_get_all_permissions_dc2d(self, basic_dc2d_profile: ProfileDC2D) -> None:
+        evaluator = PolicyEvaluator(basic_dc2d_profile)
+        perms = evaluator.get_all_permissions()
+        assert perms["public"] == ["allowed"]
+        assert perms["internal"] == ["allowed"]
+        assert perms["confidential"] == ["allowed"]
+        assert perms["restricted"] == []
+
+    def test_get_effective_autonomy_matrix_dc2d(self, basic_dc2d_profile: ProfileDC2D) -> None:
+        evaluator = PolicyEvaluator(basic_dc2d_profile)
+        matrix = evaluator.get_effective_autonomy_matrix()
+        assert matrix == {
+            "public": "autonomous",
+            "internal": "logged",
+            "confidential": "approval",
+            "restricted": "prohibited",
+        }
+
+
+class TestProfileDC2DLoaderAndValidator:
+    """End-to-end: schema validation + loader for DC2D."""
+
+    def test_loader_accepts_dc2d_dict(self) -> None:
+        from rmacd.loader import ProfileLoader
+
+        data = {
+            "profile_id": "rmacd-dc2d-loader-test-v1",
+            "profile_name": "Loader Test",
+            "model": "data-classification-2d",
+            "version": "1.0",
+            "data_access": {
+                "public": {"allowed": True, "autonomy": "autonomous"},
+                "internal": {"allowed": True, "autonomy": "logged"},
+                "confidential": {"allowed": True, "autonomy": "approval"},
+                "restricted": {"allowed": False, "autonomy": "prohibited"},
+            },
+        }
+        profile = ProfileLoader().load_dict(data)
+        assert isinstance(profile, ProfileDC2D)
+        assert profile.data_access.confidential.autonomy == AutonomyLevel.APPROVAL
+
+    def test_validator_accepts_example_file(self) -> None:
+        from pathlib import Path
+        from rmacd.validator import ProfileValidator
+
+        example = (
+            Path(__file__).parent.parent.parent.parent
+            / "schemas"
+            / "examples"
+            / "regulated-data-handler-dc2d.json"
+        )
+        if not example.exists():
+            pytest.skip(f"Example file not found at {example}")
+        validator = ProfileValidator()
+        assert validator.is_valid(example)

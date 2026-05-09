@@ -41,26 +41,32 @@ Tools Registry usage:
 
 from rmacd.models import (
     AutonomyLevel,
+    DataAccess,
     DataClassification,
     Operation,
     PolicyDecision,
     Profile2D,
     Profile3D,
+    ProfileDC2D,
+    TierPolicy,
 )
 from rmacd.evaluator import PolicyEvaluator
 from rmacd.loader import ProfileLoader
 from rmacd.validator import ProfileValidator
 
-__version__ = "0.2.1"
+__version__ = "0.3.0"
 __all__ = [
     "AutonomyLevel",
+    "DataAccess",
     "DataClassification",
     "Operation",
     "PolicyDecision",
     "PolicyEvaluator",
     "Profile2D",
     "Profile3D",
+    "ProfileDC2D",
     "ProfileLoader",
     "ProfileValidator",
+    "TierPolicy",
     # Registry available via rmacd.registry
 ]

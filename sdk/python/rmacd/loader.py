@@ -4,7 +4,9 @@ import json
 from pathlib import Path
 from typing import Union
 
-from rmacd.models import Profile2D, Profile3D
+from rmacd.models import Profile2D, Profile3D, ProfileDC2D
+
+AnyProfile = Union[Profile2D, Profile3D, ProfileDC2D]
 
 
 class ProfileLoadError(Exception):
@@ -16,14 +18,14 @@ class ProfileLoadError(Exception):
 class ProfileLoader:
     """Loads RMACD profiles from files or dictionaries."""
 
-    def load_file(self, path: str | Path) -> Union[Profile2D, Profile3D]:
+    def load_file(self, path: str | Path) -> AnyProfile:
         """Load a profile from a JSON file.
 
         Args:
             path: Path to the JSON profile file
 
         Returns:
-            Profile2D or Profile3D depending on the model type
+            Profile2D, Profile3D, or ProfileDC2D depending on the model type
 
         Raises:
             ProfileLoadError: If the file cannot be loaded or parsed
@@ -48,7 +50,7 @@ class ProfileLoader:
 
     def load_dict(
         self, data: dict, source: str = "<dict>"
-    ) -> Union[Profile2D, Profile3D]:
+    ) -> AnyProfile:
         """Load a profile from a dictionary.
 
         Args:
@@ -56,7 +58,7 @@ class ProfileLoader:
             source: Source identifier for error messages
 
         Returns:
-            Profile2D or Profile3D depending on the model type
+            Profile2D, Profile3D, or ProfileDC2D depending on the model type
 
         Raises:
             ProfileLoadError: If the data cannot be parsed as a valid profile
@@ -70,12 +72,14 @@ class ProfileLoader:
             return self._load_3d(data, source)
         elif model_type == "two-dimensional":
             return self._load_2d(data, source)
+        elif model_type == "data-classification-2d":
+            return self._load_dc2d(data, source)
         elif model_type is None:
             raise ProfileLoadError(f"Profile missing 'model' field: {source}")
         else:
             raise ProfileLoadError(f"Unknown model type '{model_type}': {source}")
 
-    def load_json(self, json_string: str, source: str = "<json>") -> Union[Profile2D, Profile3D]:
+    def load_json(self, json_string: str, source: str = "<json>") -> AnyProfile:
         """Load a profile from a JSON string.
 
         Args:
@@ -114,6 +118,13 @@ class ProfileLoader:
         except Exception as e:
             raise ProfileLoadError(f"Invalid 2D profile ({source}): {e}") from e
 
+    def _load_dc2d(self, data: dict, source: str) -> ProfileDC2D:
+        """Load a Data-Classification 2D profile."""
+        try:
+            return ProfileDC2D.model_validate(data)
+        except Exception as e:
+            raise ProfileLoadError(f"Invalid DC2D profile ({source}): {e}") from e
+
     def detect_model_type(self, path: str | Path) -> str:
         """Detect the model type of a profile without fully loading it.
 
@@ -121,7 +132,7 @@ class ProfileLoader:
             path: Path to the JSON profile file
 
         Returns:
-            "two-dimensional" or "three-dimensional"
+            "two-dimensional", "three-dimensional", or "data-classification-2d"
 
         Raises:
             ProfileLoadError: If the model type cannot be determined
@@ -135,7 +146,7 @@ class ProfileLoader:
             raise ProfileLoadError(f"Cannot read profile: {e}") from e
 
         model_type = data.get("model")
-        if model_type not in ("two-dimensional", "three-dimensional"):
+        if model_type not in ("two-dimensional", "three-dimensional", "data-classification-2d"):
             raise ProfileLoadError(f"Unknown or missing model type: {model_type}")
 
         return model_type

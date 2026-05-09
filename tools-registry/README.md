@@ -221,7 +221,7 @@ ALL TESTS PASSED!
 
 ## Related Documentation
 
-- [RMACD Framework Specification](../docs/RMACD_Framework_v1.2.md)
+- [RMACD Framework Specification](../docs/RMACD_Framework_v1.3.md)
 - [Implementation Guide](../docs/implementation.md)
 - [JSON Schema Templates](../schemas/)
 

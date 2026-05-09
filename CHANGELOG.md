@@ -5,6 +5,51 @@ All notable changes to the RMACD Framework will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] - 2026-05-09
+
+### Added
+
+- **Data-Classification Two-Dimensional variant (DC2D)** — A second 2D projection of the
+  governance model that pairs Data Classification with HITL Autonomy, dropping the
+  operations axis. Intended for organizations whose primary governance lever is data
+  sensitivity and whose operational permissions are governed by an upstream IAM/RBAC or
+  DLP layer (e.g., regulated industries, AI-DLP product deployments).
+- **Specification Appendix D: The Data-Classification Two-Dimensional Variant (DC2D)** —
+  Motivation, relationship to 2D and 3D models, governance matrix with recommended
+  defaults, schema identifier, intentional omissions, and prior-art positioning
+  (CSA capability-control matrix as nearest framework analogue, AI-DLP vendors as
+  implementation analogue).
+- **`schemas/profile-dc2d.schema.json`** — JSON Schema (Draft 2020-12) for DC2D profiles.
+  Required `data_access` block with per-tier `allowed` + `autonomy` policy. Adds
+  `redaction` and `egress_controls` constraint blocks; emergency escalation operates on
+  data tiers (`escalated_tiers` + `escalated_autonomy`) rather than operations.
+- **`schemas/examples/regulated-data-handler-dc2d.json`** — Worked example: customer-support
+  agent with public→autonomous, internal→logged, confidential→approval (DPO),
+  restricted→denied with justification.
+
+### Changed
+
+- **Python SDK to v0.3.0** — Adds `ProfileDC2D`, `DataAccess`, `TierPolicy`, and supporting
+  models. `ProfileLoader`, `ProfileValidator`, `PolicyEvaluator`, and the `rmacd` CLI all
+  recognize `model: "data-classification-2d"`. CLI `info` and `matrix` commands render
+  per-tier output for DC2D profiles. Operation argument to `evaluator.evaluate()` is
+  preserved as decision metadata for DC2D but does not affect the autonomy decision.
+- **`DEFAULT_AUTONOMY_DC2D`** matrix added to evaluator: public→autonomous,
+  internal→logged, confidential→approval, restricted→elevated_approval.
+- **Specification document renamed** — `docs/RMACD_Framework_v1.2.{md,docx}` →
+  `docs/RMACD_Framework_v1.3.{md,docx}`, following the existing convention of bumping
+  the filename on every minor release. Internal version line bumped to v1.3.0
+  (May 2026). All references in `README.md`, `tools-registry/README.md`, and
+  `CITATION.cff` updated.
+
+### Tests
+
+- 11 new tests in `tests/test_evaluator.py` covering DC2D evaluation paths, the
+  operation-is-metadata-only invariant, emergency tier escalation with selective
+  coverage, and end-to-end loader + schema validator round-trip.
+
+---
+
 ## [1.2.1] - 2026-04-27
 
 ### Fixed
@@ -160,7 +205,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Future Roadmap
 
-### Planned for v1.3
+### Planned for v1.4
 
 - Platform-specific integration guides (Kubernetes, AWS/Azure/GCP)
 - LangChain / AutoGen / CrewAI integration modules
@@ -174,6 +219,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+[1.3.0]: https://github.com/rmacdframework/spec/releases/tag/v1.3.0
 [1.2.1]: https://github.com/rmacdframework/spec/releases/tag/v1.2.1
 [1.2.0]: https://github.com/rmacdframework/spec/releases/tag/v1.2.0
 [1.1.0]: https://github.com/rmacdframework/spec/releases/tag/v1.1.0

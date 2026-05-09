@@ -22,6 +22,7 @@ class ProfileValidator:
     # Default schema paths relative to the package
     SCHEMA_2D_PATH = "profile-2d.schema.json"
     SCHEMA_3D_PATH = "profile-3d.schema.json"
+    SCHEMA_DC2D_PATH = "profile-dc2d.schema.json"
 
     def __init__(self, schema_dir: str | Path | None = None):
         """Initialize the validator.
@@ -33,8 +34,10 @@ class ProfileValidator:
         self._schema_dir = Path(schema_dir) if schema_dir else None
         self._schema_2d: dict | None = None
         self._schema_3d: dict | None = None
+        self._schema_dc2d: dict | None = None
         self._validator_2d: Draft202012Validator | None = None
         self._validator_3d: Draft202012Validator | None = None
+        self._validator_dc2d: Draft202012Validator | None = None
 
     def _find_schema_dir(self) -> Path | None:
         """Try to find the schema directory."""
@@ -86,6 +89,13 @@ class ProfileValidator:
             self._validator_3d = Draft202012Validator(self._schema_3d)
         return self._validator_3d
 
+    def _get_validator_dc2d(self) -> Draft202012Validator:
+        """Get or create the DC2D schema validator."""
+        if self._validator_dc2d is None:
+            self._schema_dc2d = self._load_schema(self.SCHEMA_DC2D_PATH)
+            self._validator_dc2d = Draft202012Validator(self._schema_dc2d)
+        return self._validator_dc2d
+
     def validate(self, profile_data: dict | str | Path, model_type: str | None = None) -> bool:
         """Validate a profile against its schema.
 
@@ -119,6 +129,8 @@ class ProfileValidator:
             validator = self._get_validator_3d()
         elif model_type == "two-dimensional":
             validator = self._get_validator_2d()
+        elif model_type == "data-classification-2d":
+            validator = self._get_validator_dc2d()
         else:
             raise SchemaValidationError(f"Unknown or missing model type: {model_type}")
 
@@ -186,7 +198,7 @@ class ProfileValidator:
         """Get the raw JSON schema for a model type.
 
         Args:
-            model_type: "two-dimensional" or "three-dimensional"
+            model_type: "two-dimensional", "three-dimensional", or "data-classification-2d"
 
         Returns:
             The JSON schema as a dictionary
@@ -199,5 +211,9 @@ class ProfileValidator:
             if self._schema_2d is None:
                 self._schema_2d = self._load_schema(self.SCHEMA_2D_PATH)
             return self._schema_2d
+        elif model_type == "data-classification-2d":
+            if self._schema_dc2d is None:
+                self._schema_dc2d = self._load_schema(self.SCHEMA_DC2D_PATH)
+            return self._schema_dc2d
         else:
             raise SchemaValidationError(f"Unknown model type: {model_type}")

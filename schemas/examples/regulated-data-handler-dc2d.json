@@ -1,0 +1,69 @@
+{
+  "$schema": "https://rmacd-framework.org/schema/v1/profile-dc2d.json",
+  "profile_id": "rmacd-dc2d-regulated-data-handler-v1",
+  "profile_name": "Regulated Data Handler (DC2D)",
+  "model": "data-classification-2d",
+  "version": "1.0",
+  "description": "Customer-support agent in a regulated industry. Operational permissions are governed by the upstream IAM/RBAC layer; this profile gates agent autonomy purely by the sensitivity of data accessed.",
+  "data_access": {
+    "public": {
+      "allowed": true,
+      "autonomy": "autonomous"
+    },
+    "internal": {
+      "allowed": true,
+      "autonomy": "logged"
+    },
+    "confidential": {
+      "allowed": true,
+      "autonomy": "approval",
+      "data_categories": ["PII", "GDPR"]
+    },
+    "restricted": {
+      "allowed": false,
+      "autonomy": "prohibited",
+      "data_categories": ["PHI", "PCI"],
+      "justification": "PHI/PCI handled by a separate authorized profile; this agent is allow-listed out of restricted tiers."
+    }
+  },
+  "constraints": {
+    "environments": ["production"],
+    "rate_limits": {
+      "queries_per_minute": 60,
+      "tokens_per_hour": 500000
+    },
+    "redaction": {
+      "mask_pii": true,
+      "redact_tiers": ["confidential", "restricted"],
+      "tokenize_identifiers": true
+    },
+    "egress_controls": {
+      "block_external_models": true,
+      "allowed_destinations": ["tenant-hosted-llm", "internal-knowledge-base"]
+    }
+  },
+  "audit_requirements": {
+    "log_level": "enhanced",
+    "retention_days": 2555,
+    "real_time_alerts_for_tiers": ["confidential", "restricted"],
+    "alert_channels": [
+      { "type": "siem", "target": "splunk-soc-prod" }
+    ],
+    "immutable_logging": true,
+    "pii_masking": true,
+    "compliance_tags": ["GDPR", "HIPAA", "ISO27001"]
+  },
+  "approval_authority": {
+    "approval": {
+      "approvers": ["data-protection-officer", "support-team-lead"],
+      "timeout_minutes": 30
+    }
+  },
+  "metadata": {
+    "created": "2026-05-09T00:00:00Z",
+    "author": "rmacd-framework",
+    "approved_by": "security-and-privacy-council",
+    "status": "active",
+    "tags": ["dc2d", "regulated", "customer-support"]
+  }
+}

@@ -1,0 +1,447 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rmacd-framework.org/schema/v1/profile-dc2d.json",
+  "title": "RMACD Data-Classification Two-Dimensional Permission Profile",
+  "description": "Permission profile for the Data-Classification Two-Dimensional Model (Data Classification x HITL Autonomy, without operational permissions). Suitable for organizations whose primary governance lever is data sensitivity and where operational permissions are governed elsewhere (e.g., IAM/RBAC, DLP).",
+  "type": "object",
+  "required": ["profile_id", "profile_name", "model", "version", "data_access"],
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "const": "https://rmacd-framework.org/schema/v1/profile-dc2d.json"
+    },
+    "profile_id": {
+      "type": "string",
+      "description": "Unique identifier for this profile",
+      "pattern": "^rmacd-dc2d-[a-z0-9-]+$"
+    },
+    "profile_name": {
+      "type": "string",
+      "description": "Human-readable profile name"
+    },
+    "model": {
+      "type": "string",
+      "const": "data-classification-2d",
+      "description": "Implementation model identifier"
+    },
+    "version": {
+      "type": "string",
+      "description": "Profile version (semantic versioning)",
+      "pattern": "^[0-9]+\\.[0-9]+(\\.[0-9]+)?$"
+    },
+    "description": {
+      "type": "string",
+      "description": "Description of the profile's purpose"
+    },
+    "data_access": {
+      "type": "object",
+      "description": "Per-tier data access permission and autonomy stance. Each of the four classification tiers must be specified.",
+      "required": ["public", "internal", "confidential", "restricted"],
+      "properties": {
+        "public":       { "$ref": "#/$defs/tierPolicy" },
+        "internal":     { "$ref": "#/$defs/tierPolicy" },
+        "confidential": { "$ref": "#/$defs/tierPolicy" },
+        "restricted":   { "$ref": "#/$defs/tierPolicy" }
+      },
+      "additionalProperties": false
+    },
+    "emergency_escalation": {
+      "type": "object",
+      "description": "Pre-authorized emergency permission escalation for incident response. In DC2D, escalation raises permitted data tiers rather than operations.",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "description": "Whether emergency escalation is enabled for this profile",
+          "default": false
+        },
+        "trigger_conditions": {
+          "type": "array",
+          "description": "Conditions that can trigger emergency escalation",
+          "items": {
+            "type": "string",
+            "enum": [
+              "soc_declared_incident",
+              "automated_threat_detection",
+              "business_continuity_event",
+              "compliance_emergency",
+              "manual_authorization"
+            ]
+          },
+          "minItems": 1
+        },
+        "escalated_tiers": {
+          "type": "array",
+          "description": "Data tiers temporarily made accessible during emergency",
+          "items": {
+            "type": "string",
+            "enum": ["public", "internal", "confidential", "restricted"]
+          },
+          "uniqueItems": true
+        },
+        "escalated_autonomy": {
+          "type": "string",
+          "description": "Autonomy stance applied to escalated tiers during the emergency window",
+          "enum": ["autonomous", "logged", "notification", "approval", "elevated_approval"]
+        },
+        "max_duration_minutes": {
+          "type": "integer",
+          "description": "Maximum duration of emergency escalation",
+          "minimum": 1,
+          "maximum": 480,
+          "default": 60
+        },
+        "require_post_incident_review": {
+          "type": "boolean",
+          "description": "Whether post-incident review is mandatory",
+          "default": true
+        },
+        "notification_targets": {
+          "type": "array",
+          "description": "Email addresses or channels to notify on escalation",
+          "items": { "type": "string" },
+          "minItems": 1
+        },
+        "cooldown_minutes": {
+          "type": "integer",
+          "description": "Minimum time between consecutive escalations",
+          "minimum": 0,
+          "default": 30
+        }
+      },
+      "required": ["enabled"],
+      "if": {
+        "properties": { "enabled": { "const": true } }
+      },
+      "then": {
+        "required": ["trigger_conditions", "max_duration_minutes", "notification_targets"]
+      }
+    },
+    "constraints": {
+      "type": "object",
+      "description": "Operational constraints relevant to data access. Operation-specific controls (change/delete/quotas) are intentionally absent in this model.",
+      "properties": {
+        "environments": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["development", "staging", "production", "disaster-recovery", "sandbox"]
+          },
+          "description": "Allowed environments",
+          "minItems": 1
+        },
+        "rate_limits": {
+          "type": "object",
+          "description": "Rate limiting constraints",
+          "properties": {
+            "queries_per_minute": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 10000,
+              "description": "Maximum queries per minute"
+            },
+            "data_volume_mb_per_hour": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100000,
+              "description": "Maximum data volume processed per hour in MB"
+            },
+            "tokens_per_hour": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "Maximum tokens (prompt + completion) per hour"
+            }
+          }
+        },
+        "time_windows": {
+          "type": "object",
+          "description": "Time-based operational restrictions",
+          "properties": {
+            "timezone": {
+              "type": "string",
+              "description": "IANA timezone identifier (e.g., America/New_York, UTC)",
+              "default": "UTC"
+            },
+            "allowed_days": {
+              "type": "array",
+              "description": "Days of week when operations are permitted",
+              "items": {
+                "type": "string",
+                "enum": ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
+              },
+              "minItems": 1,
+              "uniqueItems": true
+            },
+            "allowed_hours": {
+              "type": "object",
+              "description": "Hours during which operations are permitted",
+              "properties": {
+                "start": {
+                  "type": "string",
+                  "pattern": "^([01]?[0-9]|2[0-3]):[0-5][0-9]$",
+                  "description": "Start time in HH:MM format"
+                },
+                "end": {
+                  "type": "string",
+                  "pattern": "^([01]?[0-9]|2[0-3]):[0-5][0-9]$",
+                  "description": "End time in HH:MM format"
+                }
+              },
+              "required": ["start", "end"]
+            },
+            "blackout_dates": {
+              "type": "array",
+              "description": "Specific dates when operations are prohibited (ISO 8601 format)",
+              "items": {
+                "type": "string",
+                "format": "date"
+              }
+            }
+          }
+        },
+        "redaction": {
+          "type": "object",
+          "description": "Per-tier output redaction and masking policy. Primary control surface for DC2D profiles.",
+          "properties": {
+            "mask_pii": {
+              "type": "boolean",
+              "description": "Automatically mask PII in agent outputs",
+              "default": true
+            },
+            "redact_tiers": {
+              "type": "array",
+              "description": "Tiers whose content must be redacted in agent outputs",
+              "items": {
+                "type": "string",
+                "enum": ["public", "internal", "confidential", "restricted"]
+              },
+              "uniqueItems": true,
+              "default": ["restricted"]
+            },
+            "tokenize_identifiers": {
+              "type": "boolean",
+              "description": "Replace direct identifiers with reversible tokens for downstream processing",
+              "default": false
+            }
+          }
+        },
+        "egress_controls": {
+          "type": "object",
+          "description": "Restrictions on where classified data may flow",
+          "properties": {
+            "allowed_destinations": {
+              "type": "array",
+              "description": "Permitted egress targets (domains, services, or labels)",
+              "items": { "type": "string" }
+            },
+            "block_external_models": {
+              "type": "boolean",
+              "description": "Prevent confidential/restricted data from being sent to external (non-tenant) model endpoints",
+              "default": true
+            }
+          }
+        }
+      }
+    },
+    "audit_requirements": {
+      "type": "object",
+      "description": "Audit and logging requirements for this profile",
+      "properties": {
+        "log_level": {
+          "type": "string",
+          "description": "Minimum logging level for operations",
+          "enum": ["standard", "enhanced", "verbose", "debug"],
+          "default": "standard"
+        },
+        "retention_days": {
+          "type": "integer",
+          "description": "Minimum audit log retention period in days",
+          "minimum": 30,
+          "maximum": 2555,
+          "default": 365
+        },
+        "real_time_alerts_for_tiers": {
+          "type": "array",
+          "description": "Tiers whose access triggers real-time alerts",
+          "items": {
+            "type": "string",
+            "enum": ["public", "internal", "confidential", "restricted"]
+          },
+          "uniqueItems": true
+        },
+        "alert_channels": {
+          "type": "array",
+          "description": "Channels for real-time alerts",
+          "items": {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": ["email", "slack", "pagerduty", "webhook", "siem"]
+              },
+              "target": {
+                "type": "string",
+                "description": "Channel-specific target (email address, webhook URL, etc.)"
+              }
+            },
+            "required": ["type", "target"]
+          }
+        },
+        "immutable_logging": {
+          "type": "boolean",
+          "description": "Require tamper-evident logging (WORM storage)",
+          "default": false
+        },
+        "pii_masking": {
+          "type": "boolean",
+          "description": "Automatically mask PII in audit logs",
+          "default": true
+        },
+        "compliance_tags": {
+          "type": "array",
+          "description": "Regulatory frameworks this profile must comply with",
+          "items": {
+            "type": "string",
+            "enum": ["GDPR", "HIPAA", "PCI-DSS", "SOX", "ISO27001", "CCPA", "FedRAMP", "NIST-CSF"]
+          }
+        }
+      }
+    },
+    "approval_authority": {
+      "type": "object",
+      "description": "Mapping of autonomy levels to approval authorities",
+      "properties": {
+        "approval": {
+          "type": "object",
+          "description": "Settings for 'approval' autonomy level",
+          "properties": {
+            "approvers": {
+              "type": "array",
+              "description": "Roles or individuals who can approve",
+              "items": { "type": "string" },
+              "minItems": 1
+            },
+            "timeout_minutes": {
+              "type": "integer",
+              "description": "Timeout before request expires",
+              "minimum": 1,
+              "maximum": 10080,
+              "default": 60
+            },
+            "escalation_after_minutes": {
+              "type": "integer",
+              "description": "Time before escalating to next level",
+              "minimum": 1
+            },
+            "escalation_target": {
+              "type": "string",
+              "description": "Role or individual to escalate to"
+            }
+          },
+          "required": ["approvers"]
+        },
+        "elevated_approval": {
+          "type": "object",
+          "description": "Settings for 'elevated_approval' autonomy level",
+          "properties": {
+            "approvers": {
+              "type": "array",
+              "description": "Roles or individuals who can approve (typically CAB, CISO, DPO)",
+              "items": { "type": "string" },
+              "minItems": 1
+            },
+            "timeout_minutes": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 10080,
+              "default": 240
+            },
+            "require_multiple_approvers": {
+              "type": "boolean",
+              "description": "Require approval from multiple parties",
+              "default": false
+            },
+            "minimum_approvers": {
+              "type": "integer",
+              "description": "Minimum number of approvers if multiple required",
+              "minimum": 2,
+              "default": 2
+            }
+          },
+          "required": ["approvers"]
+        }
+      }
+    },
+    "metadata": {
+      "type": "object",
+      "description": "Profile metadata",
+      "properties": {
+        "created": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Profile creation timestamp"
+        },
+        "updated": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Last update timestamp"
+        },
+        "author": {
+          "type": "string",
+          "description": "Profile author or creating team"
+        },
+        "approved_by": {
+          "type": "string",
+          "description": "Approving authority"
+        },
+        "review_date": {
+          "type": "string",
+          "format": "date",
+          "description": "Next scheduled review date"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["draft", "active", "deprecated", "archived"],
+          "description": "Profile lifecycle status",
+          "default": "active"
+        },
+        "deprecation_notice": {
+          "type": "string",
+          "description": "Deprecation message and migration guidance (if status is deprecated)"
+        },
+        "tags": {
+          "type": "array",
+          "description": "Organizational tags for categorization",
+          "items": { "type": "string" }
+        }
+      },
+      "required": ["created", "author"]
+    }
+  },
+  "$defs": {
+    "tierPolicy": {
+      "type": "object",
+      "description": "Access permission and autonomy stance for a single data classification tier",
+      "required": ["allowed", "autonomy"],
+      "properties": {
+        "allowed": {
+          "type": "boolean",
+          "description": "Whether the agent may interact with data of this tier at all"
+        },
+        "autonomy": {
+          "type": "string",
+          "description": "Required HITL autonomy level when accessing this tier",
+          "enum": ["autonomous", "logged", "notification", "approval", "elevated_approval", "prohibited"]
+        },
+        "justification": {
+          "type": "string",
+          "description": "Required when this tier deviates from the recommended default in the spec governance matrix (Appendix D)"
+        },
+        "data_categories": {
+          "type": "array",
+          "description": "Optional regulatory or organizational tags scoping this tier (e.g., PII, PHI, PCI, GDPR-Art9, SOX-financial)",
+          "items": { "type": "string" }
+        }
+      }
+    }
+  }
+}

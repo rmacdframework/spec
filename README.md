@@ -3,7 +3,7 @@
 **ITIL for the Agentic Era**
 
 [![License: CC BY 4.0](https://img.shields.io/badge/License-CC_BY_4.0-lightgrey.svg)](https://creativecommons.org/licenses/by/4.0/)
-[![Version](https://img.shields.io/badge/version-1.2.1-blue.svg)](https://github.com/rmacdframework/spec/releases)
+[![Version](https://img.shields.io/badge/version-1.3.0-blue.svg)](https://github.com/rmacdframework/spec/releases)
 
 ---
 
@@ -39,12 +39,13 @@ RMACD answers the fundamental governance question: *"What can this agent do, to 
 | **C**hange | High | Modify, update — state mutation |
 | **D**elete | Critical | Remove, destroy — potentially irreversible |
 
-### Two Implementation Models
+### Implementation Models
 
 | Model | Dimensions | Best For |
 |-------|-----------|----------|
-| **Two-Dimensional** | RMACD × HITL | Organizations without formal data classification |
-| **Three-Dimensional** | RMACD × HITL × Data Classification | Regulated industries, mature data governance |
+| **Three-Dimensional** | RMACD × HITL × Data Classification | Default. Regulated industries, mature data governance. |
+| **Two-Dimensional (Operational)** | RMACD × HITL | Organizations without formal data classification tiers. |
+| **Two-Dimensional (Data-Classification, DC2D)** | Data Classification × HITL | Organizations whose primary governance lever is data sensitivity; operations governed by an upstream IAM/RBAC or DLP layer. See [Appendix D](docs/RMACD_Framework_v1.3.md#appendix-d-the-data-classification-two-dimensional-variant-dc2d). |
 
 ---
 
@@ -62,8 +63,8 @@ RMACD answers the fundamental governance question: *"What can this agent do, to 
 
 ## Documentation
 
-- [Full Specification (Markdown)](docs/RMACD_Framework_v1.2.md) — Recommended for reading on GitHub
-- [Full Specification (Word)](docs/RMACD_Framework_v1.2.docx) — Original document format
+- [Full Specification (Markdown)](docs/RMACD_Framework_v1.3.md) — Recommended for reading on GitHub
+- [Full Specification (Word)](docs/RMACD_Framework_v1.3.docx) — Original document format
 - [Framework Diagram (PNG)](docs/RMACD_Framework_Diagram.drawio.png) — Visual overview
 - [Framework Diagram (draw.io)](docs/RMACD_Framework_Diagram.drawio) — Editable source
 - [Implementation Guide](docs/implementation.md)
@@ -121,7 +122,7 @@ If you use the RMACD Framework in your work, please cite:
   title = {RMACD: AI Agent Governance Framework},
   year = {2026},
   url = {https://rmacd-framework.org},
-  note = {Version 1.2.1}
+  note = {Version 1.3.0}
 }
 ```
 

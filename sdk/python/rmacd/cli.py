@@ -132,10 +132,19 @@ def cmd_info(args: argparse.Namespace) -> int:
         if profile.description:
             print(f"Description: {profile.description}")
 
-        print("\nPermissions:")
-        permissions = evaluator.get_all_permissions()
-        for classification, ops in permissions.items():
-            print(f"  {classification}: {', '.join(ops)}")
+        if profile.model == "data-classification-2d":
+            print("\nData Access:")
+            permissions = evaluator.get_all_permissions()
+            matrix = evaluator.get_effective_autonomy_matrix()
+            for tier in ["public", "internal", "confidential", "restricted"]:
+                status = "ALLOWED" if "allowed" in permissions.get(tier, []) else "DENIED"
+                autonomy = matrix.get(tier, "N/A") if isinstance(matrix, dict) else "N/A"
+                print(f"  {tier}: {status} (autonomy: {autonomy})")
+        else:
+            print("\nPermissions:")
+            permissions = evaluator.get_all_permissions()
+            for classification, ops in permissions.items():
+                print(f"  {classification}: {', '.join(ops)}")
 
         if profile.emergency_escalation and profile.emergency_escalation.enabled:
             print("\nEmergency Escalation: ENABLED")
@@ -166,8 +175,15 @@ def cmd_matrix(args: argparse.Namespace) -> int:
         print(json.dumps(matrix, indent=2))
     else:
         is_3d = profile.model == "three-dimensional"
+        is_dc2d = profile.model == "data-classification-2d"
 
-        if is_3d:
+        if is_dc2d:
+            print(f"{'Classification':<15} {'Autonomy Level':<20}")
+            print("-" * 35)
+            for tier in ["public", "internal", "confidential", "restricted"]:
+                if tier in matrix:
+                    print(f"{tier:<15} {matrix[tier]:<20}")
+        elif is_3d:
             # Print header
             print(f"{'Classification':<15} {'R':<12} {'M':<12} {'A':<12} {'C':<12} {'D':<12}")
             print("-" * 75)
@@ -199,7 +215,7 @@ def main() -> int:
         prog="rmacd",
         description="RMACD Framework CLI - Policy evaluation and profile management",
     )
-    parser.add_argument("--version", action="version", version="%(prog)s 0.2.1")
+    parser.add_argument("--version", action="version", version="%(prog)s 0.3.0")
 
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
 

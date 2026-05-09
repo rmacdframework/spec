@@ -1,6 +1,10 @@
 # RMACD Framework Python SDK
 
-Reference implementation for the RMACD (Read, Move, Add, Change, Delete) Framework - a three-dimensional governance model for autonomous AI agents.
+Reference implementation for the RMACD (Read, Move, Add, Change, Delete) Framework — a governance model for autonomous AI agents. The SDK supports all three model variants:
+
+- **3D** (default) — Operations × Data Classification × Autonomy
+- **2D Operational** — Operations × Autonomy (no data classification)
+- **2D Data-Classification (DC2D)** — Data Classification × Autonomy (no operations axis; for orgs whose primary governance lever is data sensitivity, with operations governed by an upstream IAM/RBAC or DLP layer). See spec Appendix D.
 
 ## Installation
 
@@ -37,6 +41,38 @@ decision = evaluator.evaluate(
 print(f"Allowed: {decision.allowed}")
 print(f"Autonomy Level: {decision.autonomy_level}")
 print(f"Requires Approval: {decision.requires_approval}")
+```
+
+### DC2D Profiles (Data-Classification × Autonomy)
+
+```python
+from rmacd import (
+    AutonomyLevel,
+    DataAccess,
+    PolicyEvaluator,
+    ProfileDC2D,
+    TierPolicy,
+)
+
+profile = ProfileDC2D(
+    profile_id="rmacd-dc2d-support-agent-v1",
+    profile_name="Support Agent",
+    model="data-classification-2d",
+    version="1.0",
+    data_access=DataAccess(
+        public=TierPolicy(allowed=True, autonomy=AutonomyLevel.AUTONOMOUS),
+        internal=TierPolicy(allowed=True, autonomy=AutonomyLevel.LOGGED),
+        confidential=TierPolicy(allowed=True, autonomy=AutonomyLevel.APPROVAL),
+        restricted=TierPolicy(allowed=False, autonomy=AutonomyLevel.PROHIBITED),
+    ),
+)
+evaluator = PolicyEvaluator(profile)
+
+# DC2D requires data_classification; operation is informational only
+decision = evaluator.evaluate(operation="R", data_classification="confidential")
+print(decision.allowed)            # True
+print(decision.autonomy_level)     # AutonomyLevel.APPROVAL
+print(decision.requires_approval)  # True
 ```
 
 ### Validating Profiles

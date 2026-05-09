@@ -13,8 +13,11 @@ from rmacd.models import (
     PolicyDecision,
     Profile2D,
     Profile3D,
+    ProfileDC2D,
     TriggerCondition,
 )
+
+AnyProfile = Union[Profile2D, Profile3D, ProfileDC2D]
 
 
 # Default autonomy matrix from RMACD Framework spec
@@ -58,6 +61,14 @@ DEFAULT_AUTONOMY_2D: dict[str, AutonomyLevel] = {
     "D": AutonomyLevel.ELEVATED_APPROVAL,
 }
 
+# Default autonomy for DC2D profiles (Appendix D recommended defaults)
+DEFAULT_AUTONOMY_DC2D: dict[str, AutonomyLevel] = {
+    "public": AutonomyLevel.AUTONOMOUS,
+    "internal": AutonomyLevel.LOGGED,
+    "confidential": AutonomyLevel.APPROVAL,
+    "restricted": AutonomyLevel.ELEVATED_APPROVAL,
+}
+
 # Autonomy level ordering (index = restrictiveness, higher = more restrictive)
 AUTONOMY_ORDER = [
     AutonomyLevel.AUTONOMOUS,
@@ -72,14 +83,15 @@ AUTONOMY_ORDER = [
 class PolicyEvaluator:
     """Evaluates policy decisions based on RMACD profiles."""
 
-    def __init__(self, profile: Union[Profile2D, Profile3D]) -> None:
+    def __init__(self, profile: AnyProfile) -> None:
         """Initialize the evaluator with a profile.
 
         Args:
-            profile: An RMACD profile (2D or 3D)
+            profile: An RMACD profile (2D, 3D, or DC2D)
         """
         self.profile = profile
         self._is_3d = isinstance(profile, Profile3D)
+        self._is_dc2d = isinstance(profile, ProfileDC2D)
 
     def evaluate(
         self,
@@ -89,9 +101,13 @@ class PolicyEvaluator:
     ) -> PolicyDecision:
         """Evaluate whether an operation is permitted.
 
+        For 3D and DC2D profiles, data_classification is required. For DC2D, the
+        operation argument is informational only (used for traceability in the
+        returned decision); the autonomy decision depends solely on classification.
+
         Args:
             operation: The RMACD operation (R, M, A, C, or D)
-            data_classification: The data classification tier (required for 3D profiles)
+            data_classification: The data classification tier (required for 3D and DC2D profiles)
             context: Optional evaluation context (timestamp, environment, emergency state)
 
         Returns:
@@ -109,6 +125,12 @@ class PolicyEvaluator:
 
         if context is None:
             context = EvaluationContext()
+
+        # DC2D profiles require data classification; operation is metadata only
+        if self._is_dc2d:
+            if data_classification is None:
+                raise ValueError("data_classification is required for DC2D profiles")
+            return self._evaluate_dc2d(operation, data_classification, context)
 
         # 3D profiles require data classification
         if self._is_3d and data_classification is None:
@@ -204,6 +226,119 @@ class PolicyEvaluator:
             constraints_applied=constraints_applied,
             emergency_mode=context.emergency_active,
         )
+
+    def _evaluate_dc2d(
+        self,
+        operation: Operation,
+        data_classification: DataClassification,
+        context: EvaluationContext,
+    ) -> PolicyDecision:
+        """Evaluate a DC2D profile decision keyed on data classification only."""
+        assert isinstance(self.profile, ProfileDC2D)
+        constraints_applied: list[str] = []
+
+        tier_policy = self.profile.data_access.for_tier(data_classification)
+        allowed = tier_policy.allowed
+        autonomy = tier_policy.autonomy
+
+        # Emergency escalation can grant access to otherwise-denied tiers
+        if not allowed and context.emergency_active:
+            esc = self.profile.emergency_escalation
+            if esc and esc.enabled and esc.escalated_tiers:
+                trigger_ok = (
+                    not esc.trigger_conditions
+                    or context.emergency_trigger is None
+                    or context.emergency_trigger in esc.trigger_conditions
+                )
+                if trigger_ok and data_classification in esc.escalated_tiers:
+                    allowed = True
+                    autonomy = esc.escalated_autonomy or autonomy
+                    constraints_applied.append("emergency_escalation")
+
+        if not allowed:
+            return PolicyDecision(
+                allowed=False,
+                operation=operation,
+                data_classification=data_classification,
+                autonomy_level=AutonomyLevel.PROHIBITED,
+                requires_approval=False,
+                requires_notification=False,
+                blocked_reason=f"Access to {data_classification.value} tier not permitted by this profile",
+                constraints_applied=constraints_applied,
+                emergency_mode=context.emergency_active,
+            )
+
+        # Constraint checks (environment, time windows). Operation-specific
+        # constraints don't exist on DC2D profiles by design.
+        if self.profile.constraints:
+            constraint_result = self._check_constraints_dc2d(context)
+            if constraint_result:
+                constraints_applied.append("constraints")
+                return PolicyDecision(
+                    allowed=False,
+                    operation=operation,
+                    data_classification=data_classification,
+                    autonomy_level=autonomy,
+                    requires_approval=autonomy
+                    in [AutonomyLevel.APPROVAL, AutonomyLevel.ELEVATED_APPROVAL],
+                    requires_notification=autonomy
+                    in [
+                        AutonomyLevel.NOTIFICATION,
+                        AutonomyLevel.APPROVAL,
+                        AutonomyLevel.ELEVATED_APPROVAL,
+                    ],
+                    blocked_reason=constraint_result,
+                    constraints_applied=constraints_applied,
+                    emergency_mode=context.emergency_active,
+                )
+
+        if autonomy == AutonomyLevel.PROHIBITED:
+            return PolicyDecision(
+                allowed=False,
+                operation=operation,
+                data_classification=data_classification,
+                autonomy_level=autonomy,
+                requires_approval=False,
+                requires_notification=False,
+                blocked_reason="Access prohibited by autonomy policy for this tier",
+                constraints_applied=constraints_applied,
+                emergency_mode=context.emergency_active,
+            )
+
+        return PolicyDecision(
+            allowed=True,
+            operation=operation,
+            data_classification=data_classification,
+            autonomy_level=autonomy,
+            requires_approval=autonomy
+            in [AutonomyLevel.APPROVAL, AutonomyLevel.ELEVATED_APPROVAL],
+            requires_notification=autonomy
+            in [
+                AutonomyLevel.NOTIFICATION,
+                AutonomyLevel.APPROVAL,
+                AutonomyLevel.ELEVATED_APPROVAL,
+            ],
+            constraints_applied=constraints_applied,
+            emergency_mode=context.emergency_active,
+        )
+
+    def _check_constraints_dc2d(self, context: EvaluationContext) -> str | None:
+        """Check DC2D constraints (environment + time windows). Returns error message if blocked."""
+        assert isinstance(self.profile, ProfileDC2D)
+        constraints = self.profile.constraints
+        if not constraints:
+            return None
+
+        if constraints.environments and context.environment:
+            if context.environment not in constraints.environments:
+                return f"Environment {context.environment.value} not permitted"
+
+        if constraints.time_windows:
+            time_error = self._check_time_windows(context.timestamp)
+            if time_error:
+                return time_error
+
+        return None
 
     def _get_autonomy_level(
         self,
@@ -332,7 +467,15 @@ class PolicyEvaluator:
         Returns:
             For 3D: dict mapping classification to list of operations
             For 2D: dict with single key "default" mapping to operations
+            For DC2D: dict mapping classification to ["allowed"] or [] (per-tier access)
         """
+        if self._is_dc2d:
+            assert isinstance(self.profile, ProfileDC2D)
+            result: dict[str, list[str]] = {}
+            for tier in DataClassification:
+                policy = self.profile.data_access.for_tier(tier)
+                result[tier.value] = ["allowed"] if policy.allowed else []
+            return result
         if self._is_3d:
             assert isinstance(self.profile, Profile3D)
             return {
@@ -341,13 +484,12 @@ class PolicyEvaluator:
                 ]
                 for k, v in self.profile.permissions.items()
             }
-        else:
-            assert isinstance(self.profile, Profile2D)
-            return {
-                "default": [
-                    o.value if isinstance(o, Operation) else o for o in self.profile.permissions
-                ]
-            }
+        assert isinstance(self.profile, Profile2D)
+        return {
+            "default": [
+                o.value if isinstance(o, Operation) else o for o in self.profile.permissions
+            ]
+        }
 
     def get_effective_autonomy_matrix(
         self,
@@ -357,7 +499,15 @@ class PolicyEvaluator:
         Returns:
             For 3D: nested dict of classification -> operation -> autonomy level
             For 2D: dict of operation -> autonomy level
+            For DC2D: dict of classification -> autonomy level
         """
+        if self._is_dc2d:
+            assert isinstance(self.profile, ProfileDC2D)
+            dc2d_result: dict[str, str] = {}
+            for tier in DataClassification:
+                policy = self.profile.data_access.for_tier(tier)
+                dc2d_result[tier.value] = policy.autonomy.value
+            return dc2d_result
         if self._is_3d:
             result: dict[str, dict[str, str]] = {}
             for classification in DataClassification:
@@ -368,9 +518,8 @@ class PolicyEvaluator:
                     )
                     result[classification.value][operation.value] = autonomy.value
             return result
-        else:
-            result_2d: dict[str, str] = {}
-            for operation in Operation:
-                autonomy = self._get_autonomy_level(operation, None, EvaluationContext())
-                result_2d[operation.value] = autonomy.value
-            return result_2d
+        result_2d: dict[str, str] = {}
+        for operation in Operation:
+            autonomy = self._get_autonomy_level(operation, None, EvaluationContext())
+            result_2d[operation.value] = autonomy.value
+        return result_2d

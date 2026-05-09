@@ -8,11 +8,12 @@ for Governing Autonomous AI Agents in Enterprise IT Operations
 
 *Extending ITIL's MACD Heritage to the Agentic AI Era*
 
-Version 1.2.1 | April 2026
+Version 1.3.0 | May 2026
 **Author: Kash Kashyap**
 
 *Version 1.2 Update: Added Python Tools Registry reference implementation for automated tool governance.*
 *Version 1.2.1 Update: Corrected governance matrix defaults in SDK, fixed Appendix B profile schemas.*
+*Version 1.3.0 Update: Added Appendix D introducing the Data-Classification Two-Dimensional variant (DC2D), with accompanying schema, example profile, and SDK support (rmacd 0.3.0).*
 
 # **Abstract**
 
@@ -1561,5 +1562,83 @@ Organizations implementing RMACD should complete the following deployment steps:
 - **Audit Pipeline Setup:** Establish audit log collection, retention, and alerting according to compliance requirements.
 - **Testing and Validation:** Test all permission profiles in non-production environments before enabling enforcement in production.
 - **Monitoring and Alerting:** Configure dashboards and alerts for policy violations, approval backlogs, and unusual agent behavior patterns.
+
+# **Appendix D: The Data-Classification Two-Dimensional Variant (DC2D)**
+
+## **D.1 Motivation**
+
+The Three-Dimensional model (Operations × Data Classification × Autonomy) and the operational Two-Dimensional model (Operations × Autonomy, see schema `profile-2d.json`) cover the majority of enterprise deployments. A third deployment shape exists in practice but has not previously been articulated as a named framework variant: organizations whose **primary governance lever is data sensitivity**, where operational permissions are already governed elsewhere — typically by IAM/RBAC, DLP, or platform-native policy.
+
+Indicators that an organization is a candidate for the DC2D variant include:
+
+- Mature data classification programme (ISO/IEC 27001 Annex A.5.12, NIST SP 800-60) is already authoritative.
+- AI agent operational permissions are bounded by an existing identity layer (e.g., Microsoft Entra, Okta, Salesforce profiles) and are not re-litigated at the agent governance layer.
+- Inline enforcement is delivered by an AI-DLP, gateway, or trust-layer product (e.g., Microsoft Purview, Salesforce Einstein Trust Layer, AWS Bedrock Guardrails + Macie, Cloudflare AI Gateway, Databricks Unity Catalog) for which the missing artefact is a *named, versioned policy profile*, not an enforcement engine.
+- Regulatory drivers (HIPAA, PCI-DSS, GDPR Art. 9) are framed in terms of *what data the agent touches*, not *what verbs it issues*.
+
+The DC2D variant makes the Data Classification × Autonomy pairing explicit and portable, so that organizations with this deployment shape can express agent governance in a single profile rather than composing it ad hoc across multiple products.
+
+## **D.2 Relationship to the 2D and 3D Models**
+
+| Variant | Axes | Best For |
+|---|---|---|
+| **3D** | Operations × Data Classification × Autonomy | Default. Organizations with both formal classification and granular operational governance needs. |
+| **2D (Operational)** | Operations × Autonomy | Organizations without formal data classification tiers. |
+| **2D (Data-Classification, DC2D)** | Data Classification × Autonomy | Organizations whose primary governance lever is data sensitivity; operations are governed by an upstream identity or DLP layer. |
+
+DC2D is not a replacement for the 3D model; it is a deliberate projection that drops the operations axis when that axis is being enforced elsewhere. Organizations should select 3D where feasible.
+
+## **D.3 The DC2D Governance Matrix**
+
+The DC2D matrix collapses to a single row because autonomy is determined solely by the classification of data accessed:
+
+| Data Tier | Recommended Default | Acceptable Range | Typical Coverage |
+|---|---|---|---|
+| Public | Autonomous | Autonomous → Logged | Marketing copy, public documentation, open data |
+| Internal | Logged | Logged → Notification | Internal wikis, non-sensitive operational data |
+| Confidential | Approval | Notification → Approval | PII, customer records, financial data |
+| Restricted | Elevated Approval | Approval → Prohibited | PHI, PCI, secrets, GDPR Article 9 special categories |
+
+**Defaults rationale.** The recommended defaults represent the middle of the acceptable range, calibrated to match the autonomy stance most commonly observed in production deployments of AI-DLP and trust-layer products. They are deliberately more conservative than a Read-only collapse of the 3D matrix and less conservative than a worst-case (Change/Delete) collapse, on the assumption that DC2D is used precisely when the operation mix is heterogeneous and bounded externally.
+
+**Deviation discipline.** Any tier whose autonomy stance falls outside the acceptable range, or where `allowed: false` is set for tiers below Restricted, must include a written `justification` in the profile and be reviewed by the same authority that approves 3D profile exceptions (see Section 12).
+
+## **D.4 Profile Schema Identifier**
+
+DC2D profiles are validated against the schema at:
+
+```
+https://rmacd-framework.org/schema/v1/profile-dc2d.json
+```
+
+Profile IDs follow the pattern `^rmacd-dc2d-[a-z0-9-]+$` to disambiguate them from operational 2D profiles (`rmacd-2d-*`) and 3D profiles (`rmacd-3d-*`).
+
+## **D.5 What DC2D Intentionally Omits**
+
+The following fields from the 3D and operational 2D models are **absent by design** in DC2D, because they are operation-specific:
+
+- `permissions` (the RMACD verb set)
+- `change_controls` (backup/rollback/blast-radius for Change operations)
+- `delete_controls` (soft-delete grace, dependency check, legal-hold for Delete operations)
+- `resource_quotas` (creation limits for Add operations)
+
+DC2D adds, in their place:
+
+- `redaction` — per-tier output masking and tokenization (the primary control surface when the operation axis is dropped).
+- `egress_controls` — restrictions on where classified data may flow, including a default block on external (non-tenant) model endpoints for Confidential and Restricted tiers.
+- `escalated_tiers` (within `emergency_escalation`) — emergency expansion of permitted data tiers, replacing the `escalated_permissions` field used in operational profiles.
+
+## **D.6 Example Profile**
+
+A worked example (`schemas/examples/regulated-data-handler-dc2d.json`) accompanies this appendix. It models a customer-support agent in a regulated industry with the following stance: Public autonomous, Internal logged, Confidential gated by per-action DPO approval, Restricted denied entirely with explicit justification pointing to a separate authorized profile.
+
+## **D.7 Prior Art and Positioning**
+
+The DC2D pairing is best characterized as **making explicit a control composition the industry already performs ad hoc**, rather than introducing a wholly new conceptual axis. The two axes individually are mainstream:
+
+- Sensitivity-tier gating has been standard practice in DLP since the 2000s and is the operating model of contemporary AI-DLP products (Cyberhaven, Strac, MIND, Cloudflare AI Gateway, Symantec + Google Agent Gateway, Lakera).
+- Tiered HITL autonomy taxonomies have been popularized by the Cloud Security Alliance (Agentic NIST AI RMF Profile; *Levels of Autonomy*, January 2026), TM Forum's AI Autonomy Governance, and Inteq's decision-tier model.
+
+The closest framework-level prior art is the CSA capability-control matrix, which uses *capability type* rather than *data sensitivity* as its second axis. DC2D substitutes data sensitivity for capability, yielding a model directly aligned with regulated-industry compliance vocabulary (HIPAA PHI, PCI cardholder data, GDPR Article 9 special categories) and the policy surfaces of mainstream AI-DLP products.
 
 *— End of Document —*

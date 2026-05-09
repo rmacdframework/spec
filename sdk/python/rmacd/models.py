@@ -337,3 +337,139 @@ class EvaluationContext(BaseModel):
     emergency_active: bool = False
     emergency_trigger: TriggerCondition | None = None
     request_metadata: dict[str, str] | None = None
+
+
+# --- DC2D (Data-Classification Two-Dimensional) variant ---
+
+
+class TierPolicy(BaseModel):
+    """Per-tier access permission and autonomy stance for DC2D profiles."""
+
+    allowed: bool = Field(description="Whether the agent may interact with data of this tier")
+    autonomy: AutonomyLevel = Field(description="Required HITL autonomy level for this tier")
+    justification: str | None = Field(
+        default=None,
+        description="Required when this tier deviates from the recommended default in Appendix D",
+    )
+    data_categories: list[str] | None = Field(
+        default=None,
+        description="Optional regulatory/organizational tags scoping this tier (e.g., PII, PHI, PCI)",
+    )
+
+
+class DataAccess(BaseModel):
+    """Required per-tier policy block for DC2D profiles. All four tiers must be specified."""
+
+    public: TierPolicy
+    internal: TierPolicy
+    confidential: TierPolicy
+    restricted: TierPolicy
+
+    model_config = {"extra": "forbid"}
+
+    def for_tier(self, tier: DataClassification) -> TierPolicy:
+        """Return the TierPolicy for the given classification tier."""
+        return getattr(self, tier.value)
+
+
+class RateLimitsDC2D(BaseModel):
+    """Rate limiting constraints for DC2D profiles (no operation-specific limits)."""
+
+    queries_per_minute: int | None = Field(default=None, ge=1, le=10000)
+    data_volume_mb_per_hour: int | None = Field(default=None, ge=1, le=100000)
+    tokens_per_hour: int | None = Field(
+        default=None, ge=1, description="Maximum tokens (prompt + completion) per hour"
+    )
+
+
+class RedactionPolicy(BaseModel):
+    """Per-tier output redaction and masking policy. Primary control surface for DC2D."""
+
+    mask_pii: bool = Field(default=True, description="Mask PII in agent outputs")
+    redact_tiers: list[DataClassification] = Field(
+        default_factory=lambda: [DataClassification.RESTRICTED],
+        description="Tiers whose content must be redacted in agent outputs",
+    )
+    tokenize_identifiers: bool = Field(
+        default=False,
+        description="Replace direct identifiers with reversible tokens",
+    )
+
+
+class EgressControls(BaseModel):
+    """Restrictions on where classified data may flow."""
+
+    allowed_destinations: list[str] | None = Field(
+        default=None, description="Permitted egress targets (domains, services, labels)"
+    )
+    block_external_models: bool = Field(
+        default=True,
+        description="Prevent confidential/restricted data egress to external model endpoints",
+    )
+
+
+class ConstraintsDC2D(BaseModel):
+    """Operational constraints for DC2D profiles. No operation-specific controls."""
+
+    environments: list[Environment] | None = None
+    rate_limits: RateLimitsDC2D | None = None
+    time_windows: TimeWindows | None = None
+    redaction: RedactionPolicy | None = None
+    egress_controls: EgressControls | None = None
+
+
+class EmergencyEscalationDC2D(BaseModel):
+    """Emergency escalation for DC2D profiles. Raises permitted data tiers, not operations."""
+
+    enabled: bool = False
+    trigger_conditions: list[TriggerCondition] | None = None
+    escalated_tiers: list[DataClassification] | None = Field(
+        default=None,
+        description="Data tiers temporarily made accessible during emergency",
+    )
+    escalated_autonomy: AutonomyLevel | None = Field(
+        default=None,
+        description="Autonomy stance applied to escalated tiers during the emergency window",
+    )
+    max_duration_minutes: int = Field(default=60, ge=1, le=480)
+    require_post_incident_review: bool = True
+    notification_targets: list[str] | None = None
+    cooldown_minutes: int = Field(default=30, ge=0)
+
+
+class AuditRequirementsDC2D(BaseModel):
+    """Audit and logging requirements for DC2D profiles (alerts keyed by tier, not operation)."""
+
+    log_level: LogLevel = LogLevel.STANDARD
+    retention_days: int = Field(default=365, ge=30, le=2555)
+    real_time_alerts_for_tiers: list[DataClassification] | None = Field(
+        default=None, description="Tiers whose access triggers real-time alerts"
+    )
+    alert_channels: list[AlertChannel] | None = None
+    immutable_logging: bool = False
+    pii_masking: bool = True
+    compliance_tags: list[ComplianceTag] | None = None
+
+
+class ProfileDC2D(BaseModel):
+    """Data-Classification Two-Dimensional RMACD profile (data classification + autonomy).
+
+    For organizations whose primary governance lever is data sensitivity and where
+    operational permissions are governed elsewhere (IAM/RBAC, DLP). See Appendix D
+    of the RMACD Framework specification.
+    """
+
+    schema_ref: str | None = Field(
+        default=None, alias="$schema", description="JSON Schema reference"
+    )
+    profile_id: str = Field(pattern=r"^rmacd-dc2d-[a-z0-9-]+$")
+    profile_name: str
+    model: Literal["data-classification-2d"] = "data-classification-2d"
+    version: str = Field(pattern=r"^[0-9]+\.[0-9]+(\.[0-9]+)?$")
+    description: str | None = None
+    data_access: DataAccess
+    emergency_escalation: EmergencyEscalationDC2D | None = None
+    constraints: ConstraintsDC2D | None = None
+    audit_requirements: AuditRequirementsDC2D | None = None
+    approval_authority: ApprovalAuthority | None = None
+    metadata: ProfileMetadata | None = None
