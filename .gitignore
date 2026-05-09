@@ -1,0 +1,11 @@
+# Python bytecode
+__pycache__/
+*.py[cod]
+
+# Coverage tool output
+.coverage
+.coverage.*
+htmlcov/
+
+# uv lockfile
+uv.lock
