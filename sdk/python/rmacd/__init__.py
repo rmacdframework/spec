@@ -99,10 +99,11 @@ from rmacd.models import (
     ProfileDC2D,
     TierPolicy,
 )
+from rmacd.prompts import build_system_prompt
 from rmacd.redaction import NullRedactor, RedactionResult, Redactor, RegexRedactor
 from rmacd.validator import ProfileValidator
 
-__version__ = "0.5.0"
+__version__ = "0.6.0"
 __all__ = [
     # Core models
     "AutonomyLevel",
@@ -152,5 +153,7 @@ __all__ = [
     "EgressDecision",
     "EgressGate",
     "PolicyDrivenEgressGate",
+    # Prompts
+    "build_system_prompt",
     # Registry available via rmacd.registry
 ]

@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.3.1] - 2026-05-11
 
+### SDK 0.6.0 (2026-05-11)
+
+#### Added — programmatic agent prompt construction
+
+- **`rmacd.prompts.build_system_prompt(profile)`** — generates a
+  markdown prompt fragment derived mechanically from the profile's
+  permissions, autonomy overrides, and tier policies. Closes the
+  drift-prone gap between hand-written prompts and live profiles
+  noted in `docs/runtime-patterns.md` §7. Supports all three profile
+  shapes (2D, 3D, DC2D), renders an autonomy table for 3D, surfaces
+  redaction and egress controls for DC2D, and lists hard prohibitions
+  from the autonomy matrix.
+- 13 new tests in `tests/test_prompts.py`.
+
+#### Added — runtime architecture diagram + renderer
+
+- **`docs/RMACD_Runtime_Architecture.drawio`** plus its rendered
+  `.drawio.png`: PDP/PEP/Audit/Approval/Classifier topology with SDK
+  class names overlaid, plus a DC2D-only band showing Redactor and
+  Egress Gate. Referenced from spec §C.1 and README.
+- **`docs/render_drawio_to_png.py`** — pragmatic matplotlib-based
+  renderer for environments without draw.io desktop or a headless
+  Chromium. Re-run after edits to refresh the PNG.
+
 ### SDK 0.5.0 (2026-05-11)
 
 #### Added — DC2D runtime enforcement
