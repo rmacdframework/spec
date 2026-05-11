@@ -1,0 +1,43 @@
+{
+  "$schema": "https://rmacd-framework.org/schema/v1/profile-3d.json",
+  "profile_id": "rmacd-3d-devops-demo-v1",
+  "profile_name": "DevOps Demo Agent",
+  "model": "three-dimensional",
+  "version": "1.0",
+  "description": "Reference DevOps agent profile for the RMACD ↔ Claude Agent SDK integration example. Exercises all five RMACD verbs across Internal and Confidential tiers, with Restricted limited to Read and a notification override.",
+  "permissions": {
+    "public": ["R", "M", "A", "C", "D"],
+    "internal": ["R", "M", "A", "C"],
+    "confidential": ["R", "M", "A"],
+    "restricted": ["R"]
+  },
+  "autonomy_overrides": {
+    "internal.M": "autonomous",
+    "internal.C": "approval",
+    "confidential.A": "elevated_approval",
+    "restricted.R": "notification"
+  },
+  "constraints": {
+    "environments": ["development", "staging", "production"],
+    "change_controls": {
+      "require_backup_before_change": true,
+      "require_rollback_plan": true,
+      "max_blast_radius_percentage": 25,
+      "canary_deployment_required": false
+    }
+  },
+  "audit_requirements": {
+    "log_level": "enhanced",
+    "retention_days": 365,
+    "immutable_logging": false,
+    "pii_masking": true,
+    "compliance_tags": ["ISO27001"]
+  },
+  "metadata": {
+    "created": "2026-05-10T00:00:00Z",
+    "author": "rmacd-framework-examples",
+    "approved_by": "operations-team",
+    "status": "active",
+    "tags": ["demo", "devops", "claude-agent-sdk"]
+  }
+}

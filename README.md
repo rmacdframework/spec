@@ -68,7 +68,13 @@ RMACD answers the fundamental governance question: *"What can this agent do, to 
 - [Framework Diagram (PNG)](docs/RMACD_Framework_Diagram.drawio.png) — Visual overview
 - [Framework Diagram (draw.io)](docs/RMACD_Framework_Diagram.drawio) — Editable source
 - [Implementation Guide](docs/implementation.md)
-- [Python Tools Registry](tools-registry/) — Reference implementation
+- [Runtime Patterns](docs/runtime-patterns.md) — How an agent runtime consumes RMACD: profile binding, classification lookup, approval-wait, error contract, agent self-restriction
+- [Python SDK](sdk/python/) — `rmacd-framework` on PyPI; `PolicyEvaluator`, `PolicyEnforcer`, profiles, audit, approval
+- [Claude Agent SDK integration example](examples/agent-integration-claude-sdk/) — Runnable RMACD-governed agent (PreToolUse hook)
+- [Raw Anthropic SDK integration example](examples/agent-integration-anthropic-sdk/) — Runnable RMACD-governed agent (manual tool-use loop)
+- [DC2D customer-support example](examples/dc2d-customer-support/) — Redaction + egress controls demo (DC2D variant)
+- [Framework adapters](docs/framework-adapters.md) — LangChain / AutoGen / CrewAI integration snippets
+- [Python Tools Registry](tools-registry/) — Standalone legacy registry (use SDK instead)
 - [JSON Schema Templates](schemas/)
 - [Website](https://rmacd-framework.org)
 

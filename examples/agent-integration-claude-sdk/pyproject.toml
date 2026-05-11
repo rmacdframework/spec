@@ -1,0 +1,22 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "rmacd-demo-claude-agent-sdk"
+version = "0.1.0"
+description = "Reference integration: RMACD governance + Claude Agent SDK"
+readme = "README.md"
+requires-python = ">=3.10"
+license = "CC-BY-4.0"
+authors = [
+    { name = "RMACD Framework Team", email = "rmacdframework@users.noreply.github.com" }
+]
+
+dependencies = [
+    "rmacd-framework>=0.4.0",
+    "claude-agent-sdk>=0.1.0",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["rmacd_demo"]

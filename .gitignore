@@ -12,3 +12,11 @@ uv.lock
 
 # Personal scratch / operational notes
 todo.md
+
+# Local environment files — never commit secrets
+.env
+.env.*
+!.env.example
+
+# Audit logs produced by the example demos
+examples/**/audit.jsonl
