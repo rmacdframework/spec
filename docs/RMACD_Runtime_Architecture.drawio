@@ -1,0 +1,225 @@
+<mxfile host="app.diagrams.net" agent="rmacd-framework" version="29.3.0">
+  <diagram id="rmacd-runtime-architecture" name="RMACD Runtime Architecture">
+    <mxGraphModel dx="1665" dy="890" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1700" pageHeight="1200" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <!-- Title block -->
+        <mxCell id="title" value="RMACD Runtime Architecture" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=22;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="40" y="20" width="1620" height="36" as="geometry" />
+        </mxCell>
+        <mxCell id="subtitle" value="Spec Appendix C, with rmacd-framework SDK class names overlaid (SDK ≥ 0.5.0)" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=12;fontStyle=2;fontColor=#666666" vertex="1" parent="1">
+          <mxGeometry x="40" y="58" width="1620" height="20" as="geometry" />
+        </mxCell>
+
+        <!-- ===================== TOP ROW: agent + policy store ===================== -->
+
+        <!-- Agent Runtime (top, drives everything) -->
+        <mxCell id="agent" value="Agent Runtime&#10;&#10;Claude Agent SDK / Anthropic SDK /&#10;LangChain / AutoGen / CrewAI" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#444444;fontSize=12;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="640" y="120" width="320" height="80" as="geometry" />
+        </mxCell>
+
+        <!-- Policy Store (top-left) -->
+        <mxCell id="policy_store" value="Policy Store&#10;&#10;Profile JSON (2D / 3D / DC2D),&#10;versioned, cryptographically signed.&#10;Loaded once at startup." style="rounded=0;whiteSpace=wrap;html=1;fillColor=#E8E8E8;strokeColor=#666666;fontSize=11" vertex="1" parent="1">
+          <mxGeometry x="80" y="120" width="240" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="policy_store_sdk" value="rmacd.ProfileLoader" style="text;html=1;align=center;verticalAlign=middle;fontSize=10;fontStyle=2;fontColor=#3070b0" vertex="1" parent="1">
+          <mxGeometry x="80" y="200" width="240" height="18" as="geometry" />
+        </mxCell>
+
+        <!-- ===================== MIDDLE ROW: PEP wraps PDP ===================== -->
+
+        <!-- PEP outer (wraps PDP) -->
+        <mxCell id="pep_box" value="Policy Enforcement Point (PEP)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D6E4F1;strokeColor=#3070b0;strokeWidth=2;verticalAlign=top;fontSize=13;fontStyle=1;align=left;spacingLeft=12;spacingTop=6" vertex="1" parent="1">
+          <mxGeometry x="440" y="280" width="720" height="220" as="geometry" />
+        </mxCell>
+        <mxCell id="pep_sdk" value="rmacd.PolicyEnforcer" style="text;html=1;align=left;verticalAlign=middle;fontSize=10;fontStyle=2;fontColor=#3070b0;spacingLeft=12" vertex="1" parent="1">
+          <mxGeometry x="440" y="302" width="220" height="18" as="geometry" />
+        </mxCell>
+
+        <!-- PDP inside PEP -->
+        <mxCell id="pdp_box" value="Policy Decision Point (PDP)&#10;&#10;Evaluate profile + (op, tier) → decision&#10;Returns autonomy_level, requires_approval, etc." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#3070b0;fontSize=11;verticalAlign=top;spacingTop=8" vertex="1" parent="1">
+          <mxGeometry x="480" y="340" width="320" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="pdp_sdk" value="rmacd.PolicyEvaluator" style="text;html=1;align=center;verticalAlign=middle;fontSize=10;fontStyle=2;fontColor=#3070b0" vertex="1" parent="1">
+          <mxGeometry x="480" y="430" width="320" height="18" as="geometry" />
+        </mxCell>
+
+        <!-- Exception classification (inside PEP, next to PDP) -->
+        <mxCell id="exc_box" value="Exception Classification&#10;&#10;PermissionDenied / Prohibited /&#10;Constraint / ApprovalDenied /&#10;ApprovalTimeout / EgressBlocked" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#3070b0;fontSize=11;verticalAlign=top;spacingTop=8" vertex="1" parent="1">
+          <mxGeometry x="820" y="340" width="320" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="exc_sdk" value="rmacd.exceptions (RMACDError hierarchy)" style="text;html=1;align=center;verticalAlign=middle;fontSize=10;fontStyle=2;fontColor=#3070b0" vertex="1" parent="1">
+          <mxGeometry x="820" y="430" width="320" height="18" as="geometry" />
+        </mxCell>
+
+        <!-- ===================== BOTTOM ROW: side effects ===================== -->
+
+        <!-- Approval Gateway (bottom-left) -->
+        <mxCell id="approval_box" value="Approval Gateway&#10;&#10;Routes approval-gated operations.&#10;Returns APPROVED / DENIED / TIMEOUT&#10;within request.timeout_seconds." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF4D6;strokeColor=#B98E20;fontSize=11;verticalAlign=top;spacingTop=8" vertex="1" parent="1">
+          <mxGeometry x="80" y="560" width="320" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="approval_sdk" value="rmacd.approval.ApprovalGateway (Protocol)" style="text;html=1;align=center;verticalAlign=middle;fontSize=10;fontStyle=2;fontColor=#B98E20" vertex="1" parent="1">
+          <mxGeometry x="80" y="660" width="320" height="18" as="geometry" />
+        </mxCell>
+
+        <!-- Approval external -->
+        <mxCell id="approval_ext" value="ServiceNow / Jira / Slack /&#10;PagerDuty / CLI prompt / Webhook" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#E8E8E8;strokeColor=#666666;fontSize=10;dashed=1" vertex="1" parent="1">
+          <mxGeometry x="80" y="710" width="320" height="50" as="geometry" />
+        </mxCell>
+
+        <!-- Audit Engine (bottom-middle) -->
+        <mxCell id="audit_box" value="Audit Engine&#10;&#10;One AuditRecord per decision and execution.&#10;Schema matches Appendix C.6." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E0F0E0;strokeColor=#3F9E3F;fontSize=11;verticalAlign=top;spacingTop=8" vertex="1" parent="1">
+          <mxGeometry x="640" y="560" width="320" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="audit_sdk" value="rmacd.audit.AuditLogger (Protocol)&#10;rmacd.audit.AuditRecord" style="text;html=1;align=center;verticalAlign=middle;fontSize=10;fontStyle=2;fontColor=#3F9E3F" vertex="1" parent="1">
+          <mxGeometry x="640" y="650" width="320" height="32" as="geometry" />
+        </mxCell>
+
+        <!-- Audit external -->
+        <mxCell id="audit_ext" value="JSONL on disk / SIEM /&#10;Immutable storage (WORM)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#E8E8E8;strokeColor=#666666;fontSize=10;dashed=1" vertex="1" parent="1">
+          <mxGeometry x="640" y="710" width="320" height="50" as="geometry" />
+        </mxCell>
+
+        <!-- Resource Classifier (bottom-right) -->
+        <mxCell id="classifier_box" value="Resource Classifier&#10;&#10;(tool_name, args) →&#10;(operation, target, classification)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F3E0F3;strokeColor=#8E3F8E;fontSize=11;verticalAlign=top;spacingTop=8" vertex="1" parent="1">
+          <mxGeometry x="1200" y="560" width="320" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="classifier_sdk" value="Integrator-provided function. Sources:&#10;data catalog, tag registry, DLP, URI convention." style="text;html=1;align=center;verticalAlign=middle;fontSize=10;fontStyle=2;fontColor=#8E3F8E" vertex="1" parent="1">
+          <mxGeometry x="1200" y="650" width="320" height="32" as="geometry" />
+        </mxCell>
+
+        <!-- ===================== DC2D OVERLAY (bottom band) ===================== -->
+
+        <mxCell id="dc2d_band" value="DC2D-only data-flow controls (apply when profile.model = data-classification-2d)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#666666;fontSize=12;fontStyle=2;verticalAlign=top;spacingTop=6;dashed=1" vertex="1" parent="1">
+          <mxGeometry x="80" y="820" width="1540" height="200" as="geometry" />
+        </mxCell>
+
+        <!-- Redactor -->
+        <mxCell id="redactor_box" value="Redactor&#10;&#10;Applied after a read is allowed,&#10;before content reaches the LLM.&#10;Driven by profile.constraints.redaction." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFE8D6;strokeColor=#C57228;fontSize=11;verticalAlign=top;spacingTop=8" vertex="1" parent="1">
+          <mxGeometry x="120" y="860" width="360" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="redactor_sdk" value="rmacd.redaction.Redactor (Protocol)&#10;rmacd.RegexRedactor — PII patterns + tokens&#10;PolicyEnforcer.apply_redaction()" style="text;html=1;align=center;verticalAlign=middle;fontSize=10;fontStyle=2;fontColor=#C57228" vertex="1" parent="1">
+          <mxGeometry x="120" y="945" width="360" height="32" as="geometry" />
+        </mxCell>
+
+        <!-- EgressGate -->
+        <mxCell id="egress_box" value="Egress Gate&#10;&#10;Checked before classified data flows&#10;to a downstream destination.&#10;Driven by profile.constraints.egress_controls." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFE8D6;strokeColor=#C57228;fontSize=11;verticalAlign=top;spacingTop=8" vertex="1" parent="1">
+          <mxGeometry x="540" y="860" width="360" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="egress_sdk" value="rmacd.egress.EgressGate (Protocol)&#10;rmacd.PolicyDrivenEgressGate&#10;PolicyEnforcer.check_egress()" style="text;html=1;align=center;verticalAlign=middle;fontSize=10;fontStyle=2;fontColor=#C57228" vertex="1" parent="1">
+          <mxGeometry x="540" y="945" width="360" height="32" as="geometry" />
+        </mxCell>
+
+        <!-- DC2D destinations -->
+        <mxCell id="dc2d_dest" value="Downstream destinations&#10;&#10;Tenant-hosted LLMs / internal KBs (allow-listed)&#10;External model endpoints (blocked for sensitive tiers)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#E8E8E8;strokeColor=#666666;fontSize=10;dashed=1;verticalAlign=top;spacingTop=8" vertex="1" parent="1">
+          <mxGeometry x="960" y="860" width="620" height="120" as="geometry" />
+        </mxCell>
+
+        <!-- ===================== ARROWS ===================== -->
+
+        <!-- Agent → PEP -->
+        <mxCell id="e_agent_pep" style="endArrow=classic;html=1;strokeWidth=2;exitX=0.5;exitY=1;entryX=0.5;entryY=0" edge="1" parent="1" source="agent" target="pep_box">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_agent_pep_label" value="enforce(op, target, classification)" style="text;html=1;align=center;fontSize=10;fontStyle=2" vertex="1" parent="1">
+          <mxGeometry x="700" y="222" width="220" height="20" as="geometry" />
+        </mxCell>
+
+        <!-- Policy Store → PEP -->
+        <mxCell id="e_store_pep" style="endArrow=classic;html=1;strokeWidth=1;exitX=1;exitY=0.5;entryX=0;entryY=0.25;dashed=1" edge="1" parent="1" source="policy_store" target="pep_box">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_store_pep_label" value="profile loaded at startup" style="text;html=1;align=center;fontSize=9;fontStyle=2;fontColor=#666666" vertex="1" parent="1">
+          <mxGeometry x="330" y="240" width="160" height="16" as="geometry" />
+        </mxCell>
+
+        <!-- PEP → Approval -->
+        <mxCell id="e_pep_approval" style="endArrow=classic;html=1;strokeWidth=2;exitX=0.25;exitY=1;entryX=0.5;entryY=0" edge="1" parent="1" source="pep_box" target="approval_box">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_pep_approval_label" value="if autonomy ∈ {approval, elevated_approval}" style="text;html=1;align=center;fontSize=10;fontStyle=2" vertex="1" parent="1">
+          <mxGeometry x="180" y="510" width="320" height="20" as="geometry" />
+        </mxCell>
+
+        <!-- PEP → Audit -->
+        <mxCell id="e_pep_audit" style="endArrow=classic;html=1;strokeWidth=2;exitX=0.5;exitY=1;entryX=0.5;entryY=0" edge="1" parent="1" source="pep_box" target="audit_box">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_pep_audit_label" value="record every decision" style="text;html=1;align=center;fontSize=10;fontStyle=2" vertex="1" parent="1">
+          <mxGeometry x="690" y="510" width="220" height="20" as="geometry" />
+        </mxCell>
+
+        <!-- PEP → Classifier (reads classification) -->
+        <mxCell id="e_pep_classifier" style="endArrow=classic;html=1;strokeWidth=2;exitX=0.75;exitY=1;entryX=0.5;entryY=0" edge="1" parent="1" source="pep_box" target="classifier_box">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_pep_classifier_label" value="resolves (op, target, tier) per call" style="text;html=1;align=center;fontSize=10;fontStyle=2" vertex="1" parent="1">
+          <mxGeometry x="1190" y="510" width="270" height="20" as="geometry" />
+        </mxCell>
+
+        <!-- Approval external below approval box -->
+        <mxCell id="e_approval_ext" style="endArrow=classic;html=1;exitX=0.5;exitY=1;entryX=0.5;entryY=0;strokeWidth=1" edge="1" parent="1" source="approval_box" target="approval_ext">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Audit external below audit box -->
+        <mxCell id="e_audit_ext" style="endArrow=classic;html=1;exitX=0.5;exitY=1;entryX=0.5;entryY=0;strokeWidth=1" edge="1" parent="1" source="audit_box" target="audit_ext">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Redactor → EgressGate -->
+        <mxCell id="e_redactor_egress" style="endArrow=classic;html=1;strokeWidth=2;exitX=1;exitY=0.5;entryX=0;entryY=0.5" edge="1" parent="1" source="redactor_box" target="egress_box">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- EgressGate → destinations -->
+        <mxCell id="e_egress_dest" style="endArrow=classic;html=1;strokeWidth=2;exitX=1;exitY=0.5;entryX=0;entryY=0.5" edge="1" parent="1" source="egress_box" target="dc2d_dest">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- ===================== LEGEND ===================== -->
+        <mxCell id="legend_title" value="Legend" style="text;html=1;align=left;verticalAlign=top;fontSize=12;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="1200" y="120" width="120" height="20" as="geometry" />
+        </mxCell>
+
+        <mxCell id="legend_pdp_swatch" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D6E4F1;strokeColor=#3070b0" vertex="1" parent="1">
+          <mxGeometry x="1200" y="148" width="22" height="14" as="geometry" />
+        </mxCell>
+        <mxCell id="legend_pdp_label" value="SDK enforcement components (PDP/PEP)" style="text;html=1;align=left;verticalAlign=middle;fontSize=10" vertex="1" parent="1">
+          <mxGeometry x="1228" y="142" width="380" height="22" as="geometry" />
+        </mxCell>
+
+        <mxCell id="legend_approval_swatch" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF4D6;strokeColor=#B98E20" vertex="1" parent="1">
+          <mxGeometry x="1200" y="170" width="22" height="14" as="geometry" />
+        </mxCell>
+        <mxCell id="legend_approval_label" value="Approval surfaces" style="text;html=1;align=left;verticalAlign=middle;fontSize=10" vertex="1" parent="1">
+          <mxGeometry x="1228" y="164" width="380" height="22" as="geometry" />
+        </mxCell>
+
+        <mxCell id="legend_audit_swatch" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E0F0E0;strokeColor=#3F9E3F" vertex="1" parent="1">
+          <mxGeometry x="1200" y="192" width="22" height="14" as="geometry" />
+        </mxCell>
+        <mxCell id="legend_audit_label" value="Audit surfaces" style="text;html=1;align=left;verticalAlign=middle;fontSize=10" vertex="1" parent="1">
+          <mxGeometry x="1228" y="186" width="380" height="22" as="geometry" />
+        </mxCell>
+
+        <mxCell id="legend_classifier_swatch" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F3E0F3;strokeColor=#8E3F8E" vertex="1" parent="1">
+          <mxGeometry x="1200" y="214" width="22" height="14" as="geometry" />
+        </mxCell>
+        <mxCell id="legend_classifier_label" value="Integrator-provided classifier" style="text;html=1;align=left;verticalAlign=middle;fontSize=10" vertex="1" parent="1">
+          <mxGeometry x="1228" y="208" width="380" height="22" as="geometry" />
+        </mxCell>
+
+        <mxCell id="legend_dc2d_swatch" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFE8D6;strokeColor=#C57228" vertex="1" parent="1">
+          <mxGeometry x="1200" y="236" width="22" height="14" as="geometry" />
+        </mxCell>
+        <mxCell id="legend_dc2d_label" value="DC2D-only data-flow controls" style="text;html=1;align=left;verticalAlign=middle;fontSize=10" vertex="1" parent="1">
+          <mxGeometry x="1228" y="230" width="380" height="22" as="geometry" />
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

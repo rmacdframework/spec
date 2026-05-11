@@ -448,9 +448,13 @@ RMACD integrates naturally with existing ITIL change management processes. The c
 | Change | Normal Change | Major Change | Human Only |
 | Delete | Normal Change | Major Change | Human Only |
 
-## **9.4 Python Tools Registry Implementation**
+## **9.4 Python Tools Registry**
 
-The RMACD Framework includes a reference Python implementation called the **Tools Registry** that enables automated tool governance for AI agents. This implementation provides a production-ready foundation for enforcing RMACD permissions at runtime.
+The Tools Registry is a Python catalog format for declaring tools with their RMACD classification (operation verb, data tier, HITL requirement) and computing aggregate risk for multi-tool workflows. It shipped in framework v1.2.0 as the first reference implementation and is the right component to use when the task is **describing tools** — registering them, validating profile coverage against a static tool list, computing workflow-level risk scores, or auto-classifying MCP servers.
+
+For runtime **enforcement** — gating an individual tool call at the moment it fires, routing approvals through a human, emitting audit records, and raising typed exceptions on denial — use the SDK enforcement layer described in §9.5 (`PolicyEnforcer`). The two are complementary: a deployment can use the Tools Registry to declare its tool catalog, then bind that catalog to a `PolicyEnforcer` for per-call enforcement.
+
+The registry is available as `rmacd.registry.ToolsRegistry` in the SDK (preferred) and also as the standalone `tools-registry/` directory in the repository for environments that need the catalog without the rest of the SDK.
 
 ### Core Capabilities
 
@@ -1464,6 +1468,10 @@ Specialized profile for security incident response with pre-authorized emergency
 This appendix describes how RMACD permission profiles are consumed by AI agentic platforms at runtime. The workflow covers profile loading, policy evaluation, execution control, and audit logging.
 
 ## **C.1 High-Level Architecture**
+
+A visual rendering of this architecture is available at
+[`docs/RMACD_Runtime_Architecture.drawio`](RMACD_Runtime_Architecture.drawio),
+with the SDK class names overlaid on each component box.
 
 The RMACD enforcement architecture consists of four primary components that work together to govern agent operations:
 

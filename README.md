@@ -67,8 +67,9 @@ RMACD answers the fundamental governance question: *"What can this agent do, to 
 
 - [Full Specification (Markdown)](docs/RMACD_Framework_v1.3.md) — Recommended for reading on GitHub
 - [Full Specification (Word)](docs/RMACD_Framework_v1.3.docx) — Original document format
-- [Framework Diagram (PNG)](docs/RMACD_Framework_Diagram.drawio.png) — Visual overview
-- [Framework Diagram (draw.io)](docs/RMACD_Framework_Diagram.drawio) — Editable source
+- [Framework Diagram (PNG)](docs/RMACD_Framework_Diagram.drawio.png) — Conceptual model (R/M/A/C/D × HITL)
+- [Framework Diagram (draw.io)](docs/RMACD_Framework_Diagram.drawio) — Editable conceptual source
+- [Runtime Architecture Diagram (draw.io)](docs/RMACD_Runtime_Architecture.drawio) — PDP/PEP/Audit/Approval with SDK class overlay
 - [Implementation Guide](docs/implementation.md)
 - [Runtime Patterns](docs/runtime-patterns.md) — How an agent runtime consumes RMACD: profile binding, classification lookup, approval-wait, error contract, agent self-restriction
 - [Python SDK](sdk/python/) — `rmacd-framework` on PyPI; `PolicyEvaluator`, `PolicyEnforcer`, profiles, audit, approval
