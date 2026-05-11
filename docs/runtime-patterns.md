@@ -1,7 +1,7 @@
 # RMACD Runtime Patterns
 
 **Companion to:** `RMACD_Framework_v1.3.md` (Appendices C and D)
-**Targets:** SDK ≥ 0.4.0 (`rmacd-framework` on PyPI)
+**Targets:** SDK ≥ 0.6.0 (`rmacd-framework` on PyPI)
 
 The canonical specification (Appendix C) describes the four-component
 enforcement architecture (Policy Store, PDP, PEP, Audit Engine) and the
@@ -446,10 +446,23 @@ Default autonomy stance applies on top of those permissions:
 See `examples/agent-integration-claude-sdk/rmacd_demo/system_prompt.md`
 for the version used in the reference integration.
 
-The prompt should be derived mechanically from the profile (or generated
-from a template populated by the profile's permission and autonomy fields)
-so the model's self-understanding tracks the runtime enforcement exactly.
-Drift between the prompt and the live profile is the most common source
+For programmatic generation, use `rmacd.build_system_prompt(profile)`
+(SDK 0.6.0+), which renders the prompt fragment directly from a loaded
+profile — supports 2D / 3D / DC2D, includes the autonomy table for 3D,
+surfaces redaction and egress controls for DC2D, and lists hard
+prohibitions from the autonomy matrix:
+
+```python
+from rmacd import ProfileLoader, build_system_prompt
+
+profile = ProfileLoader().load_file("/etc/rmacd/profiles/my-agent.json")
+system_prompt_fragment = build_system_prompt(profile)
+# prepend to your agent's existing system prompt
+```
+
+Deriving the prompt mechanically from the live profile is what keeps the
+model's self-understanding consistent with runtime enforcement; drift
+between a hand-written prompt and the profile is the most common source
 of wasted turns.
 
 ---

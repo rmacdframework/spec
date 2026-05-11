@@ -23,9 +23,17 @@ RMACD answers the fundamental governance question: *"What can this agent do, to 
 
 ## Framework Diagram
 
+### Conceptual model
+
 ![RMACD Framework Diagram](docs/RMACD_Framework_Diagram.drawio.png)
 
 *[Edit diagram (draw.io)](docs/RMACD_Framework_Diagram.drawio)*
+
+### Runtime architecture (Appendix C, with SDK class overlay)
+
+![RMACD Runtime Architecture](docs/RMACD_Runtime_Architecture.drawio.png)
+
+*[Edit diagram (draw.io)](docs/RMACD_Runtime_Architecture.drawio) · Regenerate PNG with `python docs/render_drawio_to_png.py docs/RMACD_Runtime_Architecture.drawio`*
 
 ---
 

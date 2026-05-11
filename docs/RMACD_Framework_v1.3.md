@@ -14,7 +14,7 @@ Version 1.3.0 | May 2026
 *Version 1.2 Update: Added Python Tools Registry reference implementation for automated tool governance.*
 *Version 1.2.1 Update: Corrected governance matrix defaults in SDK, fixed Appendix B profile schemas.*
 *Version 1.3.0 Update: Added Appendix D introducing the Data-Classification Two-Dimensional variant (DC2D), with accompanying schema, example profile, and SDK support (rmacd 0.3.0).*
-*Version 1.3.1 Update: Published SDK enforcement layer (PolicyEnforcer, ApprovalGateway, AuditLogger, RMACDError hierarchy) in rmacd 0.4.0; added DC2D runtime controls (Redactor, EgressGate) in rmacd 0.5.0; shipped runnable reference integrations for Claude Agent SDK and the raw Anthropic SDK, and a DC2D redaction/egress demo. Two companion docs joined `docs/`: `runtime-patterns.md` and `framework-adapters.md`.*
+*Version 1.3.1 Update: Published SDK enforcement layer (PolicyEnforcer, ApprovalGateway, AuditLogger, RMACDError hierarchy) in rmacd 0.4.0; added DC2D runtime controls (Redactor, EgressGate) in rmacd 0.5.0; added programmatic agent prompt construction (`build_system_prompt`) in rmacd 0.6.0; shipped runnable reference integrations for Claude Agent SDK and the raw Anthropic SDK, and a DC2D redaction/egress demo. Two companion docs joined `docs/`: `runtime-patterns.md` and `framework-adapters.md`. A runtime-architecture draw.io diagram joined `docs/`.*
 
 # **Abstract**
 
@@ -1469,9 +1469,9 @@ This appendix describes how RMACD permission profiles are consumed by AI agentic
 
 ## **C.1 High-Level Architecture**
 
-A visual rendering of this architecture is available at
-[`docs/RMACD_Runtime_Architecture.drawio`](RMACD_Runtime_Architecture.drawio),
-with the SDK class names overlaid on each component box.
+![RMACD Runtime Architecture](RMACD_Runtime_Architecture.drawio.png)
+
+*Source: [`RMACD_Runtime_Architecture.drawio`](RMACD_Runtime_Architecture.drawio). SDK class names are overlaid on each component.*
 
 The RMACD enforcement architecture consists of four primary components that work together to govern agent operations:
 
