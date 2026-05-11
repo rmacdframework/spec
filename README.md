@@ -3,7 +3,9 @@
 **ITIL for the Agentic Era**
 
 [![License: CC BY 4.0](https://img.shields.io/badge/License-CC_BY_4.0-lightgrey.svg)](https://creativecommons.org/licenses/by/4.0/)
-[![Version](https://img.shields.io/badge/version-1.3.0-blue.svg)](https://github.com/rmacdframework/spec/releases)
+[![Spec version](https://img.shields.io/badge/spec-1.3.1-blue.svg)](https://github.com/rmacdframework/spec/releases)
+[![PyPI](https://img.shields.io/pypi/v/rmacd-framework.svg)](https://pypi.org/project/rmacd-framework/)
+[![Python](https://img.shields.io/pypi/pyversions/rmacd-framework.svg)](https://pypi.org/project/rmacd-framework/)
 
 ---
 
