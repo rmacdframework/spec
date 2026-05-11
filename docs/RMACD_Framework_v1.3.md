@@ -14,6 +14,7 @@ Version 1.3.0 | May 2026
 *Version 1.2 Update: Added Python Tools Registry reference implementation for automated tool governance.*
 *Version 1.2.1 Update: Corrected governance matrix defaults in SDK, fixed Appendix B profile schemas.*
 *Version 1.3.0 Update: Added Appendix D introducing the Data-Classification Two-Dimensional variant (DC2D), with accompanying schema, example profile, and SDK support (rmacd 0.3.0).*
+*Version 1.3.1 Update: Published SDK enforcement layer (PolicyEnforcer, ApprovalGateway, AuditLogger, RMACDError hierarchy) in rmacd 0.4.0; added DC2D runtime controls (Redactor, EgressGate) in rmacd 0.5.0; shipped runnable reference integrations for Claude Agent SDK and the raw Anthropic SDK, and a DC2D redaction/egress demo. Two companion docs joined `docs/`: `runtime-patterns.md` and `framework-adapters.md`.*
 
 # **Abstract**
 
@@ -572,6 +573,80 @@ tools-registry/
 ├── rmacd_permission_profiles.json # Standard profiles
 └── README.md                     # Documentation
 ```
+
+## **9.5 Python SDK Enforcement Layer**
+
+The `rmacd-framework` Python package on PyPI ships the enforcement
+plumbing that turns a profile decision into an action: approval routing,
+audit emission, exception classification, and the DC2D data-flow
+controls. The package is the integration point every agent runtime
+(Claude Agent SDK, raw Anthropic SDK, LangChain, AutoGen, CrewAI) hits
+when wiring RMACD into a tool-call site.
+
+### Core components
+
+- **`PolicyEvaluator`** — pure decision function. Given a profile and an
+  (operation, classification), returns a `PolicyDecision`. No side
+  effects. Suitable for offline analysis, profile linters, and dry-run
+  UX.
+- **`PolicyEnforcer`** — decision + side effects on top of
+  `PolicyEvaluator`. Routes approval-gated operations through an
+  `ApprovalGateway`, emits `AuditRecord`s through an `AuditLogger`, and
+  raises a typed subclass of `RMACDPolicyError` on any non-allow path.
+  Also exposes `apply_redaction()` and `check_egress()` for DC2D
+  profiles. `from_env()` constructs the enforcer from
+  `RMACD_PROFILE_PATH` and `RMACD_AGENT_ID` for 12-factor deployments.
+- **`ApprovalGateway` Protocol** — pluggable approval surface returning
+  `APPROVED`, `DENIED`, or `TIMEOUT`. Ships `RejectAllApprovalGateway`
+  (fail-closed default) and `AutoApproveGateway` (deterministic
+  scripted use). Production integrations implement against ServiceNow,
+  Jira, Slack, PagerDuty, or webhooks.
+- **`AuditLogger` Protocol** — pluggable audit sink. Ships
+  `JSONLAuditLogger` (file or stream) and `NullAuditLogger` (default).
+  `AuditRecord` shape matches Appendix C.6.
+- **`Redactor` Protocol** (DC2D) — output redaction for tiers in the
+  profile's `redact_tiers`. Ships `NullRedactor` and `RegexRedactor`
+  (email, SSN, credit-card, US phone, IPv4; stable tokenization).
+- **`EgressGate` Protocol** (DC2D) — destination check applied before
+  classified data leaves the agent. Ships `PolicyDrivenEgressGate`
+  (allowlist + `block_external_models` rules).
+- **`RMACDError` hierarchy** — typed exceptions for each non-allow
+  outcome: `RMACDPermissionDeniedError`, `RMACDProhibitedError`,
+  `RMACDConstraintError`, `RMACDApprovalRequiredError`,
+  `RMACDApprovalDeniedError`, `RMACDApprovalTimeoutError`,
+  `RMACDEgressBlockedError`.
+
+### Reference integrations
+
+Runnable end-to-end examples live in `spec/examples/`:
+
+| Directory | What it shows |
+|---|---|
+| `agent-integration-claude-sdk/` | Claude Agent SDK with `PreToolUse` hook → `PolicyEnforcer.enforce`. Seven DevOps tools exercising all five RMACD verbs across all four data tiers. |
+| `agent-integration-anthropic-sdk/` | Raw Anthropic SDK manual tool-use loop with prompt caching; `dispatch_tool()` is the single integration site that any framework adapts. |
+| `dc2d-customer-support/` | Self-contained DC2D demo (no LLM) showing redaction and egress controls on customer records across all four tiers. |
+
+### Companion documentation
+
+- **`docs/runtime-patterns.md`** — profile binding, resource
+  classification lookup, dynamic operation classification, approval-wait
+  semantics, SDK error contract, agent self-restriction prompt, DC2D
+  runtime, and an end-to-end integration checklist with the
+  SDK-provides-vs-integrator-provides boundary.
+- **`docs/framework-adapters.md`** — copy-pasteable integration code
+  for LangChain (callback handler + per-tool decorator), AutoGen v0.4+
+  (function-tool wrapper), CrewAI (`BaseTool` mixin), plus a generic
+  dispatch-site pattern.
+
+### Relationship to the legacy Tools Registry
+
+Section 9.4 above describes the standalone Tools Registry shipped in
+v1.2.0. It remains in the repository at `tools-registry/` for backward
+compatibility, and its content is also available via
+`from rmacd.registry import ToolsRegistry`. New integrations should use
+`PolicyEnforcer` for runtime enforcement; the Tools Registry is now
+most useful as a tool-catalog format and as the auto-classification
+bridge for MCP tools.
 
 # **10. Regulatory Compliance Mapping**
 
@@ -1562,6 +1637,20 @@ Organizations implementing RMACD should complete the following deployment steps:
 - **Audit Pipeline Setup:** Establish audit log collection, retention, and alerting according to compliance requirements.
 - **Testing and Validation:** Test all permission profiles in non-production environments before enabling enforcement in production.
 - **Monitoring and Alerting:** Configure dashboards and alerts for policy violations, approval backlogs, and unusual agent behavior patterns.
+
+## **C.8 Companion Runtime Documentation**
+
+The architecture and pseudocode in this Appendix describe *what* the
+enforcement layer does. Two companion documents in `docs/` describe
+*how* an integrator wires it together at the call site:
+
+- **`docs/runtime-patterns.md`** — profile binding, resource
+  classification lookup, dynamic operation classification, approval-wait
+  semantics for LLM tool calls, SDK error contract, agent self-restriction
+  prompts, and DC2D runtime enforcement.
+- **`docs/framework-adapters.md`** — copy-pasteable integration code for
+  LangChain, AutoGen, CrewAI, plus a generic dispatch-site pattern for
+  any other framework.
 
 # **Appendix D: The Data-Classification Two-Dimensional Variant (DC2D)**
 

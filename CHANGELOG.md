@@ -5,6 +5,90 @@ All notable changes to the RMACD Framework will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.1] - 2026-05-11
+
+### SDK 0.5.0 (2026-05-11)
+
+#### Added — DC2D runtime enforcement
+
+- **`rmacd.redaction`** module: `Redactor` Protocol, `RedactionResult`,
+  `NullRedactor`, `RegexRedactor` (email, US SSN, credit-card,
+  US phone, IPv4 with stable per-process tokenization).
+- **`rmacd.egress`** module: `EgressGate` Protocol, `EgressDecision`,
+  `PolicyDrivenEgressGate` enforcing the profile's `allowed_destinations`
+  allow-list and `block_external_models` flag.
+- **`PolicyEnforcer.apply_redaction(content, tier)`** and
+  **`PolicyEnforcer.check_egress(tier, destination)`** methods. Both
+  no-op for non-DC2D profiles.
+- **`RMACDEgressBlockedError`** exception subclass.
+- 11 new tests in `tests/test_dc2d_runtime.py`.
+
+### SDK 0.4.0 (2026-05-11)
+
+#### Added — enforcement layer
+
+- **`PolicyEnforcer`** — decision + side effects on top of
+  `PolicyEvaluator`. Methods: `enforce()`, `evaluate_only()`,
+  `guard()` decorator, `from_env()` class method (reads
+  `RMACD_AGENT_ID` and `RMACD_PROFILE_PATH`).
+- **`rmacd.approval`** module: `ApprovalGateway` Protocol,
+  `ApprovalRequest`, `ApprovalDecision`, `ApprovalOutcome`
+  (`APPROVED`/`DENIED`/`TIMEOUT`), `RejectAllApprovalGateway`
+  (fail-closed default), `AutoApproveGateway` (scripted/test use).
+- **`rmacd.audit`** module: `AuditLogger` Protocol,
+  `AuditRecord` (matches spec Appendix C.6), `JSONLAuditLogger`,
+  `NullAuditLogger`, helper `build_audit_record()`.
+- **`rmacd.exceptions`** module: `RMACDError` hierarchy with
+  `RMACDPolicyError` and six subclasses
+  (`RMACDPermissionDeniedError`, `RMACDProhibitedError`,
+  `RMACDConstraintError`, `RMACDApprovalRequiredError`,
+  `RMACDApprovalDeniedError`, `RMACDApprovalTimeoutError`).
+- Profile-denied vs matrix-prohibited disambiguation in
+  `PolicyEnforcer._classify_denial`: when both apply, the matrix
+  prohibition wins so callers see the hard safety boundary rather
+  than an exception-eligible profile gap.
+- 12 new tests in `tests/test_enforcer.py`.
+
+### Added — reference integrations
+
+- **`examples/agent-integration-claude-sdk/`** — Claude Agent SDK with
+  `PreToolUse` hook → `PolicyEnforcer.enforce`. Includes seven DevOps
+  tools, custom 3D profile, CLI approval gateway, JSONL audit, and
+  walkthrough doc.
+- **`examples/agent-integration-anthropic-sdk/`** — raw Anthropic SDK
+  manual tool-use loop with prompt caching; `dispatch_tool()` is the
+  single integration site. Live-tested end-to-end against the API.
+- **`examples/dc2d-customer-support/`** — deterministic DC2D demo (no
+  LLM) covering all four tiers and four destination types.
+
+### Added — companion documentation
+
+- **`docs/runtime-patterns.md`** — profile binding, resource
+  classification lookup, dynamic operation classification, approval-wait
+  semantics for LLM agents, SDK error contract, agent self-restriction
+  prompts, DC2D runtime, and an end-to-end integration checklist with
+  the SDK-provides-vs-integrator-provides boundary.
+- **`docs/framework-adapters.md`** — LangChain
+  (`BaseCallbackHandler` and per-tool decorator), AutoGen v0.4+
+  (`rmacd_guarded` wrapper), CrewAI (`RMACDGuardedTool` mixin) plus
+  a generic dispatch-site pattern.
+
+### Changed
+
+- **Spec document** (`docs/RMACD_Framework_v1.3.md`) gained a new
+  section §9.5 covering the SDK enforcement layer and a new section
+  C.8 cross-referencing the companion docs. Version header updated to
+  include the 1.3.1 update line.
+- **Implementation guide** (`docs/implementation.md`) replaced its
+  Tools Registry-only section with a Python SDK section covering the
+  enforcement layer; cross-references the reference integrations and
+  companion docs.
+- **`spec/.gitignore`** added `.env`, `.env.*` (with `!.env.example`
+  whitelist), and `examples/**/audit.jsonl`. `spec/.env.example`
+  shipped as a committable template.
+
+---
+
 ## [1.3.0] - 2026-05-09
 
 ### SDK 0.3.1 amendment (2026-05-09, packaging only)
@@ -232,6 +316,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+[1.3.1]: https://github.com/rmacdframework/spec/releases/tag/v1.3.1
 [1.3.0]: https://github.com/rmacdframework/spec/releases/tag/v1.3.0
 [1.2.1]: https://github.com/rmacdframework/spec/releases/tag/v1.2.1
 [1.2.0]: https://github.com/rmacdframework/spec/releases/tag/v1.2.0

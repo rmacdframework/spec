@@ -81,40 +81,62 @@ Ongoing operations:
 
 ---
 
-## Python Tools Registry
+## Python SDK
 
-A reference Python implementation is available in the `tools-registry/` directory:
+The `rmacd-framework` package on PyPI ships the enforcement plumbing
+that turns a profile decision into an action. Install with:
 
 ```bash
-tools-registry/
-├── rmacd_tools_registry.py       # Core implementation (750+ lines)
-├── example_usage.py              # Usage examples with 27 pre-configured tools
-├── test_registry.py              # Test suite (43 tests)
-├── mcp_integration.py            # MCP auto-classification bridge
-├── rmacd_tools_catalog.json      # Pre-configured tool catalog
-├── rmacd_permission_profiles.json # Standard permission profiles
-└── README.md                     # Detailed documentation
+pip install rmacd-framework
 ```
 
-Key features:
-- Tool registration with RMACD classification
-- Permission validation against agent profiles
-- Risk scoring for tools and workflows
-- Audit logging for compliance
-- MCP tool auto-classification
+Core components:
 
-See `tools-registry/README.md` for detailed usage instructions.
+- **`PolicyEvaluator`** — pure decision function (no side effects).
+- **`PolicyEnforcer`** — decision + approval routing + audit emission +
+  typed exceptions, plus DC2D `apply_redaction()` and `check_egress()`.
+- **`ApprovalGateway`** — pluggable approval surface
+  (`RejectAllApprovalGateway`, `AutoApproveGateway`; integrators
+  implement against ServiceNow, Slack, PagerDuty, webhooks).
+- **`AuditLogger`** — pluggable audit sink (`JSONLAuditLogger`,
+  `NullAuditLogger`).
+- **`Redactor`** (DC2D) — `NullRedactor` and `RegexRedactor` for
+  output PII masking.
+- **`EgressGate`** (DC2D) — `PolicyDrivenEgressGate` for destination
+  allow-listing and external-model blocking.
+- **`RMACDError` hierarchy** — typed exceptions for each non-allow
+  outcome (denied, prohibited, constraint, approval-required,
+  approval-denied, approval-timeout, egress-blocked).
 
----
+Source: `sdk/python/rmacd/`. Schema validation, profile loading, and the
+Tools Registry are also available under the same package
+(`from rmacd import ...`, `from rmacd.registry import ...`).
 
-## Platform-Specific Guides
+## Reference integrations
 
-*Coming soon:*
+Runnable end-to-end examples in `examples/`:
 
-- Kubernetes / Container orchestration
-- AWS / Azure / GCP agent integration
-- LangChain / AutoGPT integration
-- ServiceNow integration
+| Directory | What it shows |
+|---|---|
+| `agent-integration-claude-sdk/` | Claude Agent SDK with `PreToolUse` hook → `PolicyEnforcer.enforce`. |
+| `agent-integration-anthropic-sdk/` | Raw Anthropic SDK manual tool-use loop; the most portable template. |
+| `dc2d-customer-support/` | DC2D redaction and egress controls demonstrated without an LLM. |
+
+## Companion runtime docs
+
+- [`docs/runtime-patterns.md`](runtime-patterns.md) — profile binding,
+  classification lookup, approval-wait, error contract, DC2D runtime,
+  end-to-end integration checklist.
+- [`docs/framework-adapters.md`](framework-adapters.md) — LangChain,
+  AutoGen, CrewAI integration snippets.
+
+## Legacy tools registry
+
+The standalone `tools-registry/` directory remains in the repository for
+backward compatibility. New integrations should use `PolicyEnforcer`;
+use the standalone registry only if you need its JSON catalog format
+or its MCP auto-classification bridge in isolation from the rest of the
+SDK.
 
 ---
 
