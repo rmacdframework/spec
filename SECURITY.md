@@ -10,7 +10,10 @@ The RMACD Framework team takes security vulnerabilities seriously. We appreciate
 
 Instead, please report security vulnerabilities by emailing:
 
-**security@rmacd-framework.org**
+**contact@rmacd-framework.org**
+
+Use the subject prefix `[SECURITY]` so the report is routed and triaged
+ahead of general correspondence.
 
 Include the following information in your report:
 
@@ -140,7 +143,7 @@ When implementing RMACD in production environments:
 
 ## Contact
 
-- **Security issues**: security@rmacd-framework.org
+- **Security issues**: contact@rmacd-framework.org (subject prefix `[SECURITY]`)
 - **General questions**: contact@rmacd-framework.org
 - **GitHub**: https://github.com/rmacdframework/spec
 
