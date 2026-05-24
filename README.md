@@ -134,12 +134,16 @@ See [schemas/examples/](schemas/examples/) for more profiles.
 If you use the RMACD Framework in your work, please cite:
 
 ```bibtex
-@misc{rmacd2026,
-  author = {Kash Kashyap},
-  title = {RMACD: AI Agent Governance Framework},
-  year = {2026},
-  url = {https://rmacd-framework.org},
-  note = {Version 1.3.0}
+@software{kashyap2026rmacd,
+  author       = {Kashyap, Kash},
+  title        = {RMACD: AI Agent Governance Framework},
+  year         = {2026},
+  month        = may,
+  version      = {1.3.1},
+  url          = {https://rmacd-framework.org},
+  howpublished = {\url{https://github.com/rmacdframework/spec}},
+  license      = {CC-BY-4.0},
+  note         = {ORCID: 0009-0005-0127-6265}
 }
 ```
 
