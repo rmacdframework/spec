@@ -18,6 +18,9 @@ all of them — what changes is *where* the enforcement call lands.
 ## Contents
 
 - [The pattern](#the-pattern)
+- [Registry-backed enforcement (recommended)](#registry-backed-enforcement-recommended)
+- [OpenAI Agents SDK](#openai-agents-sdk)
+- [Microsoft Agent Framework](#microsoft-agent-framework)
 - [LangChain](#langchain)
 - [AutoGen (v0.4+)](#autogen-v04)
 - [CrewAI](#crewai)
@@ -79,6 +82,155 @@ def enforce_or_explain(enforcer: PolicyEnforcer, tool_name: str, tool_args: dict
 Every adapter below uses `enforce_or_explain` as its enforcement primitive.
 The differences are purely in *how* each framework lets you intercept the
 tool-dispatch point.
+
+---
+
+## Registry-backed enforcement (recommended)
+
+Hand-writing a `classify` lambda per integration is the drift-prone part. The
+**tools registry** is the first-class home for that mapping: register each tool
+once with its RMACD operation, an optional dynamic classifier (args →
+operation/tier/target), and an optional capability ceiling, then call the
+single method `enforcer.enforce_tool_call(tool_name, args)`. It resolves the
+call through the registry and enforces **profile ∩ tool capability** with the
+§12.5 safety floor — no per-site `classify`/`enforce` glue.
+
+```python
+from rmacd import PolicyEnforcer, ProfileLoader
+from rmacd.registry import ToolsRegistry, ToolDefinition, ToolCapability
+from rmacd.models import Operation, DataClassification
+
+registry = ToolsRegistry("my-agent")
+registry.register_tool(ToolDefinition(
+    "update_config", "Update Config", Operation.CHANGE,
+    # dynamic: prod resources resolve to Confidential, others Internal
+    classifier=lambda args: (
+        "C",
+        "confidential" if str(args.get("server_id", "")).startswith("prod-") else "internal",
+        f"server://{args.get('server_id')}",
+    ),
+    capability=ToolCapability(operations={Operation.CHANGE}),  # may never delete
+))
+
+enforcer = PolicyEnforcer(
+    profile=ProfileLoader().load_file("profiles/agent.json"),
+    agent_id="agent-1",
+    registry=registry,
+)
+
+def enforce_or_explain(tool_name: str, tool_args: dict) -> str | None:
+    """Return None if allowed, or a denial message if blocked."""
+    try:
+        enforcer.enforce_tool_call(tool_name, tool_args)
+        return None
+    except Exception as exc:  # RMACD*Error subclasses; fail closed on anything else
+        return f"RMACD: {exc}"
+```
+
+`enforcer.evaluate_tool_call(tool_name, args)` is the side-effect-free dry run
+(no audit, no approval) used by the OpenAI `needs_approval` callback below.
+
+### Classifying `bash` commands
+
+`bash` is the hard case: one tool, any command. `make_bash_classifier()` parses
+the command line — binary, subcommand, flags, pipes/`&&`/`;`, redirects, `sudo`,
+`$(...)` — and returns the **maximum** RMACD operation, failing closed (Change)
+on an unrecognised binary. Switch-level distinctions are honoured: `sed -n` is a
+Read but `sed -i` is a Change; `pico`/`nano`/`vim` edit (Change) but `pico -v`
+/ `vim -R` view (Read); `nslookup` is all-Read while `nsupdate` is a Change;
+`--help`/`--version` is always Read; a `>` redirect makes any command at least a
+Change. Flag meaning is scoped per binary — `pico -v` (view) is not treated like
+`cp -v` / `rm -v` (verbose).
+
+```python
+from rmacd.registry import ToolsRegistry, ToolDefinition, make_bash_classifier
+from rmacd.models import Operation
+
+registry.register_tool(ToolDefinition(
+    "Bash", "Shell", Operation.CHANGE,          # nominal level (for indexing)
+    classifier=make_bash_classifier(),          # default=Change for unknowns
+))
+enforcer.enforce_tool_call("Bash", {"command": "rm -rf build/"})   # → Delete
+enforcer.enforce_tool_call("Bash", {"command": "git log"})         # → Read
+```
+
+The classifier resolves an **operation** only — a shell command has no inherent
+data tier, so it returns `tier=None` and pairs naturally with a **2D profile**
+(operations × autonomy). For 3D governance, layer a path→resource resolver to
+supply the tier. The classifier is a governance/audit heuristic, **not** a
+sandbox — pair it with OS-level controls.
+
+---
+
+## OpenAI Agents SDK
+
+Two complementary hooks. A **tool guardrail** is the synchronous deny gate; the
+**`needs_approval`** callable maps an RMACD `approval`/`elevated_approval`
+decision onto the SDK's built-in human-in-the-loop pause
+(`RunState.approve()` / `reject()`).
+
+```python
+from agents import function_tool
+from agents.guardrail import tool_guardrail, ToolGuardrailFunctionOutput
+
+# 1) Deny gate — reject the call before the tool body runs.
+@tool_guardrail
+def rmacd_guardrail(context, tool, args) -> ToolGuardrailFunctionOutput:
+    reason = enforce_or_explain(tool.name, args)
+    if reason is not None:
+        return ToolGuardrailFunctionOutput.reject_content(reason)   # model sees the denial
+    return ToolGuardrailFunctionOutput.allow()
+
+# 2) Approval routing — pause the run for HITL when RMACD says approval-gated.
+#    The callback signature is (run_context, tool_parameters, call_id) with no
+#    tool name, so bind the registered name per tool.
+def rmacd_needs_approval(tool_name: str):
+    def _needs_approval(run_context, tool_parameters, call_id) -> bool:
+        try:
+            return enforcer.evaluate_tool_call(tool_name, tool_parameters).requires_approval
+        except Exception:
+            return True  # fail safe: unknown/blocked → require a human
+    return _needs_approval
+
+@function_tool(needs_approval=rmacd_needs_approval("update_config"), tool_guardrails=[rmacd_guardrail])
+def update_config(server_id: str, key: str, value: str) -> str:
+    ...
+```
+
+The guardrail is the authoritative allow/deny; `needs_approval` only governs
+*how* an approval-gated allow is surfaced (the SDK interrupts the run and you
+resolve it with `RunState.approve()` / `RunState.reject()`).
+
+---
+
+## Microsoft Agent Framework
+
+Gate every function invocation with a `FunctionMiddleware` in the agent's
+middleware pipeline — the same seam the Agent Governance Toolkit's
+`.UseGovernance()` uses, so RMACD can be the policy it evaluates.
+
+```python
+from agent_framework import FunctionInvocationContext  # MAF function middleware context
+
+async def rmacd_middleware(context: FunctionInvocationContext, next):
+    reason = enforce_or_explain(context.function.name, dict(context.arguments))
+    if reason is not None:
+        # Short-circuit: don't call next() — the tool body never runs.
+        context.result = f"BLOCKED by RMACD: {reason}"
+        return
+    await next(context)  # allowed → proceed to the function invocation
+
+# Register on the agent (or the chat client) pipeline:
+agent = chat_client.create_agent(
+    instructions=system_prompt,
+    tools=[update_config, decommission_server],
+    middleware=[rmacd_middleware],
+)
+```
+
+For human-in-the-loop, MAF's Tool Approval pauses the invocation for a decision
+— wire it to fire when `enforcer.evaluate_tool_call(...).requires_approval` is
+true, mirroring the OpenAI `needs_approval` pattern above.
 
 ---
 

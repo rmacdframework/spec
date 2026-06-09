@@ -5,6 +5,79 @@ All notable changes to the RMACD Framework will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.0] - 2026-06-09
+
+### SDK 0.8.0 (2026-06-09)
+
+#### Added — first-class Tools Registry + registry-backed enforcement
+
+- The **Tools Registry** (`rmacd.registry`) is now the authoritative tool→RMACD
+  classifier and capability layer. `ToolDefinition` gains:
+  - a **dynamic classifier** (`classifier=`) resolving a call's args to
+    `(operation, tier, target)`, plus a static `target_template`, replacing the
+    hand-written per-integration classifier lambdas;
+  - a **capability ceiling** (`ToolCapability`, 2D op-set or 3D per-tier) bounding
+    what a tool may *ever* do.
+- **`PolicyEnforcer.enforce_tool_call(tool_name, args)`** (+ side-effect-free
+  `evaluate_tool_call`) — classifies a call through the registry, applies the
+  tool's capability gate, then evaluates against the agent profile. Enforcement
+  is **profile ∩ tool capability** with the §12.5 immutable floor always on,
+  returning an audited allow/deny/approve at the tool-call boundary. Unknown
+  tools fail closed. `PolicyEnforcer` accepts a `registry=`.
+- **`RMACDToolCapabilityError`** — new exception distinguishing "this tool may
+  never do that" from a profile gap (`RMACDPermissionDeniedError`) or a matrix
+  prohibition (`RMACDProhibitedError`).
+- **Bash command classifier** (`rmacd.registry.classify_bash_command` /
+  `make_bash_classifier`) — parses a shell command (binary, subcommand, flags,
+  pipes/`&&`/`;`, redirects, `sudo`, `$(...)`) into the **maximum** RMACD
+  operation, failing closed (Change) on unknown binaries. Honours switch-level
+  distinctions (`sed -n`=Read vs `sed -i`=Change; `pico`/`nano`/`vim` edit=Change
+  vs `-v`/`--view`/`-R` view=Read; `nslookup`=Read vs `nsupdate`=Change; any
+  `--help`/`--version`=Read; `>` redirect ⇒ Change), with per-binary scoping so
+  `pico -v` (view) ≠ `cp -v` (verbose). Curated table covering base commands
+  (`cp`/`mv`/`rm`/`chmod`/`pico`/`nano`/`vim`/`sed`/`awk`/`find`/`tar`/…),
+  subcommand-driven tools (`git`/`kubectl`/`docker`/`systemctl`/`apt`/`yum`/
+  `dnf`/`brew`/`pip`/`npm`/`helm`/`terraform`), verb-mapped cloud CLIs
+  (`aws`/`gcloud`/`az`), method-aware `curl` (`-X DELETE`→Delete), and
+  conservative defaults for opaque clients (`psql`/`mysql`/`ansible`/`ssh`).
+  Operation-level (tier `None`) — pairs with a 2D profile.
+- **Framework adapters** (`docs/framework-adapters.md`): registry-backed
+  `enforce_tool_call` wired into a Claude Agent SDK `PreToolUse` hook (the
+  `agent-integration-claude-sdk` example now uses it), an **OpenAI Agents SDK**
+  tool guardrail + `needs_approval` callback, and a **Microsoft Agent Framework**
+  `FunctionMiddleware`. The integration point is identical across all of them:
+  intercept at the tool-call boundary, return allow/deny/approve.
+
+#### Fixed
+
+- Registry: re-registering a tool at a different RMACD level no longer leaves a
+  stale `_index_by_level` entry (corrupted `get_tools_by_level`/`get_stats`);
+  `validate_tool_access` now honours the cumulative hierarchy (granting D implies
+  R/M/A/C); `import_from_json` returns False on partial failure.
+
+#### Removed
+
+- The deprecated standalone `tools-registry/` directory (code + JSON catalogs)
+  was folded into `rmacd.registry` and deleted. Imports move from
+  `rmacd_tools_registry` to `from rmacd.registry import ...`.
+
+#### Changed
+
+- Specification document renamed `docs/RMACD_Framework_v1.3.{md,docx}` →
+  `docs/RMACD_Framework_v1.4.{md,docx}` per the minor-release convention; §9.4
+  reframed around the first-class registry and `enforce_tool_call`. References
+  in `README.md`, `docs/runtime-patterns.md`, `docs/implementation.md`, and the
+  DC2D example updated.
+
+#### Tests
+
+- New `tests/test_enforce_tool_call.py` (profile∩tool intersection, capability
+  ceiling, dynamic classifier, approval routing, unknown-tool fail-closed, and
+  the §12.5 floor through the tool path); expanded `tests/test_registry_sdk.py`
+  (classification/capability model, re-register index fix, cumulative access).
+
+---
+
 ## [1.3.2] - 2026-06-08
 
 ### SDK 0.7.0 (2026-06-08)
@@ -404,6 +477,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+[1.4.0]: https://github.com/rmacdframework/spec/releases/tag/v1.4.0
 [1.3.2]: https://github.com/rmacdframework/spec/releases/tag/v1.3.2
 [1.3.1]: https://github.com/rmacdframework/spec/releases/tag/v1.3.1
 [1.3.0]: https://github.com/rmacdframework/spec/releases/tag/v1.3.0

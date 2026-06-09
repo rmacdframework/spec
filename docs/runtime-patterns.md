@@ -1,6 +1,6 @@
 # RMACD Runtime Patterns
 
-**Companion to:** `RMACD_Framework_v1.3.md` (Appendices C and D)
+**Companion to:** `RMACD_Framework_v1.4.md` (Appendices C and D)
 **Targets:** SDK ≥ 0.6.0 (`rmacd-framework` on PyPI)
 
 The canonical specification (Appendix C) describes the four-component
@@ -631,5 +631,5 @@ itself.
 
 - SDK source: `spec/sdk/python/rmacd/`
 - Reference integration: `spec/examples/agent-integration-claude-sdk/`
-- Canonical spec: `spec/docs/RMACD_Framework_v1.3.md` (Appendices C and D)
+- Canonical spec: `spec/docs/RMACD_Framework_v1.4.md` (Appendices C and D)
 - Issue tracker: `https://github.com/rmacdframework/spec/issues`

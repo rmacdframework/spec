@@ -8,7 +8,7 @@ for Governing Autonomous AI Agents in Enterprise IT Operations
 
 *Extending ITIL's MACD Heritage to the Agentic AI Era*
 
-Version 1.3.0 | May 2026
+Version 1.4.0 | June 2026
 **Author: Kash Kashyap**
 
 *Version 1.2 Update: Added Python Tools Registry reference implementation for automated tool governance.*
@@ -17,6 +17,8 @@ Version 1.3.0 | May 2026
 *Version 1.3.1 Update: Published SDK enforcement layer (PolicyEnforcer, ApprovalGateway, AuditLogger, RMACDError hierarchy) in rmacd 0.4.0; added DC2D runtime controls (Redactor, EgressGate) in rmacd 0.5.0; added programmatic agent prompt construction (`build_system_prompt`) in rmacd 0.6.0; shipped runnable reference integrations for Claude Agent SDK and the raw Anthropic SDK, and a DC2D redaction/egress demo. Two companion docs joined `docs/`: `runtime-patterns.md` and `framework-adapters.md`. A runtime-architecture draw.io diagram joined `docs/`.*
 
 *Version 1.3.2 Update: Hardened enforcement of the §12.5 safety boundary in rmacd 0.7.0 — Add/Change/Delete on Restricted data is now rejected both by `profile-3d.schema.json` (at profile-authoring time) and by an immutable runtime floor in the evaluator (at decision time), closing a gap where an `autonomy_overrides` entry could previously raise a prohibited cell. Also fixed time-window midnight wraparound, an egress allow-list substring-match bypass and scheme-less host handling, MCP keyword misclassification, and redaction-pattern issues; expanded the SDK test suite from 60 to 148 tests. See CHANGELOG.*
+
+*Version 1.4.0 Update: Made the Tools Registry a first-class RMACD policy layer in rmacd 0.8.0. Each tool registers its RMACD operation, an optional dynamic classifier (args → operation/tier/target), and an optional capability ceiling; `PolicyEnforcer.enforce_tool_call(tool, args)` classifies a call through the registry and enforces **profile ∩ tool capability** with the §12.5 floor, returning an audited allow/deny/approve at the tool-call boundary. This is the universal hook for a Claude Agent SDK `PreToolUse` hook, an OpenAI Agents SDK tool guardrail / `needs_approval`, or a Microsoft Agent Framework `FunctionMiddleware` (see `docs/framework-adapters.md`). The previously-standalone `tools-registry/` directory was folded into `rmacd.registry` and removed. The specification document was renamed `v1.3` → `v1.4` per the minor-release convention. See CHANGELOG.*
 
 # **Abstract**
 
@@ -452,11 +454,9 @@ RMACD integrates naturally with existing ITIL change management processes. The c
 
 ## **9.4 Python Tools Registry**
 
-The Tools Registry is a Python catalog format for declaring tools with their RMACD classification (operation verb, data tier, HITL requirement) and computing aggregate risk for multi-tool workflows. It shipped in framework v1.2.0 as the first reference implementation and is the right component to use when the task is **describing tools** — registering them, validating profile coverage against a static tool list, computing workflow-level risk scores, or auto-classifying MCP servers.
+The Tools Registry (`rmacd.registry`, SDK 0.8.0+) is the first-class **tool→RMACD classifier and capability layer**. For each tool it declares: the RMACD operation it represents; an optional dynamic classifier that resolves `(operation, data tier, target)` from a call's arguments (so a Delete on a prod resource resolves to Confidential while the same tool on staging resolves to Internal); and an optional **capability ceiling** bounding what the tool may ever do. This is the component that closes the resource-classification gap — mapping a concrete tool call to RMACD terms — without hand-written per-integration glue.
 
-For runtime **enforcement** — gating an individual tool call at the moment it fires, routing approvals through a human, emitting audit records, and raising typed exceptions on denial — use the SDK enforcement layer described in §9.5 (`PolicyEnforcer`). The two are complementary: a deployment can use the Tools Registry to declare its tool catalog, then bind that catalog to a `PolicyEnforcer` for per-call enforcement.
-
-The registry is available as `rmacd.registry.ToolsRegistry` in the SDK (preferred) and also as the standalone `tools-registry/` directory in the repository for environments that need the catalog without the rest of the SDK.
+It binds directly to the enforcement layer (§9.5): `PolicyEnforcer.enforce_tool_call(tool_name, args)` looks the tool up in the registry, classifies the call, checks the tool's capability ceiling, then evaluates the resolved `(operation, tier)` against the agent's profile. Enforcement is the **intersection** — the agent profile must allow it **and** the tool's capability must allow it — with the §12.5 safety floor always applied. The registry also computes aggregate risk for multi-tool workflows and auto-classifies MCP servers.
 
 ### Core Capabilities
 
@@ -486,7 +486,7 @@ This produces a 0-10 scale where higher scores indicate greater operational risk
 ### Basic Usage
 
 ```python
-from rmacd_tools_registry import ToolsRegistry, quick_register
+from rmacd.registry import ToolsRegistry, quick_register
 
 # Create a registry for your organization
 registry = ToolsRegistry("my-organization")
@@ -557,28 +557,58 @@ Five standard permission profiles map to common agent roles:
 | Developer | R, M, A, C | Development, configuration management |
 | Administrator | R, M, A, C, D | System administration, data cleanup |
 
+### Enforcement bridge
+
+Bind a tool to the enforcement layer by registering it with a classifier and a
+capability ceiling, then gating every call through `enforce_tool_call`:
+
+```python
+from rmacd import PolicyEnforcer, ProfileLoader
+from rmacd.registry import ToolsRegistry, ToolDefinition, ToolCapability
+from rmacd.models import Operation
+
+registry = ToolsRegistry("my-organization")
+registry.register_tool(ToolDefinition(
+    "update_config", "Update Config", Operation.CHANGE,
+    classifier=lambda args: (
+        "C",
+        "confidential" if str(args.get("server_id", "")).startswith("prod-") else "internal",
+        f"server://{args.get('server_id')}",
+    ),
+    capability=ToolCapability(operations={Operation.CHANGE}),  # may never delete
+))
+
+enforcer = PolicyEnforcer(
+    profile=ProfileLoader().load_file("profiles/agent.json"),
+    agent_id="agent-1",
+    registry=registry,
+)
+enforcer.enforce_tool_call("update_config", {"server_id": "prod-db-01"})
+# → classify → capability gate → profile gate (§12.5 floor) → allow / raise
+```
+
 ### Integration Points
 
 The Tools Registry integrates with agent platforms through:
 
-- **Direct API Calls** — Import the registry module and call validation functions
+- **`PolicyEnforcer.enforce_tool_call`** — the single registry-backed gate for a
+  framework's tool-call hook (Claude Agent SDK `PreToolUse`, OpenAI Agents SDK
+  tool guardrail / `needs_approval`, Microsoft Agent Framework
+  `FunctionMiddleware`); see `docs/framework-adapters.md`.
 - **JSON Export/Import** — Exchange tool catalogs between systems
 - **MCP Bridge** — Auto-classify MCP tools and manage agent permissions
+- **Bash command classifier** (`classify_bash_command` / `make_bash_classifier`)
+  — for the opaque `bash` tool, parse a shell command into the maximum RMACD
+  operation (honouring switch-level distinctions such as `sed -n` vs `sed -i`,
+  `nslookup` vs `nsupdate`, and `>` redirects), failing closed on unknown
+  binaries. Operation-level; pair with a 2D profile or a path→tier resolver.
 
-### File Location
+### Module Location
 
-The complete implementation is available in the repository:
-
-```
-tools-registry/
-├── rmacd_tools_registry.py       # Core implementation
-├── example_usage.py              # Usage examples
-├── test_registry.py              # Test suite (43 tests)
-├── mcp_integration.py            # MCP auto-classification
-├── rmacd_tools_catalog.json      # Pre-configured tools
-├── rmacd_permission_profiles.json # Standard profiles
-└── README.md                     # Documentation
-```
+The implementation lives in the SDK at `sdk/python/rmacd/registry/`
+(`tools.py`, `mcp.py`). Import via `from rmacd.registry import ...`. The
+previously-standalone `tools-registry/` directory was removed in v1.4.0; its
+content is now `rmacd.registry`.
 
 ## **9.5 Python SDK Enforcement Layer**
 
@@ -650,15 +680,15 @@ Runnable end-to-end examples live in `spec/examples/`:
   (function-tool wrapper), CrewAI (`BaseTool` mixin), plus a generic
   dispatch-site pattern.
 
-### Relationship to the legacy Tools Registry
+### Relationship to the Tools Registry
 
-Section 9.4 above describes the standalone Tools Registry shipped in
-v1.2.0. It remains in the repository at `tools-registry/` for backward
-compatibility, and its content is also available via
-`from rmacd.registry import ToolsRegistry`. New integrations should use
-`PolicyEnforcer` for runtime enforcement; the Tools Registry is now
-most useful as a tool-catalog format and as the auto-classification
-bridge for MCP tools.
+Section 9.4 describes the Tools Registry (`rmacd.registry`), which the
+enforcer consults via `enforce_tool_call` to classify a call and apply the
+tool capability ceiling. The registry answers "what does this tool call
+*mean* in RMACD terms, and what may this tool ever do?"; `PolicyEnforcer`
+answers "may *this agent* do that, right now?" — and enforces the
+intersection. The previously-standalone `tools-registry/` directory was
+folded into `rmacd.registry` and removed in v1.4.0.
 
 # **10. Regulatory Compliance Mapping**
 

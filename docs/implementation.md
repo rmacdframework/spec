@@ -118,7 +118,7 @@ Runnable end-to-end examples in `examples/`:
 
 | Directory | What it shows |
 |---|---|
-| `agent-integration-claude-sdk/` | Claude Agent SDK with `PreToolUse` hook → `PolicyEnforcer.enforce`. |
+| `agent-integration-claude-sdk/` | Claude Agent SDK with `PreToolUse` hook → `PolicyEnforcer.enforce_tool_call` (registry-backed). |
 | `agent-integration-anthropic-sdk/` | Raw Anthropic SDK manual tool-use loop; the most portable template. |
 | `dc2d-customer-support/` | DC2D redaction and egress controls demonstrated without an LLM. |
 
@@ -127,16 +127,17 @@ Runnable end-to-end examples in `examples/`:
 - [`docs/runtime-patterns.md`](runtime-patterns.md) — profile binding,
   classification lookup, approval-wait, error contract, DC2D runtime,
   end-to-end integration checklist.
-- [`docs/framework-adapters.md`](framework-adapters.md) — LangChain,
-  AutoGen, CrewAI integration snippets.
+- [`docs/framework-adapters.md`](framework-adapters.md) — registry-backed
+  `enforce_tool_call`, plus OpenAI Agents SDK, Microsoft Agent Framework,
+  LangChain, AutoGen, and CrewAI integration snippets.
 
-## Legacy tools registry
+## Tools registry
 
-The standalone `tools-registry/` directory remains in the repository for
-backward compatibility. New integrations should use `PolicyEnforcer`;
-use the standalone registry only if you need its JSON catalog format
-or its MCP auto-classification bridge in isolation from the rest of the
-SDK.
+`from rmacd.registry import ToolsRegistry` is the first-class tool→RMACD
+classifier and capability ceiling that `PolicyEnforcer.enforce_tool_call`
+consults to enforce *profile ∩ tool*. The previously-standalone
+`tools-registry/` directory has been removed; its content lives in
+`rmacd.registry`.
 
 ---
 

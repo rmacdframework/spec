@@ -93,4 +93,4 @@ sensitive-tier egress to a known external model host.
   runtime enforcement section
 - [`spec/sdk/python/rmacd/redaction.py`](../../sdk/python/rmacd/redaction.py)
 - [`spec/sdk/python/rmacd/egress.py`](../../sdk/python/rmacd/egress.py)
-- [RMACD spec Appendix D](../../docs/RMACD_Framework_v1.3.md#appendix-d-the-data-classification-two-dimensional-variant-dc2d)
+- [RMACD spec Appendix D](../../docs/RMACD_Framework_v1.4.md#appendix-d-the-data-classification-two-dimensional-variant-dc2d)

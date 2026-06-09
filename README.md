@@ -3,7 +3,7 @@
 **ITIL for the Agentic Era**
 
 [![License: CC BY 4.0](https://img.shields.io/badge/License-CC_BY_4.0-lightgrey.svg)](https://creativecommons.org/licenses/by/4.0/)
-[![Spec version](https://img.shields.io/badge/spec-1.3.2-blue.svg)](https://github.com/rmacdframework/spec/releases)
+[![Spec version](https://img.shields.io/badge/spec-1.4.0-blue.svg)](https://github.com/rmacdframework/spec/releases)
 [![PyPI](https://img.shields.io/pypi/v/rmacd-framework.svg)](https://pypi.org/project/rmacd-framework/)
 [![Python](https://img.shields.io/pypi/pyversions/rmacd-framework.svg)](https://pypi.org/project/rmacd-framework/)
 
@@ -55,7 +55,7 @@ RMACD answers the fundamental governance question: *"What can this agent do, to 
 |-------|-----------|----------|
 | **Three-Dimensional** | RMACD × HITL × Data Classification | Default. Regulated industries, mature data governance. |
 | **Two-Dimensional (Operational)** | RMACD × HITL | Organizations without formal data classification tiers. |
-| **Two-Dimensional (Data-Classification, DC2D)** | Data Classification × HITL | Organizations whose primary governance lever is data sensitivity; operations governed by an upstream IAM/RBAC or DLP layer. See [Appendix D](docs/RMACD_Framework_v1.3.md#appendix-d-the-data-classification-two-dimensional-variant-dc2d). |
+| **Two-Dimensional (Data-Classification, DC2D)** | Data Classification × HITL | Organizations whose primary governance lever is data sensitivity; operations governed by an upstream IAM/RBAC or DLP layer. See [Appendix D](docs/RMACD_Framework_v1.4.md#appendix-d-the-data-classification-two-dimensional-variant-dc2d). |
 
 ---
 
@@ -73,8 +73,8 @@ RMACD answers the fundamental governance question: *"What can this agent do, to 
 
 ## Documentation
 
-- [Full Specification (Markdown)](docs/RMACD_Framework_v1.3.md) — Recommended for reading on GitHub
-- [Full Specification (Word)](docs/RMACD_Framework_v1.3.docx) — Original document format
+- [Full Specification (Markdown)](docs/RMACD_Framework_v1.4.md) — Recommended for reading on GitHub
+- [Full Specification (Word)](docs/RMACD_Framework_v1.4.docx) — Original document format
 - [Framework Diagram (PNG)](docs/RMACD_Framework_Diagram.drawio.png) — Conceptual model (R/M/A/C/D × HITL)
 - [Framework Diagram (draw.io)](docs/RMACD_Framework_Diagram.drawio) — Editable conceptual source
 - [Runtime Architecture Diagram (draw.io)](docs/RMACD_Runtime_Architecture.drawio) — PDP/PEP/Audit/Approval with SDK class overlay
@@ -84,8 +84,8 @@ RMACD answers the fundamental governance question: *"What can this agent do, to 
 - [Claude Agent SDK integration example](examples/agent-integration-claude-sdk/) — Runnable RMACD-governed agent (PreToolUse hook)
 - [Raw Anthropic SDK integration example](examples/agent-integration-anthropic-sdk/) — Runnable RMACD-governed agent (manual tool-use loop)
 - [DC2D customer-support example](examples/dc2d-customer-support/) — Redaction + egress controls demo (DC2D variant)
-- [Framework adapters](docs/framework-adapters.md) — LangChain / AutoGen / CrewAI integration snippets
-- [Python Tools Registry](tools-registry/) — Standalone legacy registry (use SDK instead)
+- [Framework adapters](docs/framework-adapters.md) — registry-backed `enforce_tool_call` for OpenAI Agents SDK, Microsoft Agent Framework, Claude Agent SDK, LangChain, AutoGen, CrewAI
+- [Python Tools Registry](sdk/python/rmacd/registry/) — First-class tool→RMACD classifier + capability ceiling, consulted by `PolicyEnforcer.enforce_tool_call`
 - [JSON Schema Templates](schemas/)
 - [Website](https://rmacd-framework.org)
 
@@ -139,7 +139,7 @@ If you use the RMACD Framework in your work, please cite:
   title        = {RMACD: AI Agent Governance Framework},
   year         = {2026},
   month        = jun,
-  version      = {1.3.2},
+  version      = {1.4.0},
   url          = {https://rmacd-framework.org},
   howpublished = {\url{https://github.com/rmacdframework/spec}},
   license      = {CC-BY-4.0},
