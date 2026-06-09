@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "rmacd-framework"
-version = "0.7.0"
+version = "0.8.0"
 description = "RMACD Framework SDK - Policy evaluation for autonomous AI agents"
 readme = "README.md"
 license = "CC-BY-4.0"

@@ -2,16 +2,36 @@
 RMACD Tools Registry - Core Implementation
 ==========================================
 
-Tool registration, validation, and risk assessment for AI agent governance.
+The registry is the first-class RMACD *classification + capability* layer for
+tools. For each registered tool it answers two questions the enforcer needs at
+the tool-call boundary:
+
+1. **Classification** — what does calling this tool *mean* in RMACD terms? A
+   call ``(tool_name, args)`` resolves to ``(operation, data tier, target)``.
+   The operation is a property of the tool; the tier/target may be static or
+   derived dynamically from the arguments (e.g. ``kubectl delete`` on a prod
+   namespace is Delete on Confidential, on a staging namespace Internal).
+2. **Capability ceiling** — what is this tool *ever* allowed to do, regardless
+   of which agent invokes it? An optional second gate (defence in depth): a
+   read-only search tool should never represent a Delete even if an
+   over-broad profile would permit it.
+
+``PolicyEnforcer.enforce_tool_call`` consults the registry to classify a call,
+checks the capability ceiling, then evaluates the resolved ``(operation, tier)``
+against the agent's profile. Permission is the *intersection*: the agent
+profile must allow it AND the tool's capability must allow it, with the §12.5
+safety floor always enforced by the evaluator.
 
 Author: Kash Kashyap
 License: CC BY 4.0
 """
 
+from __future__ import annotations
+
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 import json
 import logging
 
@@ -33,7 +53,8 @@ _TIER_ORDER: dict[DataClassification, int] = {
     DataClassification.CONFIDENTIAL: 2,
     DataClassification.RESTRICTED: 3,
 }
-# Operation risk ordering: R < M < A < C < D.
+# Operation risk ordering: R < M < A < C < D. Permissions are cumulative
+# (D ⊃ C ⊃ A ⊃ M ⊃ R) — granting a higher operation implies all lower ones.
 _OP_ORDER: dict[Operation, int] = {
     Operation.READ: 0,
     Operation.MOVE: 1,
@@ -94,21 +115,103 @@ def parse_autonomy_level(value: str | AutonomyLevel | None) -> AutonomyLevel | N
     return AutonomyLevel(value.lower().strip())
 
 
+# A dynamic classifier maps a tool call's arguments to a partial RMACD
+# classification: (operation, data tier, target). Any field returned as None
+# falls back to the tool's static ``rmacd_level`` / ``data_access`` / target
+# template. This is how a single tool handles calls whose tier/target depend on
+# which resource the agent picked, replacing hand-written per-integration lambdas.
+ToolClassifier = Callable[
+    [dict[str, Any]],
+    "tuple[Operation | str | None, DataClassification | str | None, str | None]",
+]
+
+
+@dataclass
+class ToolCapability:
+    """The set of RMACD operations a tool may *ever* perform — its ceiling.
+
+    Two forms, mirroring the profile model:
+
+    - ``operations`` (2D): operations allowed regardless of data tier.
+    - ``per_tier`` (3D): operations allowed per data classification.
+
+    A capability is an explicit allow-list of operations the tool is permitted
+    to represent (membership, not cumulative) — a read-only tool declares
+    ``operations={READ}`` and can never represent a Change even if the agent's
+    profile would permit one. An empty/unset capability does not constrain
+    (the agent profile remains the only gate).
+    """
+
+    operations: set[Operation] | None = None
+    per_tier: dict[DataClassification, set[Operation]] | None = None
+
+    def permits(self, operation: Operation, tier: DataClassification | None) -> bool:
+        """Return True if this tool may perform ``operation`` on ``tier``."""
+        if self.per_tier is not None:
+            if tier is None:
+                # Per-tier ceiling but a tier-agnostic call: can't evaluate the
+                # ceiling meaningfully, so don't block here — the agent profile
+                # gate still applies.
+                return True
+            return operation in self.per_tier.get(tier, set())
+        if self.operations is not None:
+            return operation in self.operations
+        return True
+
+    def to_dict(self) -> dict[str, Any]:
+        if self.per_tier is not None:
+            return {
+                "per_tier": {
+                    tier.value: sorted(o.value for o in ops)
+                    for tier, ops in self.per_tier.items()
+                }
+            }
+        if self.operations is not None:
+            return {"operations": sorted(o.value for o in self.operations)}
+        return {}
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "ToolCapability":
+        if "per_tier" in data:
+            return cls(
+                per_tier={
+                    parse_data_classification(tier): {parse_operation(o) for o in ops}
+                    for tier, ops in data["per_tier"].items()
+                }
+            )
+        if "operations" in data:
+            return cls(operations={parse_operation(o) for o in data["operations"]})
+        return cls()
+
+
+@dataclass
+class ResolvedCall:
+    """The RMACD classification of a concrete tool call."""
+
+    operation: Operation
+    tier: DataClassification | None
+    target: str
+
+
 @dataclass
 class ToolDefinition:
-    """Tool definition with RMACD classification."""
+    """A registered tool with its RMACD classification and capability ceiling."""
 
     tool_id: str
     tool_name: str
-    rmacd_level: Operation
+    rmacd_level: Operation  # the tool's RMACD operation (static default)
     description: str = ""
     operations: list[str] = field(default_factory=list)
-    data_access: DataClassification | None = None
+    data_access: DataClassification | None = None  # static data tier (optional)
     required_hitl: AutonomyLevel | None = None
     risk_score: float | None = None
     tags: set[str] = field(default_factory=set)
     metadata: dict[str, Any] = field(default_factory=dict)
     created_at: datetime = field(default_factory=_utcnow)
+    # --- classification + capability (the first-class policy surface) ---
+    target_template: str | None = None  # e.g. "server://{server_id}"
+    classifier: ToolClassifier | None = None  # dynamic (args) -> (op, tier, target)
+    capability: ToolCapability | None = None  # operation ceiling (defence in depth)
 
     def __post_init__(self) -> None:
         """Validate and normalize tool definition."""
@@ -138,6 +241,49 @@ class ToolDefinition:
         if self.risk_score is None:
             self.risk_score = self._calculate_risk_score()
 
+    # ----- runtime classification --------------------------------------------
+
+    def resolve_call(self, args: dict[str, Any] | None = None) -> ResolvedCall:
+        """Resolve a concrete call to ``(operation, tier, target)``.
+
+        Uses the dynamic ``classifier`` if set (with static fields as the
+        fallback for any value it returns as ``None``); otherwise the tool's
+        static ``rmacd_level`` / ``data_access`` and a rendered target.
+        """
+        args = args or {}
+        op: Operation = self.rmacd_level
+        tier: DataClassification | None = self.data_access
+        target: str | None = None
+
+        if self.classifier is not None:
+            c_op, c_tier, c_target = self.classifier(args)
+            if c_op is not None:
+                op = parse_operation(c_op)
+            if c_tier is not None:
+                tier = parse_data_classification(c_tier)
+            if c_target is not None:
+                target = c_target
+
+        if target is None:
+            target = self._render_target(args)
+        return ResolvedCall(operation=op, tier=tier, target=target)
+
+    def permits(self, operation: Operation, tier: DataClassification | None) -> bool:
+        """Whether the tool's capability ceiling allows ``(operation, tier)``."""
+        if self.capability is None:
+            return True
+        return self.capability.permits(operation, tier)
+
+    def _render_target(self, args: dict[str, Any]) -> str:
+        if self.target_template:
+            try:
+                return self.target_template.format(**args)
+            except (KeyError, IndexError):
+                return self.target_template
+        return f"tool://{self.tool_id}"
+
+    # ----- risk / serialization ----------------------------------------------
+
     def _calculate_risk_score(self) -> float:
         """
         Calculate risk score based on RMACD level, data classification, and HITL.
@@ -158,7 +304,11 @@ class ToolDefinition:
         return round(base_risk * 10, 2)
 
     def to_dict(self) -> dict[str, Any]:
-        """Convert to dictionary for JSON serialization."""
+        """Convert to dictionary for JSON serialization.
+
+        Note: a dynamic ``classifier`` is code and is not serialized — it must
+        be re-registered programmatically after loading from JSON.
+        """
         return {
             "tool_id": self.tool_id,
             "tool_name": self.tool_name,
@@ -171,6 +321,8 @@ class ToolDefinition:
             "tags": list(self.tags),
             "metadata": self.metadata,
             "created_at": self.created_at.isoformat(),
+            "target_template": self.target_template,
+            "capability": self.capability.to_dict() if self.capability else None,
         }
 
     @classmethod
@@ -187,6 +339,9 @@ class ToolDefinition:
         elif created_at is None:
             created_at = _utcnow()
 
+        capability_data = data.get("capability")
+        capability = ToolCapability.from_dict(capability_data) if capability_data else None
+
         return cls(
             tool_id=data["tool_id"],
             tool_name=data["tool_name"],
@@ -199,6 +354,8 @@ class ToolDefinition:
             tags=set(data.get("tags", [])),
             metadata=data.get("metadata", {}),
             created_at=created_at,
+            target_template=data.get("target_template"),
+            capability=capability,
         )
 
 
@@ -223,25 +380,22 @@ class ToolsRegistry:
         }
         self._audit_log: list[dict[str, Any]] = []
         self._version = "1.0.0"
-        logger.info(f"Tools registry '{registry_id}' initialized")
+        logger.info("Tools registry '%s' initialized", registry_id)
 
-    def register_tool(self, tool: ToolDefinition | dict[str, Any]) -> bool:
-        """
-        Register a new tool in the registry.
-
-        Args:
-            tool: ToolDefinition object or dictionary
-
-        Returns:
-            True if successful
-        """
+    def register_tool(self, tool: ToolDefinition | dict[str, Any]) -> ToolDefinition:
+        """Register (or replace) a tool. Returns the registered ToolDefinition."""
         if isinstance(tool, dict):
             tool = ToolDefinition.from_dict(tool)
         elif not isinstance(tool, ToolDefinition):
             raise TypeError(f"Tool must be ToolDefinition or dict, got {type(tool)}")
 
-        if tool.tool_id in self._tools:
-            logger.warning(f"Tool '{tool.tool_id}' already registered, updating...")
+        # If replacing an existing tool, drop its old level-index entry first so
+        # a re-registration at a different rmacd_level doesn't leave a stale
+        # entry behind (which would corrupt get_tools_by_level / get_stats).
+        existing = self._tools.get(tool.tool_id)
+        if existing is not None:
+            logger.warning("Tool '%s' already registered, replacing", tool.tool_id)
+            self._index_by_level[existing.rmacd_level].discard(tool.tool_id)
 
         self._tools[tool.tool_id] = tool
         self._index_by_level[tool.rmacd_level].add(tool.tool_id)
@@ -251,8 +405,8 @@ class ToolsRegistry:
             "risk_score": tool.risk_score,
         })
 
-        logger.info(f"Tool '{tool.tool_id}' registered with RMACD level {tool.rmacd_level.value}")
-        return True
+        logger.info("Tool '%s' registered with RMACD level %s", tool.tool_id, tool.rmacd_level.value)
+        return tool
 
     def get_tool(self, tool_id: str) -> ToolDefinition | None:
         """Retrieve a tool by ID."""
@@ -274,29 +428,33 @@ class ToolsRegistry:
         data_tier: DataClassification | str | None = None,
     ) -> tuple[bool, str]:
         """
-        Validate if a tool can be accessed based on permission profile.
+        Validate (advisory) whether an agent with ``allowed_levels`` may use a tool.
 
-        Args:
-            tool_id: Tool to validate
-            allowed_levels: List of allowed RMACD levels
-            data_tier: Optional data classification for 3D model
+        Honours the cumulative RMACD hierarchy (D ⊃ C ⊃ A ⊃ M ⊃ R): an agent
+        granted a higher operation implicitly satisfies all lower tool levels.
+        For authoritative, profile-aware enforcement use
+        ``PolicyEnforcer.enforce_tool_call``; this helper is for catalog/UX
+        filtering of a tool list.
 
-        Returns:
-            Tuple of (is_allowed, reason)
+        Returns a tuple of (is_allowed, reason).
         """
         tool = self.get_tool(tool_id)
         if tool is None:
             return False, f"Tool '{tool_id}' not found in registry"
 
-        # Parse allowed levels
         allowed_ops = [parse_operation(lvl) for lvl in allowed_levels]
 
-        # Check RMACD level permission
-        if tool.rmacd_level not in allowed_ops:
-            return False, (
-                f"Tool requires {tool.rmacd_level.value} permission, "
-                f"but only {[o.value for o in allowed_ops]} allowed"
-            )
+        # Cumulative check: the agent's highest granted level must cover the
+        # tool's required level.
+        if allowed_ops:
+            max_allowed = max(_OP_ORDER[o] for o in allowed_ops)
+            if _OP_ORDER[tool.rmacd_level] > max_allowed:
+                return False, (
+                    f"Tool requires {tool.rmacd_level.value} permission, "
+                    f"but highest allowed is rank {max_allowed}"
+                )
+        else:
+            return False, "No allowed levels provided"
 
         # Check data classification if 3D model
         if data_tier is not None:
@@ -342,12 +500,11 @@ class ToolsRegistry:
                 "error": "No valid tools found",
             }
 
-        risk_scores = [t.risk_score for t in tools]
+        risk_scores = [t.risk_score or 0.0 for t in tools]
         rmacd_levels = [t.rmacd_level for t in tools]
 
-        # Order for comparison
         highest_rmacd = max(rmacd_levels, key=lambda x: _OP_ORDER[x])
-        highest_risk_tool = max(tools, key=lambda t: t.risk_score)
+        highest_risk_tool = max(tools, key=lambda t: t.risk_score or 0.0)
 
         return {
             "total_risk": round(sum(risk_scores), 2),
@@ -379,11 +536,11 @@ class ToolsRegistry:
         with open(filepath, "w", encoding="utf-8") as f:
             json.dump(export_data, f, indent=2, ensure_ascii=False)
 
-        logger.info(f"Registry exported to {filepath}")
+        logger.info("Registry exported to %s", filepath)
         return True
 
     def import_from_json(self, filepath: str | Path) -> bool:
-        """Import tools from JSON file."""
+        """Import tools from JSON file. Returns True only if every tool imported."""
         filepath = Path(filepath)
 
         if not filepath.exists():
@@ -396,15 +553,17 @@ class ToolsRegistry:
             raise ValueError("Invalid registry file: missing 'tools' key")
 
         success_count = 0
+        error_count = 0
         for tool_data in data["tools"]:
             try:
                 self.register_tool(tool_data)
                 success_count += 1
             except Exception as e:
-                logger.error(f"Error importing tool {tool_data.get('tool_id', 'unknown')}: {e}")
+                error_count += 1
+                logger.error("Error importing tool %s: %s", tool_data.get("tool_id", "unknown"), e)
 
-        logger.info(f"Imported {success_count} tools from {filepath}")
-        return True
+        logger.info("Imported %d tools from %s (%d errors)", success_count, filepath, error_count)
+        return error_count == 0
 
     def _log_audit(self, action: str, tool_id: str, details: dict[str, Any]) -> None:
         """Log an audit event."""
@@ -423,7 +582,7 @@ class ToolsRegistry:
 
     def get_stats(self) -> dict[str, Any]:
         """Get registry statistics."""
-        total_risk = sum(t.risk_score for t in self._tools.values())
+        total_risk = sum(t.risk_score or 0.0 for t in self._tools.values())
         return {
             "registry_id": self.registry_id,
             "total_tools": len(self._tools),
@@ -457,8 +616,8 @@ def quick_register(
     tool_name: str,
     rmacd_level: str,
     **kwargs: Any,
-) -> bool:
-    """Quick tool registration helper."""
+) -> ToolDefinition:
+    """Quick tool registration helper. Returns the registered ToolDefinition."""
     tool = ToolDefinition(
         tool_id=tool_id,
         tool_name=tool_name,

@@ -80,6 +80,7 @@ from rmacd.audit import JSONLAuditLogger
 
 from rmacd_demo.cli_gateway import CLIApprovalGateway
 from rmacd_demo.hook import make_pretool_hook
+from rmacd_demo.registry import build_registry
 from rmacd_demo.tools import ALL_TOOLS
 
 
@@ -102,6 +103,7 @@ def build_enforcer() -> PolicyEnforcer:
         agent_id="devops-agent-demo",
         approval_gateway=CLIApprovalGateway(approver_name="local-operator"),
         audit_logger=JSONLAuditLogger(AUDIT_LOG_PATH),
+        registry=build_registry(),
     )
 
 

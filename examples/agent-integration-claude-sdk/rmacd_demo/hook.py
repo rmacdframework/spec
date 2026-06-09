@@ -33,9 +33,8 @@ from rmacd import (
     RMACDConstraintError,
     RMACDPermissionDeniedError,
     RMACDProhibitedError,
+    RMACDToolCapabilityError,
 )
-
-from rmacd_demo.classifier import UnknownToolError, classify_tool_call
 
 
 # The Claude Agent SDK exposes MCP-server tools under names of the form
@@ -69,44 +68,35 @@ def make_pretool_hook(enforcer: PolicyEnforcer) -> Any:
             return _deny(f"Tool '{full_tool_name}' is not governed by this RMACD profile.")
         local_tool_name = full_tool_name[len(_MCP_PREFIX) :]
 
+        # Single integration call: the registry classifies the call into RMACD
+        # terms and the enforcer applies profile ∩ tool-capability + the §12.5
+        # floor, routing approvals and emitting audit records along the way.
         try:
-            cls = classify_tool_call(local_tool_name, tool_input)
-        except UnknownToolError as exc:
-            return _deny(f"RMACD classifier error: {exc}")
-        except Exception as exc:  # pragma: no cover - defensive
-            return _deny(f"RMACD classifier crashed: {exc}")
-
-        try:
-            enforcer.enforce(
-                operation=cls.operation,
-                target=cls.target,
-                classification=cls.classification,
-                justification=_summarise_args(local_tool_name, tool_input),
+            enforcer.enforce_tool_call(local_tool_name, tool_input)
+        except RMACDToolCapabilityError as exc:
+            return _deny(
+                f"RMACD: tool '{local_tool_name}' is not permitted to perform "
+                f"that operation (capability ceiling). Detail: {exc}"
             )
         except RMACDProhibitedError as exc:
             return _deny(
-                f"RMACD: {cls.operation} on tier {cls.classification} is "
-                f"prohibited by the autonomy matrix for any agent. "
-                f"Target={cls.target}. Detail: {exc}"
+                f"RMACD: that operation is prohibited by the autonomy matrix for "
+                f"any agent (human execution only). Detail: {exc}"
             )
         except RMACDPermissionDeniedError as exc:
             return _deny(
-                f"RMACD: your profile does not grant {cls.operation} on tier "
-                f"{cls.classification}. Target={cls.target}. Detail: {exc}"
+                f"RMACD: your profile does not grant this operation. Detail: {exc}"
             )
         except RMACDApprovalDeniedError as exc:
             note = f" Approver note: {exc.note}" if exc.note else ""
-            return _deny(
-                f"RMACD: human approver denied {cls.operation} on {cls.target}.{note}"
-            )
+            return _deny(f"RMACD: human approver denied the operation.{note}")
         except RMACDApprovalTimeoutError as exc:
             return _deny(
-                f"RMACD: approval for {cls.operation} on {cls.target} timed out "
-                f"after {exc.timeout_seconds}s."
+                f"RMACD: approval timed out after {exc.timeout_seconds}s."
             )
         except RMACDConstraintError as exc:
             return _deny(f"RMACD: constraint blocked operation: {exc}")
-        except Exception as exc:  # pragma: no cover - defensive
+        except Exception as exc:  # pragma: no cover - defensive (classifier/SDK errors)
             return _deny(f"RMACD enforcer raised unexpectedly: {exc}")
 
         return {
@@ -127,10 +117,3 @@ def _deny(reason: str) -> dict[str, Any]:
             "permissionDecisionReason": reason,
         }
     }
-
-
-def _summarise_args(tool_name: str, tool_input: dict[str, Any]) -> str:
-    if not tool_input:
-        return f"agent invoked {tool_name}"
-    args_preview = ", ".join(f"{k}={v}" for k, v in list(tool_input.items())[:4])
-    return f"agent invoked {tool_name}({args_preview})"

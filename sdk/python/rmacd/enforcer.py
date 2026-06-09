@@ -60,8 +60,10 @@ from rmacd.exceptions import (
     RMACDEgressBlockedError,
     RMACDPermissionDeniedError,
     RMACDProhibitedError,
+    RMACDToolCapabilityError,
 )
 from rmacd.loader import ProfileLoader
+from rmacd.registry.tools import ToolsRegistry
 from rmacd.models import (
     AutonomyLevel,
     DataClassification,
@@ -104,10 +106,14 @@ class PolicyEnforcer:
         environment: Environment | None = None,
         redactor: Redactor | None = None,
         egress_gate: EgressGate | None = None,
+        registry: ToolsRegistry | None = None,
     ) -> None:
         self.profile = profile
         self.agent_id = agent_id
         self.evaluator = PolicyEvaluator(profile)
+        # Optional tools registry: the authoritative tool→RMACD classifier and
+        # capability ceiling consulted by ``enforce_tool_call``.
+        self.registry = registry
         self.approval_gateway: ApprovalGateway = (
             approval_gateway if approval_gateway is not None else RejectAllApprovalGateway()
         )
@@ -293,6 +299,137 @@ class PolicyEnforcer:
             result="ALLOW",
         )
         return decision
+
+    # ----- registry-backed tool-call enforcement ------------------------------
+
+    def enforce_tool_call(
+        self,
+        tool_name: str,
+        args: dict[str, Any] | None = None,
+        *,
+        justification: str | None = None,
+        context: EvaluationContext | None = None,
+    ) -> PolicyDecision:
+        """Classify a tool call via the registry, then enforce *profile ∩ tool*.
+
+        This is the integration point for an agent framework's tool-call hook
+        (Claude Agent SDK ``PreToolUse``, OpenAI Agents SDK tool guardrail /
+        ``needs_approval``, Microsoft Agent Framework ``FunctionMiddleware``).
+        The flow:
+
+        1. Look up the tool in the registry. An unknown tool fails closed
+           (``RMACDPermissionDeniedError``) — better the agent sees a denial it
+           can react to than enforcement silently passing through.
+        2. Resolve ``(operation, tier, target)`` from the tool's classifier.
+        3. **Capability gate** — if the tool's own ceiling forbids the resolved
+           ``(operation, tier)``, deny with ``RMACDToolCapabilityError`` (this
+           tool may never do that, independent of the agent).
+        4. **Profile gate** — delegate to :meth:`enforce`, which routes
+           approvals, emits the audit record, maps denials to the right
+           exception, and applies the §12.5 immutable safety floor.
+
+        Returns the allowed ``PolicyDecision``; raises a subclass of
+        ``RMACDPolicyError`` for any non-allowed outcome.
+        """
+        if self.registry is None:
+            raise ValueError(
+                "enforce_tool_call requires a ToolsRegistry; pass registry= to "
+                "PolicyEnforcer(...) or call enforce() with an explicit operation."
+            )
+
+        tool = self.registry.get_tool(tool_name)
+        if tool is None:
+            # Fail closed: a tool with no RMACD registration cannot be governed.
+            logger.warning("RMACD: refusing unregistered tool '%s' (fail-closed)", tool_name)
+            raise RMACDPermissionDeniedError(
+                f"Tool '{tool_name}' is not registered in the RMACD tools "
+                f"registry; refusing the call (fail-closed)."
+            )
+
+        resolved = tool.resolve_call(args or {})
+
+        # Capability gate (defence in depth): the tool's own ceiling.
+        if not tool.permits(resolved.operation, resolved.tier):
+            tier_label = resolved.tier.value if resolved.tier else "any"
+            decision = PolicyDecision(
+                allowed=False,
+                operation=resolved.operation,
+                data_classification=resolved.tier,
+                autonomy_level=AutonomyLevel.PROHIBITED,
+                requires_approval=False,
+                requires_notification=False,
+                blocked_reason=(
+                    f"Tool '{tool.tool_id}' capability does not permit "
+                    f"{resolved.operation.value} on {tier_label}."
+                ),
+            )
+            self._audit(
+                operation=resolved.operation,
+                target=resolved.target,
+                classification=resolved.tier,
+                decision=decision,
+                result="DENY",
+            )
+            raise RMACDToolCapabilityError(decision.blocked_reason, decision=decision)
+
+        # Profile gate: reuse enforce() (approval, audit, exception mapping,
+        # §12.5 floor). justification defaults to a compact call summary.
+        return self.enforce(
+            operation=resolved.operation,
+            target=resolved.target,
+            classification=resolved.tier,
+            justification=justification or self._summarise_call(tool_name, args or {}),
+            context=context,
+        )
+
+    def evaluate_tool_call(
+        self,
+        tool_name: str,
+        args: dict[str, Any] | None = None,
+        *,
+        context: EvaluationContext | None = None,
+    ) -> PolicyDecision:
+        """Dry-run of :meth:`enforce_tool_call` — no approval, no audit, no raise.
+
+        Returns the ``PolicyDecision`` the call *would* get (the capability gate
+        is reflected as ``allowed=False`` / ``PROHIBITED``). Useful for an
+        OpenAI ``needs_approval`` callback or a "would this be allowed?" UI.
+        Raises ``RMACDPermissionDeniedError`` only for an unregistered tool.
+        """
+        if self.registry is None:
+            raise ValueError("evaluate_tool_call requires a ToolsRegistry.")
+        tool = self.registry.get_tool(tool_name)
+        if tool is None:
+            raise RMACDPermissionDeniedError(
+                f"Tool '{tool_name}' is not registered in the RMACD tools registry."
+            )
+        resolved = tool.resolve_call(args or {})
+        if not tool.permits(resolved.operation, resolved.tier):
+            tier_label = resolved.tier.value if resolved.tier else "any"
+            return PolicyDecision(
+                allowed=False,
+                operation=resolved.operation,
+                data_classification=resolved.tier,
+                autonomy_level=AutonomyLevel.PROHIBITED,
+                requires_approval=False,
+                requires_notification=False,
+                blocked_reason=(
+                    f"Tool '{tool.tool_id}' capability does not permit "
+                    f"{resolved.operation.value} on {tier_label}."
+                ),
+            )
+        return self.evaluator.evaluate(
+            operation=resolved.operation,
+            data_classification=resolved.tier,
+            context=context or self._default_context(),
+        )
+
+    @staticmethod
+    def _summarise_call(tool_name: str, args: dict[str, Any]) -> str:
+        if not args:
+            return f"agent invoked {tool_name}"
+        preview = ", ".join(f"{k}={v}" for k, v in list(args.items())[:4])
+        return f"agent invoked {tool_name}({preview})"
 
     # ----- DC2D data-flow controls --------------------------------------------
 

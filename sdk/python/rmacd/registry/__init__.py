@@ -28,18 +28,32 @@ Usage:
 """
 
 from rmacd.registry.tools import (
+    ResolvedCall,
+    ToolCapability,
+    ToolClassifier,
     ToolDefinition,
     ToolsRegistry,
     create_registry,
     quick_register,
 )
 from rmacd.registry.mcp import MCPTool, MCPRegistryBridge
+from rmacd.registry.bash import (
+    BashClassification,
+    classify_bash_command,
+    make_bash_classifier,
+)
 
 __all__ = [
+    "ToolCapability",
+    "ToolClassifier",
     "ToolDefinition",
     "ToolsRegistry",
+    "ResolvedCall",
     "create_registry",
     "quick_register",
     "MCPTool",
     "MCPRegistryBridge",
+    "BashClassification",
+    "classify_bash_command",
+    "make_bash_classifier",
 ]

@@ -151,13 +151,13 @@ class MCPRegistryBridge:
             True if successful
         """
         rmacd_tool = mcp_tool.to_rmacd_tool()
-        success = self.registry.register_tool(rmacd_tool)
+        registered = self.registry.register_tool(rmacd_tool)
 
-        if success:
-            self.mcp_tools[mcp_tool.name] = mcp_tool
-            logger.info(f"Registered MCP tool: {mcp_tool.name} (RMACD: {rmacd_tool['rmacd_level']})")
-
-        return success
+        self.mcp_tools[mcp_tool.name] = mcp_tool
+        logger.info(
+            "Registered MCP tool: %s (RMACD: %s)", mcp_tool.name, registered.rmacd_level.value
+        )
+        return True
 
     def can_agent_use_tool(
         self,

@@ -64,6 +64,18 @@ class RMACDConstraintError(RMACDPolicyError):
     """An operational constraint (environment, time window, quota) blocked the call."""
 
 
+class RMACDToolCapabilityError(RMACDPolicyError):
+    """The tool's own capability ceiling does not permit this (operation, tier).
+
+    Distinct from ``RMACDPermissionDeniedError`` (the *agent's profile* doesn't
+    grant it) and ``RMACDProhibitedError`` (no agent may ever do it): this means
+    *this tool* may not represent the resolved operation — e.g. a read-only tool
+    was asked to perform a Change. Raised by
+    ``PolicyEnforcer.enforce_tool_call`` when the registry's capability gate
+    fails, independently of the agent profile.
+    """
+
+
 class RMACDApprovalRequiredError(RMACDPolicyError):
     """Approval is required but no ``ApprovalGateway`` was configured.
 

@@ -86,6 +86,7 @@ from rmacd.exceptions import (
     RMACDPermissionDeniedError,
     RMACDPolicyError,
     RMACDProhibitedError,
+    RMACDToolCapabilityError,
 )
 from rmacd.loader import ProfileLoader
 from rmacd.models import (
@@ -103,7 +104,7 @@ from rmacd.prompts import build_system_prompt
 from rmacd.redaction import NullRedactor, RedactionResult, Redactor, RegexRedactor
 from rmacd.validator import ProfileValidator
 
-__version__ = "0.7.0"
+__version__ = "0.8.0"
 __all__ = [
     # Core models
     "AutonomyLevel",
@@ -144,6 +145,7 @@ __all__ = [
     "RMACDApprovalRequiredError",
     "RMACDApprovalDeniedError",
     "RMACDApprovalTimeoutError",
+    "RMACDToolCapabilityError",
     "RMACDEgressBlockedError",
     # DC2D data-flow controls
     "NullRedactor",
