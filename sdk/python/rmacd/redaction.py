@@ -114,10 +114,14 @@ _DEFAULT_PATTERNS: dict[str, tuple[re.Pattern[str], str]] = {
         "[REDACTED_SSN]",
     ),
     "credit_card": (
-        # 13-19 digit sequences with optional separators; matches Visa,
-        # Mastercard, Amex, Discover shapes. Will produce false positives
-        # for long numeric IDs — acceptable for a default pattern.
-        re.compile(r"\b(?:\d[ -]*?){13,19}\b"),
+        # 13-19 digit sequences with at most one separator between digits;
+        # matches Visa, Mastercard, Amex, Discover shapes. Written as a
+        # digit followed by 12-18 "(optional single separator) digit" groups
+        # so there is no nested unbounded quantifier — this avoids the
+        # catastrophic backtracking the prior ``(?:\d[ -]*?){13,19}`` could
+        # exhibit on long digit runs. Still matches long numeric IDs (false
+        # positives) — acceptable for a default pattern.
+        re.compile(r"\b\d(?:[ -]?\d){12,18}\b"),
         "[REDACTED_CARD]",
     ),
     "phone_us": (
@@ -125,7 +129,12 @@ _DEFAULT_PATTERNS: dict[str, tuple[re.Pattern[str], str]] = {
         "[REDACTED_PHONE]",
     ),
     "ipv4": (
-        re.compile(r"\b(?:\d{1,3}\.){3}\d{1,3}\b"),
+        # Octet-range-validated (0-255) so version strings and arbitrary
+        # dotted numbers like "1.2.3.4" or "999.1.1.1" are not redacted.
+        re.compile(
+            r"\b(?:(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)\.){3}"
+            r"(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)\b"
+        ),
         "[REDACTED_IP]",
     ),
 }

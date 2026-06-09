@@ -9,7 +9,7 @@ License: CC BY 4.0
 """
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 import json
@@ -18,6 +18,29 @@ import logging
 from rmacd.models import Operation, DataClassification, AutonomyLevel
 
 logger = logging.getLogger(__name__)
+
+
+def _utcnow() -> datetime:
+    """Timezone-aware UTC now (naive ``datetime.now()`` is ambiguous in logs)."""
+    return datetime.now(timezone.utc)
+
+
+# Explicit orderings so comparisons don't depend on enum declaration order.
+# Sensitivity: public < internal < confidential < restricted.
+_TIER_ORDER: dict[DataClassification, int] = {
+    DataClassification.PUBLIC: 0,
+    DataClassification.INTERNAL: 1,
+    DataClassification.CONFIDENTIAL: 2,
+    DataClassification.RESTRICTED: 3,
+}
+# Operation risk ordering: R < M < A < C < D.
+_OP_ORDER: dict[Operation, int] = {
+    Operation.READ: 0,
+    Operation.MOVE: 1,
+    Operation.ADD: 2,
+    Operation.CHANGE: 3,
+    Operation.DELETE: 4,
+}
 
 
 # Risk metadata for operations
@@ -82,10 +105,10 @@ class ToolDefinition:
     operations: list[str] = field(default_factory=list)
     data_access: DataClassification | None = None
     required_hitl: AutonomyLevel | None = None
-    risk_score: float = 0.0
+    risk_score: float | None = None
     tags: set[str] = field(default_factory=set)
     metadata: dict[str, Any] = field(default_factory=dict)
-    created_at: datetime = field(default_factory=datetime.now)
+    created_at: datetime = field(default_factory=_utcnow)
 
     def __post_init__(self) -> None:
         """Validate and normalize tool definition."""
@@ -110,8 +133,9 @@ class ToolDefinition:
         if not isinstance(self.tags, set):
             self.tags = set(self.tags) if self.tags else set()
 
-        # Calculate risk score if not provided
-        if self.risk_score == 0.0:
+        # Calculate risk score if not explicitly provided (None sentinel, so a
+        # caller can still pin an explicit 0.0 without it being recomputed).
+        if self.risk_score is None:
             self.risk_score = self._calculate_risk_score()
 
     def _calculate_risk_score(self) -> float:
@@ -161,7 +185,7 @@ class ToolDefinition:
         if isinstance(created_at, str):
             created_at = datetime.fromisoformat(created_at)
         elif created_at is None:
-            created_at = datetime.now()
+            created_at = _utcnow()
 
         return cls(
             tool_id=data["tool_id"],
@@ -171,7 +195,7 @@ class ToolDefinition:
             operations=data.get("operations", []),
             data_access=data.get("data_access"),
             required_hitl=data.get("required_hitl"),
-            risk_score=data.get("risk_score", 0.0),
+            risk_score=data.get("risk_score"),
             tags=set(data.get("tags", [])),
             metadata=data.get("metadata", {}),
             created_at=created_at,
@@ -278,8 +302,7 @@ class ToolsRegistry:
         if data_tier is not None:
             data_tier = parse_data_classification(data_tier)
             if tool.data_access is not None:
-                tier_order = list(DataClassification)
-                if tier_order.index(tool.data_access) > tier_order.index(data_tier):
+                if _TIER_ORDER[tool.data_access] > _TIER_ORDER[data_tier]:
                     return False, (
                         f"Tool requires {tool.data_access.value} data access, "
                         f"but only {data_tier.value} allowed"
@@ -323,8 +346,7 @@ class ToolsRegistry:
         rmacd_levels = [t.rmacd_level for t in tools]
 
         # Order for comparison
-        level_order = list(Operation)
-        highest_rmacd = max(rmacd_levels, key=lambda x: level_order.index(x))
+        highest_rmacd = max(rmacd_levels, key=lambda x: _OP_ORDER[x])
         highest_risk_tool = max(tools, key=lambda t: t.risk_score)
 
         return {
@@ -349,7 +371,7 @@ class ToolsRegistry:
         export_data = {
             "registry_id": self.registry_id,
             "version": self._version,
-            "exported_at": datetime.now().isoformat(),
+            "exported_at": _utcnow().isoformat(),
             "tool_count": len(self._tools),
             "tools": [tool.to_dict() for tool in self._tools.values()],
         }
@@ -387,7 +409,7 @@ class ToolsRegistry:
     def _log_audit(self, action: str, tool_id: str, details: dict[str, Any]) -> None:
         """Log an audit event."""
         self._audit_log.append({
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": _utcnow().isoformat(),
             "action": action,
             "tool_id": tool_id,
             "details": details,

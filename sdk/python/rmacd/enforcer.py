@@ -30,6 +30,7 @@ Three call shapes are supported:
 from __future__ import annotations
 
 import functools
+import logging
 import os
 import time
 from datetime import datetime, timezone
@@ -72,6 +73,8 @@ from rmacd.models import (
     ProfileDC2D,
 )
 from rmacd.redaction import NullRedactor, RedactionResult, Redactor, RegexRedactor
+
+logger = logging.getLogger(__name__)
 
 F = TypeVar("F", bound=Callable[..., Any])
 
@@ -583,8 +586,9 @@ class PolicyEnforcer:
         except Exception:  # pragma: no cover - audit must never block enforcement
             # Audit-side failures are deployment problems, not policy problems.
             # Surfacing them here would let a broken sink turn into a global
-            # outage. Operators should monitor the sink separately.
-            pass
+            # outage, so we never re-raise. We do log a warning so a failing
+            # sink is observable rather than silently dropping records.
+            logger.warning("RMACD audit logging failed for %s on %s", operation, target, exc_info=True)
 
     def _audit_execution(
         self,
@@ -623,7 +627,9 @@ class PolicyEnforcer:
             )
             self.audit_logger.log(record)
         except Exception:  # pragma: no cover
-            pass
+            logger.warning(
+                "RMACD execution audit logging failed for %s on %s", operation, target, exc_info=True
+            )
 
     @staticmethod
     def _extract_compliance_tags(profile: AnyProfile) -> list[str]:

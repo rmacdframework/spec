@@ -1,20 +1,26 @@
 """Tests for the PolicyEvaluator."""
 
+from datetime import datetime, timezone
+
 import pytest
 
 from rmacd.evaluator import PolicyEvaluator
 from rmacd.models import (
+    AllowedHours,
     AutonomyLevel,
+    Constraints,
     DataAccess,
     DataClassification,
     EmergencyEscalation3D,
     EmergencyEscalationDC2D,
+    Environment,
     EvaluationContext,
     Operation,
     Profile2D,
     Profile3D,
     ProfileDC2D,
     TierPolicy,
+    TimeWindows,
     TriggerCondition,
 )
 
@@ -176,6 +182,81 @@ class TestPolicyEvaluator3D:
         assert decision.autonomy_level == AutonomyLevel.PROHIBITED
 
 
+class TestImmutableSafetyBoundary:
+    """§12.5: Add/Change/Delete on Restricted is prohibited for any agent and
+    cannot be granted via permissions, autonomy_overrides, or emergency
+    escalation. These tests assert the evaluator floors the autonomy to
+    PROHIBITED even when a crafted profile tries to grant it."""
+
+    @pytest.mark.parametrize("op", ["A", "C", "D"])
+    def test_override_cannot_bypass_restricted_floor(self, op: str) -> None:
+        """A profile that grants the op and overrides autonomy to autonomous
+        must still be prohibited on Restricted data."""
+        profile = Profile3D(
+            profile_id="rmacd-3d-bypass-attempt-v1",
+            profile_name="Bypass Attempt",
+            model="three-dimensional",
+            version="1.0",
+            permissions={
+                DataClassification.RESTRICTED: [Operation(op)],
+            },
+            autonomy_overrides={
+                f"restricted.{op}": AutonomyLevel.AUTONOMOUS,
+            },
+        )
+        evaluator = PolicyEvaluator(profile)
+
+        decision = evaluator.evaluate(op, "restricted")
+        assert decision.allowed is False
+        assert decision.autonomy_level == AutonomyLevel.PROHIBITED
+
+    @pytest.mark.parametrize("op", ["A", "C", "D"])
+    def test_emergency_escalation_cannot_bypass_restricted_floor(self, op: str) -> None:
+        """Emergency escalation that grants the op on Restricted must still be
+        prohibited."""
+        profile = Profile3D(
+            profile_id="rmacd-3d-emergency-bypass-v1",
+            profile_name="Emergency Bypass Attempt",
+            model="three-dimensional",
+            version="1.0",
+            permissions={
+                DataClassification.RESTRICTED: [Operation.READ],
+            },
+            emergency_escalation=EmergencyEscalation3D(
+                enabled=True,
+                trigger_conditions=[TriggerCondition.SOC_DECLARED_INCIDENT],
+                escalated_permissions={
+                    DataClassification.RESTRICTED: [Operation(op)],
+                },
+            ),
+        )
+        evaluator = PolicyEvaluator(profile)
+
+        ctx = EvaluationContext(
+            emergency_active=True,
+            emergency_trigger=TriggerCondition.SOC_DECLARED_INCIDENT,
+        )
+        decision = evaluator.evaluate(op, "restricted", ctx)
+        assert decision.allowed is False
+        assert decision.autonomy_level == AutonomyLevel.PROHIBITED
+
+    @pytest.mark.parametrize("op", ["A", "C", "D"])
+    def test_effective_matrix_reflects_floor(self, op: str) -> None:
+        """The effective autonomy matrix must show the prohibition even when a
+        profile overrides it."""
+        profile = Profile3D(
+            profile_id="rmacd-3d-matrix-floor-v1",
+            profile_name="Matrix Floor",
+            model="three-dimensional",
+            version="1.0",
+            permissions={DataClassification.RESTRICTED: [Operation(op)]},
+            autonomy_overrides={f"restricted.{op}": AutonomyLevel.AUTONOMOUS},
+        )
+        evaluator = PolicyEvaluator(profile)
+        matrix = evaluator.get_effective_autonomy_matrix()
+        assert matrix["restricted"][op] == AutonomyLevel.PROHIBITED.value
+
+
 class TestPolicyEvaluator2D:
     """Tests for 2D profile evaluation."""
 
@@ -232,6 +313,69 @@ class TestEmergencyEscalation:
         decision = evaluator.evaluate("C", "public", context)
         assert decision.allowed is True
         assert decision.emergency_mode is True
+
+
+class TestConstraints:
+    """Tests for operational constraint enforcement (time windows, environments)."""
+
+    @staticmethod
+    def _profile_with_hours(start: str, end: str) -> Profile3D:
+        return Profile3D(
+            profile_id="rmacd-3d-hours-v1",
+            profile_name="Hours",
+            model="three-dimensional",
+            version="1.0",
+            permissions={DataClassification.PUBLIC: [Operation.READ]},
+            constraints=Constraints(
+                time_windows=TimeWindows(
+                    timezone="UTC",
+                    allowed_hours=AllowedHours(start=start, end=end),
+                )
+            ),
+        )
+
+    def test_same_day_window_inside(self) -> None:
+        evaluator = PolicyEvaluator(self._profile_with_hours("08:00", "18:00"))
+        ctx = EvaluationContext(timestamp=datetime(2026, 6, 8, 12, 0, tzinfo=timezone.utc))
+        assert evaluator.evaluate("R", "public", ctx).allowed is True
+
+    def test_same_day_window_outside(self) -> None:
+        evaluator = PolicyEvaluator(self._profile_with_hours("08:00", "18:00"))
+        ctx = EvaluationContext(timestamp=datetime(2026, 6, 8, 22, 0, tzinfo=timezone.utc))
+        assert evaluator.evaluate("R", "public", ctx).allowed is False
+
+    def test_midnight_crossing_window_inside_after_start(self) -> None:
+        # Window 22:00–06:00; 23:30 is inside.
+        evaluator = PolicyEvaluator(self._profile_with_hours("22:00", "06:00"))
+        ctx = EvaluationContext(timestamp=datetime(2026, 6, 8, 23, 30, tzinfo=timezone.utc))
+        assert evaluator.evaluate("R", "public", ctx).allowed is True
+
+    def test_midnight_crossing_window_inside_before_end(self) -> None:
+        # Window 22:00–06:00; 02:00 is inside.
+        evaluator = PolicyEvaluator(self._profile_with_hours("22:00", "06:00"))
+        ctx = EvaluationContext(timestamp=datetime(2026, 6, 8, 2, 0, tzinfo=timezone.utc))
+        assert evaluator.evaluate("R", "public", ctx).allowed is True
+
+    def test_midnight_crossing_window_outside(self) -> None:
+        # Window 22:00–06:00; 12:00 is outside.
+        evaluator = PolicyEvaluator(self._profile_with_hours("22:00", "06:00"))
+        ctx = EvaluationContext(timestamp=datetime(2026, 6, 8, 12, 0, tzinfo=timezone.utc))
+        assert evaluator.evaluate("R", "public", ctx).allowed is False
+
+    def test_environment_constraint_blocks_mismatch(self) -> None:
+        profile = Profile3D(
+            profile_id="rmacd-3d-env-v1",
+            profile_name="Env",
+            model="three-dimensional",
+            version="1.0",
+            permissions={DataClassification.PUBLIC: [Operation.READ]},
+            constraints=Constraints(environments=[Environment.PRODUCTION]),
+        )
+        evaluator = PolicyEvaluator(profile)
+        prod = EvaluationContext(environment=Environment.PRODUCTION)
+        staging = EvaluationContext(environment=Environment.STAGING)
+        assert evaluator.evaluate("R", "public", prod).allowed is True
+        assert evaluator.evaluate("R", "public", staging).allowed is False
 
 
 class TestPermissionMatrix:

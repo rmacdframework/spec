@@ -102,11 +102,7 @@ class ProfileLoader:
     def _load_3d(self, data: dict, source: str) -> Profile3D:
         """Load a 3D profile."""
         try:
-            # Convert permission keys from strings to DataClassification if needed
-            if "permissions" in data and isinstance(data["permissions"], dict):
-                # Keep as-is, Pydantic will handle conversion
-                pass
-
+            # Pydantic handles string->DataClassification/Operation coercion.
             return Profile3D.model_validate(data)
         except Exception as e:
             raise ProfileLoadError(f"Invalid 3D profile ({source}): {e}") from e

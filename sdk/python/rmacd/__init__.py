@@ -103,7 +103,7 @@ from rmacd.prompts import build_system_prompt
 from rmacd.redaction import NullRedactor, RedactionResult, Redactor, RegexRedactor
 from rmacd.validator import ProfileValidator
 
-__version__ = "0.6.0"
+__version__ = "0.7.0"
 __all__ = [
     # Core models
     "AutonomyLevel",

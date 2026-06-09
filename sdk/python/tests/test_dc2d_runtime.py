@@ -188,3 +188,56 @@ def test_egress_with_no_controls_is_pass_through(three_d_enforcer):
     )
     assert decision.allowed is True
     assert decision.matched_rule == "no_constraints"
+
+
+def test_allowlist_does_not_match_on_substring_lookalike():
+    # Regression: an allowlist entry "internal-kb" must not admit a
+    # look-alike host that merely contains it as a substring.
+    gate = PolicyDrivenEgressGate()
+    controls = EgressControls(allowed_destinations=["internal-kb", "example.com"])
+
+    blocked = gate.check(
+        "https://evil-internal-kb.attacker.com/exfil",
+        DataClassification.CONFIDENTIAL,
+        controls,
+    )
+    assert blocked.allowed is False
+    assert blocked.matched_rule == "allowlist"
+
+
+def test_allowlist_matches_exact_and_subdomain():
+    gate = PolicyDrivenEgressGate()
+    controls = EgressControls(allowed_destinations=["example.com", "tenant-hosted-llm"])
+
+    # Exact host
+    assert gate.check(
+        "https://example.com/x", DataClassification.CONFIDENTIAL, controls
+    ).allowed is True
+    # Subdomain suffix
+    assert gate.check(
+        "https://api.example.com/x", DataClassification.CONFIDENTIAL, controls
+    ).allowed is True
+    # Free-form label, exact match
+    assert gate.check(
+        "tenant-hosted-llm", DataClassification.CONFIDENTIAL, controls
+    ).allowed is True
+
+
+def test_block_external_models_fires_for_schemeless_host():
+    # Regression: a scheme-less destination must still resolve to a host so
+    # the external-model block is not silently bypassed.
+    gate = PolicyDrivenEgressGate()
+    controls = EgressControls(block_external_models=True, allowed_destinations=None)
+
+    decision = gate.check(
+        "api.openai.com/v1/chat", DataClassification.RESTRICTED, controls
+    )
+    assert decision.allowed is False
+    assert decision.matched_rule == "block_external_models"
+
+    # Host with an explicit port is still resolved and blocked.
+    decision = gate.check(
+        "api.openai.com:443/v1", DataClassification.CONFIDENTIAL, controls
+    )
+    assert decision.allowed is False
+    assert decision.matched_rule == "block_external_models"

@@ -45,7 +45,7 @@ class CLIApprovalGateway:
         return ApprovalDecision(
             request_id=req.request_id,
             outcome=outcome,
-            approver=self.approver_name if answer else self.approver_name,
+            approver=self.approver_name,
             decided_at=datetime.now(timezone.utc),
             note=note or None,
         )

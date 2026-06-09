@@ -69,6 +69,20 @@ DEFAULT_AUTONOMY_DC2D: dict[str, AutonomyLevel] = {
     "restricted": AutonomyLevel.ELEVATED_APPROVAL,
 }
 
+# Immutable safety floor (RMACD §12.5). These (classification, operation)
+# combinations are PROHIBITED for *any* agent and cannot be granted by a
+# profile's permissions, autonomy_overrides, or the emergency-escalation
+# process. The evaluator enforces this independently of the schema so a
+# hand-authored or programmatically-built profile cannot bypass it.
+IMMUTABLE_PROHIBITIONS: frozenset[tuple[DataClassification, Operation]] = frozenset(
+    {
+        (DataClassification.RESTRICTED, Operation.ADD),
+        (DataClassification.RESTRICTED, Operation.CHANGE),
+        (DataClassification.RESTRICTED, Operation.DELETE),
+    }
+)
+
+
 # Autonomy level ordering (index = restrictiveness, higher = more restrictive)
 AUTONOMY_ORDER = [
     AutonomyLevel.AUTONOMOUS,
@@ -325,6 +339,15 @@ class PolicyEvaluator:
     def _check_constraints_dc2d(self, context: EvaluationContext) -> str | None:
         """Check DC2D constraints (environment + time windows). Returns error message if blocked."""
         assert isinstance(self.profile, ProfileDC2D)
+        return self._check_env_time_constraints(context)
+
+    def _check_env_time_constraints(self, context: EvaluationContext) -> str | None:
+        """Shared environment + time-window constraint check.
+
+        Used by both the 3D (``_check_constraints``) and DC2D
+        (``_check_constraints_dc2d``) paths, whose environment/time logic is
+        identical.
+        """
         constraints = self.profile.constraints
         if not constraints:
             return None
@@ -350,6 +373,16 @@ class PolicyEvaluator:
 
         Checks autonomy overrides first, then falls back to defaults.
         """
+        # Immutable safety floor (§12.5): some (classification, operation)
+        # combinations are prohibited for any agent and cannot be raised by an
+        # override. Enforce this before consulting overrides or defaults so a
+        # crafted profile cannot grant e.g. Change/Delete on Restricted data.
+        if (
+            data_classification is not None
+            and (data_classification, operation) in IMMUTABLE_PROHIBITIONS
+        ):
+            return AutonomyLevel.PROHIBITED
+
         op_key = operation.value
 
         # Check for profile-specific autonomy overrides
@@ -408,23 +441,13 @@ class PolicyEvaluator:
         operation: Operation,
         context: EvaluationContext,
     ) -> str | None:
-        """Check operational constraints. Returns error message if blocked."""
-        constraints = self.profile.constraints
-        if not constraints:
-            return None
+        """Check operational constraints. Returns error message if blocked.
 
-        # Check environment
-        if constraints.environments and context.environment:
-            if context.environment not in constraints.environments:
-                return f"Environment {context.environment.value} not permitted"
-
-        # Check time windows
-        if constraints.time_windows:
-            time_error = self._check_time_windows(context.timestamp)
-            if time_error:
-                return time_error
-
-        return None
+        ``operation`` is currently unused (env/time constraints are not
+        operation-specific) but kept for symmetry and future op-scoped rules.
+        """
+        del operation
+        return self._check_env_time_constraints(context)
 
     def _check_time_windows(self, timestamp: datetime) -> str | None:
         """Check if operation is within allowed time windows."""
@@ -450,7 +473,13 @@ class PolicyEvaluator:
             end_time = time(int(end_parts[0]), int(end_parts[1]))
             current_time = local_time.time()
 
-            if not (start_time <= current_time <= end_time):
+            if start_time <= end_time:
+                in_window = start_time <= current_time <= end_time
+            else:
+                # Window wraps past midnight (e.g. 22:00–06:00): permitted if
+                # the current time is after the start OR before the end.
+                in_window = current_time >= start_time or current_time <= end_time
+            if not in_window:
                 return f"Operations only permitted between {time_windows.allowed_hours.start} and {time_windows.allowed_hours.end}"
 
         # Check blackout dates
@@ -508,18 +537,19 @@ class PolicyEvaluator:
                 policy = self.profile.data_access.for_tier(tier)
                 dc2d_result[tier.value] = policy.autonomy.value
             return dc2d_result
+        empty_ctx = EvaluationContext()
         if self._is_3d:
             result: dict[str, dict[str, str]] = {}
             for classification in DataClassification:
                 result[classification.value] = {}
                 for operation in Operation:
                     autonomy = self._get_autonomy_level(
-                        operation, classification, EvaluationContext()
+                        operation, classification, empty_ctx
                     )
                     result[classification.value][operation.value] = autonomy.value
             return result
         result_2d: dict[str, str] = {}
         for operation in Operation:
-            autonomy = self._get_autonomy_level(operation, None, EvaluationContext())
+            autonomy = self._get_autonomy_level(operation, None, empty_ctx)
             result_2d[operation.value] = autonomy.value
         return result_2d

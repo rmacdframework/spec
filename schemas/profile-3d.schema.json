@@ -54,20 +54,24 @@
         },
         "restricted": {
           "type": "array",
-          "items": { "type": "string", "enum": ["R", "M", "A", "C", "D"] },
+          "items": { "type": "string", "enum": ["R", "M"] },
           "uniqueItems": true,
-          "description": "Note: C and D operations on Restricted data are prohibited for autonomous agents per governance matrix"
+          "description": "Add (A), Change (C) and Delete (D) on Restricted data are prohibited for any agent per the governance matrix (§12.5) and cannot be granted; only R and M may be listed."
         }
       },
       "required": ["public", "internal", "confidential", "restricted"]
     },
     "autonomy_overrides": {
       "type": "object",
-      "description": "Override default autonomy levels for specific classification.operation combinations",
+      "description": "Override default autonomy levels for specific classification.operation combinations. Note: restricted.A, restricted.C and restricted.D are immutable safety prohibitions (§12.5); if listed they may only be set to 'prohibited'.",
       "patternProperties": {
         "^(public|internal|confidential|restricted)\\.[RMACD]$": {
           "type": "string",
           "enum": ["autonomous", "logged", "notification", "approval", "elevated_approval", "prohibited"]
+        },
+        "^restricted\\.[ACD]$": {
+          "type": "string",
+          "enum": ["prohibited"]
         }
       },
       "additionalProperties": false

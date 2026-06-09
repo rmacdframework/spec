@@ -12,6 +12,7 @@ from dataclasses import dataclass, field
 from typing import Any
 import json
 import logging
+import re
 
 from rmacd.registry.tools import ToolsRegistry, create_registry
 
@@ -68,24 +69,33 @@ class MCPTool:
         else:
             text = " ".join(self.operations).lower()
 
+        def has_keyword(keywords: list[str]) -> bool:
+            # Match on whole-word boundaries so e.g. "drop" does not fire on
+            # "dropdown" and "set" does not fire on "asset". Treats common
+            # identifier separators (_ - .) as word boundaries too.
+            return any(
+                re.search(rf"(?<![a-z0-9]){re.escape(k)}(?![a-z0-9])", text)
+                for k in keywords
+            )
+
         # Check in order of decreasing risk
         delete_keywords = ["delete", "remove", "destroy", "purge", "drop", "erase"]
-        if any(keyword in text for keyword in delete_keywords):
+        if has_keyword(delete_keywords):
             return "D"
 
         change_keywords = [
             "update", "modify", "edit", "patch", "configure",
             "set", "change", "alter", "commit", "push",
         ]
-        if any(keyword in text for keyword in change_keywords):
+        if has_keyword(change_keywords):
             return "C"
 
         add_keywords = ["create", "add", "post", "upload", "insert", "provision", "deploy", "new"]
-        if any(keyword in text for keyword in add_keywords):
+        if has_keyword(add_keywords):
             return "A"
 
         move_keywords = ["move", "transfer", "copy", "relocate", "migrate", "forward", "rename"]
-        if any(keyword in text for keyword in move_keywords):
+        if has_keyword(move_keywords):
             return "M"
 
         return "R"

@@ -215,7 +215,7 @@ def main() -> int:
         prog="rmacd",
         description="RMACD Framework CLI - Policy evaluation and profile management",
     )
-    parser.add_argument("--version", action="version", version="%(prog)s 0.3.1")
+    parser.add_argument("--version", action="version", version="%(prog)s 0.7.0")
 
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
 
