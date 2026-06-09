@@ -28,14 +28,15 @@ License: CC BY 4.0
 
 from __future__ import annotations
 
+import json
+import logging
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Callable
-import json
-import logging
+from typing import Any
 
-from rmacd.models import Operation, DataClassification, AutonomyLevel
+from rmacd.models import AutonomyLevel, DataClassification, Operation
 
 logger = logging.getLogger(__name__)
 
@@ -65,7 +66,7 @@ _OP_ORDER: dict[Operation, int] = {
 
 
 # Risk metadata for operations
-OPERATION_RISK = {
+OPERATION_RISK: dict[Operation, dict[str, Any]] = {
     Operation.READ: {"level": 0.0, "name": "Near-Zero", "desc": "Observe, query, analyze"},
     Operation.MOVE: {"level": 0.25, "name": "Low-Medium", "desc": "Relocate, transfer"},
     Operation.ADD: {"level": 0.50, "name": "Medium", "desc": "Create, provision"},
@@ -149,10 +150,14 @@ class ToolCapability:
         """Return True if this tool may perform ``operation`` on ``tier``."""
         if self.per_tier is not None:
             if tier is None:
-                # Per-tier ceiling but a tier-agnostic call: can't evaluate the
-                # ceiling meaningfully, so don't block here — the agent profile
-                # gate still applies.
-                return True
+                # Per-tier ceiling but a tier-agnostic call: fail safe by
+                # capping at the *union* of operations allowed on any tier — a
+                # read-only-per-tier ceiling must not become unbounded just
+                # because the caller couldn't supply a tier.
+                allowed: set[Operation] = set()
+                for ops in self.per_tier.values():
+                    allowed |= ops
+                return operation in allowed
             return operation in self.per_tier.get(tier, set())
         if self.operations is not None:
             return operation in self.operations
@@ -171,14 +176,14 @@ class ToolCapability:
         return {}
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "ToolCapability":
+    def from_dict(cls, data: dict[str, Any]) -> ToolCapability:
         if "per_tier" in data:
-            return cls(
-                per_tier={
-                    parse_data_classification(tier): {parse_operation(o) for o in ops}
-                    for tier, ops in data["per_tier"].items()
-                }
-            )
+            per_tier: dict[DataClassification, set[Operation]] = {}
+            for tier, ops in data["per_tier"].items():
+                dc = parse_data_classification(tier)
+                if dc is not None:
+                    per_tier[dc] = {parse_operation(o) for o in ops}
+            return cls(per_tier=per_tier)
         if "operations" in data:
             return cls(operations={parse_operation(o) for o in data["operations"]})
         return cls()
@@ -300,7 +305,7 @@ class ToolDefinition:
         if self.required_hitl:
             hitl_modifier = HITL_MODIFIER.get(self.required_hitl, 0.5)
 
-        base_risk = (rmacd_risk * 0.6 + data_risk * 0.4) * hitl_modifier
+        base_risk = (float(rmacd_risk) * 0.6 + data_risk * 0.4) * hitl_modifier
         return round(base_risk * 10, 2)
 
     def to_dict(self) -> dict[str, Any]:
@@ -326,7 +331,7 @@ class ToolDefinition:
         }
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "ToolDefinition":
+    def from_dict(cls, data: dict[str, Any]) -> ToolDefinition:
         """Create tool from dictionary."""
         required_fields = ["tool_id", "tool_name", "rmacd_level"]
         missing = [f for f in required_fields if f not in data]
@@ -405,7 +410,9 @@ class ToolsRegistry:
             "risk_score": tool.risk_score,
         })
 
-        logger.info("Tool '%s' registered with RMACD level %s", tool.tool_id, tool.rmacd_level.value)
+        logger.info(
+            "Tool '%s' registered with RMACD level %s", tool.tool_id, tool.rmacd_level.value
+        )
         return tool
 
     def get_tool(self, tool_id: str) -> ToolDefinition | None:
@@ -458,13 +465,16 @@ class ToolsRegistry:
 
         # Check data classification if 3D model
         if data_tier is not None:
-            data_tier = parse_data_classification(data_tier)
-            if tool.data_access is not None:
-                if _TIER_ORDER[tool.data_access] > _TIER_ORDER[data_tier]:
-                    return False, (
-                        f"Tool requires {tool.data_access.value} data access, "
-                        f"but only {data_tier.value} allowed"
-                    )
+            dt = parse_data_classification(data_tier)
+            if (
+                dt is not None
+                and tool.data_access is not None
+                and _TIER_ORDER[tool.data_access] > _TIER_ORDER[dt]
+            ):
+                return False, (
+                    f"Tool requires {tool.data_access.value} data access, "
+                    f"but only {dt.value} allowed"
+                )
 
         # Check HITL requirements
         if tool.required_hitl == AutonomyLevel.PROHIBITED:
@@ -546,7 +556,7 @@ class ToolsRegistry:
         if not filepath.exists():
             raise FileNotFoundError(f"File not found: {filepath}")
 
-        with open(filepath, "r", encoding="utf-8") as f:
+        with open(filepath, encoding="utf-8") as f:
             data = json.load(f)
 
         if "tools" not in data:
@@ -621,7 +631,7 @@ def quick_register(
     tool = ToolDefinition(
         tool_id=tool_id,
         tool_name=tool_name,
-        rmacd_level=rmacd_level,
+        rmacd_level=parse_operation(rmacd_level),
         **kwargs,
     )
     return registry.register_tool(tool)

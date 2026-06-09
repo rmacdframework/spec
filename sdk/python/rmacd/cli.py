@@ -6,7 +6,7 @@ import sys
 from pathlib import Path
 
 from rmacd.evaluator import PolicyEvaluator
-from rmacd.loader import ProfileLoadError, ProfileLoader
+from rmacd.loader import ProfileLoader, ProfileLoadError
 from rmacd.models import DataClassification, EvaluationContext, Operation
 from rmacd.validator import ProfileValidator, SchemaValidationError
 

@@ -31,7 +31,9 @@ from __future__ import annotations
 
 import re
 import shlex
+from collections.abc import Callable
 from dataclasses import dataclass, field
+from typing import Any
 
 from rmacd.models import Operation
 
@@ -71,10 +73,17 @@ class CmdRule:
     # short flag means different things elsewhere (cp -v / rm -v = verbose).
     view_flags: set[str] = field(default_factory=set)
 
-    def classify(self, subcommand: str | None, flags: set[str]) -> Operation:
+    def classify(self, non_flags: list[str], flags: set[str]) -> Operation:
         op = self.base
-        if subcommand and subcommand in self.subcommands:
-            op = self.subcommands[subcommand]
+        if self.subcommands:
+            # Scan *all* non-flag tokens (not just the first) for the strongest
+            # matching subcommand. This is robust to a global option preceding
+            # the verb — e.g. `git -C dir commit` or `kubectl -n ns delete`,
+            # where the flag's value would otherwise be mistaken for the verb
+            # and under-classify the call.
+            matched = [self.subcommands[t] for t in non_flags if t in self.subcommands]
+            if matched:
+                op = max(matched, key=lambda o: _RANK[o])
         for flag, level in self.elevate_flags.items():
             if flag in flags:
                 op = _max_op(op, level)
@@ -86,8 +95,24 @@ class CmdRule:
 # Wrappers to strip from the front of a segment before reading the real binary.
 _WRAPPERS = {
     "sudo", "doas", "env", "nice", "nohup", "time", "ionice", "stdbuf",
-    "command", "builtin", "exec", "xargs", "nohup", "setsid", "timeout",
-    "watch", "strace", "ltrace",
+    "command", "builtin", "exec", "xargs", "setsid", "timeout",
+    "watch", "strace", "ltrace", "chrt",
+}
+# Wrappers that take a leading positional value before the command (a duration,
+# priority, etc.) — `timeout 5 cmd`, `nice 10 cmd`, `chrt 1 cmd`.
+_WRAPPER_TAKES_VALUE = {"timeout", "nice", "ionice", "chrt", "setsid"}
+# Per-wrapper option flags that consume a separate value token (so the value is
+# not mistaken for the wrapped binary, e.g. `sudo -u root rm` → -u eats `root`).
+_WRAPPER_VALUE_FLAGS = {
+    "sudo": {"-u", "-g", "-p", "-C", "-r", "-t", "-T", "-U", "-R", "-h",
+             "--user", "--group", "--prompt", "--chdir", "--chroot"},
+    "doas": {"-u", "-C"},
+    "timeout": {"-s", "-k", "--signal", "--kill-after"},
+    "nice": {"-n", "--adjustment"},
+    "ionice": {"-c", "-n", "--class", "--classdata"},
+    "env": {"-u", "--unset", "-C", "--chdir"},
+    "stdbuf": {"-i", "-o", "-e", "--input", "--output", "--error"},
+    "chrt": {"-p"},
 }
 
 # Read-only binaries (observe / query — no state change).
@@ -114,7 +139,7 @@ _FIXED: dict[str, Operation] = {
     # Add (create)
     "cp": A, "mkdir": A, "touch": A, "ln": A, "tee": A, "install": A,
     "mktemp": A, "gzip": A, "gunzip": A, "bzip2": A, "xz": A,
-    "zip": A, "unzip": A, "tar": A,
+    "zip": A, "unzip": A,
     # Change (mutate existing state)
     "chmod": C, "chown": C, "chgrp": C, "ed": C, "emacs": C, "dd": C,
     "truncate": C,
@@ -198,9 +223,14 @@ _RULES: dict[str, CmdRule] = {
     # find: Read unless it deletes or executes.
     "find": CmdRule(base=R, elevate_flags={"-delete": D, "-exec": C, "-execdir": C, "-ok": C}),
     # rsync: Move unless it deletes at the destination.
-    "rsync": CmdRule(base=M, elevate_flags={"--delete": D, "--delete-after": D, "--delete-before": D}),
+    "rsync": CmdRule(
+        base=M,
+        elevate_flags={"--delete": D, "--delete-after": D, "--delete-before": D},
+    ),
     # wget: downloads/writes files; --spider only checks existence.
     "wget": CmdRule(base=A, view_flags={"--spider"}),
+    # tar: creates/extracts (Add), but --remove-files / --delete destroy data.
+    "tar": CmdRule(base=A, elevate_flags={"--remove-files": D, "--delete": D}),
     # text editors: edit & save → Change, unless opened in view/read-only mode.
     # (pico/nano: -v/--view; vim/vi: -R read-only, -M no-modify.)
     "pico": CmdRule(base=C, view_flags={"-v", "--view"}),
@@ -275,8 +305,10 @@ _CLOUD_VERB = {
     "purge": D, "uninstall": D, "drop": D, "deregister": D,
 }
 
-# Redirect / append → a write (Change). 2>file, >file, >>file all count.
-_REDIRECT_RE = re.compile(r"(?<![0-9<>])\d*>>?")
+# A redirect *token* → a write (Change): `>`, `>f`, `>>`, `2>`, `&>` (matched
+# at the start of a post-shlex token, so a quoted `>` or a `->` arrow — which
+# stay mid-token after quote removal — are not mistaken for redirects).
+_REDIRECT_RE = re.compile(r"(?:\d*|&)>>?")
 _SUBSHELL_RE = re.compile(r"\$\(([^()]*)\)|`([^`]*)`")
 _SPLIT_RE = re.compile(r"\|\||&&|[|;\n]")
 
@@ -312,9 +344,11 @@ def classify_bash_command(
     best_detail = "no recognised action"
     saw_anything = False
 
-    # Pull out and recurse into $(...) / `...` sub-commands first.
-    inner = [g for pair in _SUBSHELL_RE.findall(command) for g in pair if g]
-    stripped = _SUBSHELL_RE.sub(" ", command)
+    # Pull out and recurse into $(...) / `...` sub-commands first. Extract
+    # iteratively from the innermost out so nested substitutions are not
+    # silently dropped (the regex can't match an outer $(...) that still
+    # contains parens).
+    inner, stripped = _extract_subshells(command)
 
     for segment in _SPLIT_RE.split(stripped):
         seg = segment.strip()
@@ -336,15 +370,42 @@ def classify_bash_command(
     return BashClassification(best_op, best_bin, best_detail)
 
 
-def _classify_segment(seg: str, default: Operation) -> tuple[Operation, str, str]:
-    # A redirect makes the segment at least a write.
-    redirect = bool(_REDIRECT_RE.search(seg))
+def _extract_subshells(command: str) -> tuple[list[str], str]:
+    """Iteratively extract `$(...)` / backtick sub-commands, innermost first.
 
+    Returns (inner_commands, command_with_subshells_blanked). Repeating until
+    no match means a nested ``$(outer $(inner))`` is fully unwrapped rather than
+    left embedded (which would hide a dangerous inner binary from the parser).
+    """
+    inner: list[str] = []
+    prev = None
+    while prev != command:
+        prev = command
+        found = [g for pair in _SUBSHELL_RE.findall(command) for g in pair if g]
+        if not found:
+            break
+        inner.extend(found)
+        command = _SUBSHELL_RE.sub(" ", command)
+    return inner, command
+
+
+def _classify_segment(seg: str, default: Operation) -> tuple[Operation, str, str]:
     try:
         tokens = shlex.split(seg, comments=True)
     except ValueError:
         tokens = seg.split()
-    # drop env assignments (VAR=value) and wrapper commands from the front
+
+    # A redirect (a token like `>`, `>>`, `2>`, `&>`) writes a file → the
+    # segment is at least a Change. Detect from *tokens* (after quote removal)
+    # so a `>` inside a quoted string or a `->` arrow is not a false positive.
+    redirect = any(_REDIRECT_RE.match(t) for t in tokens)
+    tokens = [t for t in tokens if not _REDIRECT_RE.match(t)]
+
+    # drop env assignments (VAR=value) and wrapper commands from the front. Some
+    # wrappers take their own options and/or a value before the real command
+    # (`timeout 5 cmd`, `nice -n 10 cmd`, `ionice -c2 cmd`) — consume those too,
+    # otherwise the wrapper's argument is mistaken for the binary and the real
+    # command (e.g. `rm`) is never classified.
     while tokens:
         t = tokens[0]
         base = t.rsplit("/", 1)[-1]
@@ -353,6 +414,19 @@ def _classify_segment(seg: str, default: Operation) -> tuple[Operation, str, str
             continue
         if base in _WRAPPERS:
             tokens = tokens[1:]
+            valflags = _WRAPPER_VALUE_FLAGS.get(base, set())
+            while tokens and tokens[0].startswith("-"):  # the wrapper's own flags
+                f = tokens[0]
+                tokens = tokens[1:]
+                # a wrapper flag that takes a separate value (sudo -u root,
+                # timeout -s TERM): consume the value so it isn't read as the
+                # binary. `=`-joined values are already part of the flag token.
+                if f.split("=", 1)[0] in valflags and "=" not in f \
+                        and tokens and not tokens[0].startswith("-"):
+                    tokens = tokens[1:]
+            # a leading duration/value for timeout/nice/etc. (e.g. `timeout 5`)
+            if base in _WRAPPER_TAKES_VALUE and tokens and re.match(r"^[0-9]", tokens[0]):
+                tokens = tokens[1:]
             continue
         break
 
@@ -363,8 +437,20 @@ def _classify_segment(seg: str, default: Operation) -> tuple[Operation, str, str
 
     binary = tokens[0].rsplit("/", 1)[-1]
     rest = tokens[1:]
-    flags = {t for t in rest if t.startswith("-")}
     non_flags = [t for t in rest if not t.startswith("-")]
+    # Build the flag set keeping whole tokens (so long flags like -delete /
+    # --in-place match) AND expanding bundled short flags (-ni → -n, -i) so a
+    # rule keyed on -i still fires. Critical: without this, `sed -ni` would
+    # miss the -i elevation and under-classify an in-place edit as Read.
+    flags: set[str] = set()
+    for t in rest:
+        if not t.startswith("-"):
+            continue
+        flags.add(t)
+        if "=" in t:
+            flags.add(t.split("=", 1)[0])  # --in-place=.bak → --in-place
+        if not t.startswith("--") and len(t) > 2 and not t[1].isdigit():
+            flags.update(f"-{ch}" for ch in t[1:] if ch.isalpha())
 
     op, detail = _classify_binary(binary, non_flags, flags, default)
     if redirect:
@@ -381,17 +467,43 @@ def _classify_binary(
     # --help / --version / --dry-run never mutate — print-and-exit or simulate.
     # (Only the long forms are safe to treat globally: short -h/-v/-V/-n mean
     # other things for many commands, e.g. ls -h, cp -v, cat -n.)
-    if flags & {"--help", "--version", "--dry-run"}:
-        return (Operation.READ, f"{binary} ({(flags & {'--help', '--version', '--dry-run'}).pop()} → no mutation)")
+    noop = flags & {"--help", "--version", "--dry-run"}
+    if noop:
+        return (Operation.READ, f"{binary} ({sorted(noop)[0]} → no mutation)")
 
     # Cloud CLIs are "<tool> <group…> <verb> [args]" — scan the path tokens for
     # the strongest recognised verb (list/create/update/delete → R/A/C/D).
     if binary in ("aws", "gcloud", "az", "oci", "ibmcloud"):
-        verbs = [(t, _CLOUD_VERB[t]) for t in non_flags if t in _CLOUD_VERB]
+        verbs: list[tuple[str, Operation]] = []
+        for t in non_flags:
+            if t in _CLOUD_VERB:
+                verbs.append((t, _CLOUD_VERB[t]))
+            else:
+                # AWS uses hyphenated `verb-noun` verbs (terminate-instances,
+                # delete-bucket, create-stack) — match the leading verb.
+                head = t.split("-", 1)[0]
+                if "-" in t and head in _CLOUD_VERB:
+                    verbs.append((t, _CLOUD_VERB[head]))
         if verbs:
             tok, op = max(verbs, key=lambda pair: _RANK[pair[1]])
             return (op, f"{binary} … {tok}")
         return (Operation.CHANGE, f"{binary} (verb unmapped → Change)")
+
+    # shell wrappers: classify the -c command string rather than treating the
+    # whole `bash -c "rm -rf /"` as an opaque Change (which would under-classify
+    # the Delete). Recurse into each non-flag arg and take the strongest.
+    if binary in ("bash", "sh", "zsh", "dash", "ksh", "ash"):
+        if flags & {"-c"} and non_flags:
+            ops = [classify_bash_command(a, default=default).operation for a in non_flags]
+            return (max(ops, key=lambda o: _RANK[o]), f"{binary} -c")
+        return (default, binary)
+
+    # eval runs its (joined) arguments as a command — classify them.
+    if binary == "eval":
+        sub = " ".join(non_flags)
+        if sub:
+            return (classify_bash_command(sub, default=default).operation, "eval")
+        return (default, "eval")
 
     # curl: Read (GET) unless it writes a local file or mutates a remote.
     if binary == "curl":
@@ -409,17 +521,26 @@ def _classify_binary(
                 op = _max_op(op, Operation.CHANGE)
         return (op, "curl")
 
-    # awk/gawk: Read unless the program writes a file or shells out.
+    # awk/gawk: Read unless the program writes a file (print/printf > target),
+    # appends (>>), or shells out (system()). A bare ">" is *not* enough — it is
+    # usually a comparison (e.g. `$1 > 5`), so only a redirect off print/printf
+    # counts, avoiding a false Change on read-only comparisons.
     if binary in ("awk", "gawk", "mawk"):
         program = " ".join(non_flags)
-        if "system(" in program or ">" in program or "print" in program and ">>" in program:
+        writes = (
+            "system(" in program
+            or ">>" in program
+            or re.search(r"\b(?:print|printf)\b[^;{}\n]*?>", program) is not None
+        )
+        if writes:
             return (Operation.CHANGE, "awk (writes a file / shells out)")
         return (Operation.READ, "awk")
 
     if binary in _RULES:
         rule = _RULES[binary]
-        op = rule.classify(subcommand, flags)
-        return (op, f"{binary} {subcommand or ''}".strip())
+        op = rule.classify(non_flags, flags)
+        verb = next((t for t in non_flags if t in rule.subcommands), subcommand)
+        return (op, f"{binary} {verb or ''}".strip())
 
     if binary in _FIXED:
         return (_FIXED[binary], binary)
@@ -431,7 +552,9 @@ def _classify_binary(
     return (default, f"{binary} (unrecognised → fail-closed {default.value})")
 
 
-def make_bash_classifier(default: Operation = Operation.CHANGE):
+def make_bash_classifier(
+    default: Operation = Operation.CHANGE,
+) -> Callable[[dict[str, Any]], tuple[Operation, None, str]]:
     """Return a ToolDefinition-compatible classifier for a Bash tool.
 
     Usage::
@@ -444,7 +567,7 @@ def make_bash_classifier(default: Operation = Operation.CHANGE):
         enforcer.enforce_tool_call("Bash", {"command": "rm -rf build/"})
     """
 
-    def classify(args: dict) -> tuple[Operation, None, str]:
+    def classify(args: dict[str, Any]) -> tuple[Operation, None, str]:
         command = ""
         if isinstance(args, dict):
             command = str(args.get("command") or args.get("cmd") or "")

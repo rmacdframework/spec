@@ -8,13 +8,13 @@ Author: Kash Kashyap
 License: CC BY 4.0
 """
 
-from dataclasses import dataclass, field
-from typing import Any
 import json
 import logging
 import re
+from dataclasses import dataclass, field
+from typing import Any
 
-from rmacd.registry.tools import ToolsRegistry, create_registry
+from rmacd.registry.tools import create_registry
 
 logger = logging.getLogger(__name__)
 

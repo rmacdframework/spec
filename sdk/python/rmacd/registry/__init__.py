@@ -27,6 +27,12 @@ Usage:
     )
 """
 
+from rmacd.registry.bash import (
+    BashClassification,
+    classify_bash_command,
+    make_bash_classifier,
+)
+from rmacd.registry.mcp import MCPRegistryBridge, MCPTool
 from rmacd.registry.tools import (
     ResolvedCall,
     ToolCapability,
@@ -35,12 +41,6 @@ from rmacd.registry.tools import (
     ToolsRegistry,
     create_registry,
     quick_register,
-)
-from rmacd.registry.mcp import MCPTool, MCPRegistryBridge
-from rmacd.registry.bash import (
-    BashClassification,
-    classify_bash_command,
-    make_bash_classifier,
 )
 
 __all__ = [

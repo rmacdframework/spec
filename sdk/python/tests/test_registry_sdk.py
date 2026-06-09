@@ -148,8 +148,13 @@ class TestClassificationAndCapability:
         cap = ToolCapability(per_tier={DataClassification.INTERNAL: {Operation.DELETE}})
         assert cap.permits(Operation.DELETE, DataClassification.INTERNAL) is True
         assert cap.permits(Operation.DELETE, DataClassification.CONFIDENTIAL) is False
-        # tier-agnostic call against a per-tier ceiling defers (no block here)
-        assert cap.permits(Operation.DELETE, None) is True
+
+    def test_per_tier_tier_none_caps_at_union_not_unbounded(self) -> None:
+        # Regression: a per-tier read-only ceiling must NOT become unbounded for
+        # a tier-agnostic call (e.g. a bash classifier returning tier=None).
+        cap = ToolCapability(per_tier={DataClassification.PUBLIC: {Operation.READ}})
+        assert cap.permits(Operation.READ, None) is True
+        assert cap.permits(Operation.DELETE, None) is False  # not allowed on any tier
 
     def test_unset_capability_is_unconstrained(self) -> None:
         tool = ToolDefinition("t", "T", Operation.DELETE)

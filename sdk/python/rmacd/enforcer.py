@@ -33,9 +33,10 @@ import functools
 import logging
 import os
 import time
-from datetime import datetime, timezone
+from collections.abc import Callable
+from datetime import datetime
 from pathlib import Path
-from typing import Any, Callable, TypeVar
+from typing import Any, TypeVar
 
 from rmacd.approval import (
     ApprovalDecision,
@@ -63,7 +64,6 @@ from rmacd.exceptions import (
     RMACDToolCapabilityError,
 )
 from rmacd.loader import ProfileLoader
-from rmacd.registry.tools import ToolsRegistry
 from rmacd.models import (
     AutonomyLevel,
     DataClassification,
@@ -75,6 +75,7 @@ from rmacd.models import (
     ProfileDC2D,
 )
 from rmacd.redaction import NullRedactor, RedactionResult, Redactor, RegexRedactor
+from rmacd.registry.tools import ToolsRegistry
 
 logger = logging.getLogger(__name__)
 
@@ -351,6 +352,10 @@ class PolicyEnforcer:
         # Capability gate (defence in depth): the tool's own ceiling.
         if not tool.permits(resolved.operation, resolved.tier):
             tier_label = resolved.tier.value if resolved.tier else "any"
+            cap_reason = (
+                f"Tool '{tool.tool_id}' capability does not permit "
+                f"{resolved.operation.value} on {tier_label}."
+            )
             decision = PolicyDecision(
                 allowed=False,
                 operation=resolved.operation,
@@ -358,10 +363,7 @@ class PolicyEnforcer:
                 autonomy_level=AutonomyLevel.PROHIBITED,
                 requires_approval=False,
                 requires_notification=False,
-                blocked_reason=(
-                    f"Tool '{tool.tool_id}' capability does not permit "
-                    f"{resolved.operation.value} on {tier_label}."
-                ),
+                blocked_reason=cap_reason,
             )
             self._audit(
                 operation=resolved.operation,
@@ -370,7 +372,7 @@ class PolicyEnforcer:
                 decision=decision,
                 result="DENY",
             )
-            raise RMACDToolCapabilityError(decision.blocked_reason, decision=decision)
+            raise RMACDToolCapabilityError(cap_reason, decision=decision)
 
         # Profile gate: reuse enforce() (approval, audit, exception mapping,
         # §12.5 floor). justification defaults to a compact call summary.
@@ -725,7 +727,9 @@ class PolicyEnforcer:
             # Surfacing them here would let a broken sink turn into a global
             # outage, so we never re-raise. We do log a warning so a failing
             # sink is observable rather than silently dropping records.
-            logger.warning("RMACD audit logging failed for %s on %s", operation, target, exc_info=True)
+            logger.warning(
+                "RMACD audit logging failed for %s on %s", operation, target, exc_info=True
+            )
 
     def _audit_execution(
         self,
@@ -765,7 +769,8 @@ class PolicyEnforcer:
             self.audit_logger.log(record)
         except Exception:  # pragma: no cover
             logger.warning(
-                "RMACD execution audit logging failed for %s on %s", operation, target, exc_info=True
+                "RMACD execution audit logging failed for %s on %s",
+                operation, target, exc_info=True,
             )
 
     @staticmethod

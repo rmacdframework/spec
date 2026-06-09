@@ -12,6 +12,106 @@ def op(cmd: str, **kw) -> Op:
     return classify_bash_command(cmd, **kw).operation
 
 
+class TestRegressionBundledFlags:
+    """Bundled short flags must still trigger per-flag rules (else under-class)."""
+
+    def test_sed_bundled_inplace_is_change(self):
+        # `sed -ni` bundles -n and -i; the -i must still elevate to Change.
+        assert op("sed -ni s/a/b/ f") == Op.CHANGE
+        assert op("sed -ne s/a/b/ f") == Op.READ          # -n -e, no in-place
+        assert op("sed -i.bak s/a/b/ f") == Op.CHANGE      # -i with backup suffix
+
+    def test_vim_bundled_readonly_is_read(self):
+        assert op("vim -Rn f") == Op.READ                  # -R read-only bundled
+
+    def test_find_long_flags_unaffected(self):
+        assert op("find . -name x -delete") == Op.DELETE   # single-dash long flag
+        assert op("find . -exec rm {} +") == Op.CHANGE
+
+
+class TestRegressionRedirects:
+    """Redirects detected from tokens — quoted `>` / `->` are not false positives."""
+
+    def test_quoted_gt_is_not_a_redirect(self):
+        assert op('echo "a > b"') == Op.READ
+        assert op('echo "migrate A -> B"') == Op.READ
+
+    def test_real_redirects_still_detected(self):
+        assert op("echo hi > /etc/hosts") == Op.CHANGE
+        assert op("echo hi >f") == Op.CHANGE               # glued >file
+        assert op("grep x f 2>err") == Op.CHANGE
+
+
+class TestRegressionSubshellsAndWrappers:
+    def test_nested_direct_dangerous_binary_is_caught(self):
+        # iterative extraction unwraps nested $(...) so a nested rm is seen
+        assert op("echo $(echo $(rm -rf x))") == Op.DELETE
+
+    def test_bash_c_recurses_into_command_string(self):
+        assert op('bash -c "rm -rf /"') == Op.DELETE
+        assert op('sh -c "ls -la"') == Op.READ
+        assert op("bash deploy.sh") == Op.CHANGE           # opaque script → fail-closed
+
+
+class TestRegressionTar:
+    def test_tar_create_is_add(self):
+        assert op("tar -czf a.tgz dir") == Op.ADD
+
+    def test_tar_remove_files_is_delete(self):
+        assert op("tar --remove-files -czf a.tgz dir") == Op.DELETE
+        assert op("tar --delete -f a.tar member") == Op.DELETE
+
+
+class TestRegressionGlobalFlags:
+    """A global option before the verb must not be mistaken for the subcommand."""
+
+    def test_kubectl_namespace_flag(self):
+        assert op("kubectl -n prod delete pod web") == Op.DELETE
+        assert op("kubectl -n ns get pods") == Op.READ
+
+    def test_git_dash_C(self):
+        assert op("git -C /repo commit -m x") == Op.CHANGE
+        assert op("git -c core.editor=vi push") == Op.CHANGE
+
+    def test_docker_context_flag(self):
+        assert op("docker --context prod rm container") == Op.DELETE
+
+    def test_quoted_arg_matching_a_verb_does_not_false_match(self):
+        # "delete" inside a commit message is one token, not the verb.
+        assert op('git commit -m "fix the delete bug"') == Op.CHANGE
+
+
+class TestRegressionWrappers:
+    """timeout/nice consume a value arg; eval runs its argument."""
+
+    def test_timeout_value_then_command(self):
+        assert op("timeout 5 rm -rf /") == Op.DELETE
+        assert op("timeout 5s curl -X DELETE http://x") == Op.DELETE
+        assert op("timeout 30 git commit -m x") == Op.CHANGE
+
+    def test_nice_priority(self):
+        assert op("nice -n 10 rm x") == Op.DELETE
+        assert op("nice -10 rm x") == Op.DELETE
+        assert op("nice cat f") == Op.READ
+
+    def test_eval_classifies_argument(self):
+        assert op('eval "rm -rf x"') == Op.DELETE
+        assert op("eval ls") == Op.READ
+
+    def test_stacked_wrappers(self):
+        assert op("sudo timeout 5 rm x") == Op.DELETE
+
+    def test_sudo_valued_flags_consume_value(self):
+        assert op("sudo -u root rm -rf /var") == Op.DELETE   # -u eats 'root'
+        assert op("sudo -H rm -rf x") == Op.DELETE           # -H is boolean, keep rm
+        assert op("sudo cat f") == Op.READ
+        assert op("sudo -u app git -C /r commit -m x") == Op.CHANGE  # stacked
+
+    def test_flag_with_equals_value_matches(self):
+        # `--in-place=.bak` must match the `--in-place` elevation rule.
+        assert op("sed --in-place=.bak s/a/b/ f") == Op.CHANGE
+
+
 class TestBaseCommands:
     @pytest.mark.parametrize(
         "cmd,expected",
@@ -169,6 +269,19 @@ class TestCloudAndInfra:
         ],
     )
     def test_cloud_and_iac(self, cmd, expected):
+        assert op(cmd) == expected
+
+    @pytest.mark.parametrize(
+        "cmd,expected",
+        [
+            ("aws ec2 terminate-instances --instance-ids i", Op.DELETE),
+            ("aws s3api delete-object --bucket b --key k", Op.DELETE),
+            ("aws cloudformation create-stack --stack-name s", Op.ADD),
+            ("aws ec2 describe-instances", Op.READ),
+            ("aws logs put-log-events", Op.CHANGE),
+        ],
+    )
+    def test_aws_hyphenated_verbs(self, cmd, expected):
         assert op(cmd) == expected
 
     def test_ansible_check_is_dry_run(self):
