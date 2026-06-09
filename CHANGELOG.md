@@ -5,6 +5,70 @@ All notable changes to the RMACD Framework will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.2] - 2026-06-08
+
+### SDK 0.7.0 (2026-06-08)
+
+#### Security — the Restricted A/C/D safety boundary is now enforced
+
+- The §12.5 invariant (**Add, Change, or Delete on Restricted data is
+  prohibited for any agent and cannot be granted through the exception
+  process**) was documented but not actually enforced. A profile that listed
+  the operation in `permissions.restricted` and raised it via
+  `autonomy_overrides` (e.g. `"restricted.C": "autonomous"`) previously
+  evaluated to `allowed=true` at the `autonomous` level. Now closed with
+  defense in depth:
+  - **Evaluator runtime floor** — a new `IMMUTABLE_PROHIBITIONS` set in
+    `evaluator.py` forces `PROHIBITED` for Restricted Add/Change/Delete
+    *before* any override, permission, or emergency-escalation path is
+    consulted. This is the authoritative, non-bypassable enforcement point.
+  - **Schema tightening** — `schemas/profile-3d.schema.json` now restricts
+    `permissions.restricted` to `["R", "M"]` and constrains
+    `autonomy_overrides` for `restricted.(A|C|D)` to `prohibited` only.
+  - Bypass-resistance tests in `tests/test_evaluator.py` and
+    `tests/test_validator.py`. All eight shipped example profiles still
+    validate against the tightened schema.
+
+#### Fixed
+
+- **Time-window midnight crossing** (`evaluator.py`) — windows that wrap past
+  midnight (e.g. `22:00`–`06:00`) previously always blocked; now evaluated
+  correctly with wraparound logic.
+- **Egress allow-list substring bypass** (`egress.py`) — an allow-list entry
+  like `internal` previously admitted look-alike hosts such as
+  `evil.internal-breach.com`. Matching is now exact or hostname-suffix.
+- **Egress scheme-less destinations** (`egress.py`) — `block_external_models`
+  silently failed to fire for hosts without a URL scheme (e.g.
+  `api.openai.com/v1`); host extraction now handles bare hosts and ports.
+- **MCP auto-classifier keyword matching** (`registry/mcp.py`) — substring
+  matching misclassified tools (`set` in `asset`, `drop` in `dropdown`); now
+  anchored on word boundaries.
+- **Redaction patterns** (`redaction.py`) — the credit-card regex was rewritten
+  to avoid catastrophic backtracking on long digit runs, and the IPv4 pattern
+  now validates octet ranges (0–255) so version strings like `1.2.3.4` are no
+  longer redacted as IP addresses.
+- **CLI `--version`** corrected from a stale `0.3.1` string.
+- `registry/tools.py`: timezone-aware timestamps, explicit tier/operation
+  ordering maps (no longer dependent on enum declaration order), and a `None`
+  `risk_score` sentinel so an explicit `0.0` is preserved. Dead code removed in
+  `loader.py`; the no-op approver ternary fixed in both example CLI gateways.
+
+#### Changed — observability
+
+- `PolicyEnforcer` now logs a warning when an audit sink raises, instead of
+  swallowing the error silently. Enforcement remains fail-open on audit failure
+  by design (a broken sink must not turn into a global outage), but the failure
+  is now observable.
+
+#### Tests
+
+- SDK suite expanded from 60 to 148 tests (line coverage 62% → 83%). New files:
+  `test_validator.py`, `test_cli.py`, `test_models.py`, `test_registry_sdk.py`,
+  `test_loader.py`; added time-window/environment constraint coverage and the
+  safety-boundary bypass tests above.
+
+---
+
 ## [1.3.1] - 2026-05-11
 
 ### SDK 0.6.0 (2026-05-11)
@@ -340,6 +404,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+[1.3.2]: https://github.com/rmacdframework/spec/releases/tag/v1.3.2
 [1.3.1]: https://github.com/rmacdframework/spec/releases/tag/v1.3.1
 [1.3.0]: https://github.com/rmacdframework/spec/releases/tag/v1.3.0
 [1.2.1]: https://github.com/rmacdframework/spec/releases/tag/v1.2.1

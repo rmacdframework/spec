@@ -3,7 +3,7 @@
 **ITIL for the Agentic Era**
 
 [![License: CC BY 4.0](https://img.shields.io/badge/License-CC_BY_4.0-lightgrey.svg)](https://creativecommons.org/licenses/by/4.0/)
-[![Spec version](https://img.shields.io/badge/spec-1.3.1-blue.svg)](https://github.com/rmacdframework/spec/releases)
+[![Spec version](https://img.shields.io/badge/spec-1.3.2-blue.svg)](https://github.com/rmacdframework/spec/releases)
 [![PyPI](https://img.shields.io/pypi/v/rmacd-framework.svg)](https://pypi.org/project/rmacd-framework/)
 [![Python](https://img.shields.io/pypi/pyversions/rmacd-framework.svg)](https://pypi.org/project/rmacd-framework/)
 
@@ -138,8 +138,8 @@ If you use the RMACD Framework in your work, please cite:
   author       = {Kashyap, Kash},
   title        = {RMACD: AI Agent Governance Framework},
   year         = {2026},
-  month        = may,
-  version      = {1.3.1},
+  month        = jun,
+  version      = {1.3.2},
   url          = {https://rmacd-framework.org},
   howpublished = {\url{https://github.com/rmacdframework/spec}},
   license      = {CC-BY-4.0},

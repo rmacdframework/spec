@@ -16,6 +16,8 @@ Version 1.3.0 | May 2026
 *Version 1.3.0 Update: Added Appendix D introducing the Data-Classification Two-Dimensional variant (DC2D), with accompanying schema, example profile, and SDK support (rmacd 0.3.0).*
 *Version 1.3.1 Update: Published SDK enforcement layer (PolicyEnforcer, ApprovalGateway, AuditLogger, RMACDError hierarchy) in rmacd 0.4.0; added DC2D runtime controls (Redactor, EgressGate) in rmacd 0.5.0; added programmatic agent prompt construction (`build_system_prompt`) in rmacd 0.6.0; shipped runnable reference integrations for Claude Agent SDK and the raw Anthropic SDK, and a DC2D redaction/egress demo. Two companion docs joined `docs/`: `runtime-patterns.md` and `framework-adapters.md`. A runtime-architecture draw.io diagram joined `docs/`.*
 
+*Version 1.3.2 Update: Hardened enforcement of the §12.5 safety boundary in rmacd 0.7.0 — Add/Change/Delete on Restricted data is now rejected both by `profile-3d.schema.json` (at profile-authoring time) and by an immutable runtime floor in the evaluator (at decision time), closing a gap where an `autonomy_overrides` entry could previously raise a prohibited cell. Also fixed time-window midnight wraparound, an egress allow-list substring-match bypass and scheme-less host handling, MCP keyword misclassification, and redaction-pattern issues; expanded the SDK test suite from 60 to 148 tests. See CHANGELOG.*
+
 # **Abstract**
 
 As autonomous AI agents increasingly permeate enterprise IT operations, organizations face a critical governance challenge: how to grant AI systems the operational freedom necessary for productivity while maintaining the control required for compliance, security, and business continuity. Existing frameworks address autonomy levels, permission scopes, or data classification in isolation, but none provide an integrated, operationally-focused model that enterprise IT teams can immediately understand and implement.
@@ -619,6 +621,12 @@ when wiring RMACD into a tool-call site.
   `RMACDConstraintError`, `RMACDApprovalRequiredError`,
   `RMACDApprovalDeniedError`, `RMACDApprovalTimeoutError`,
   `RMACDEgressBlockedError`.
+- **Immutable safety floor** — the evaluator enforces the §12.5 prohibitions
+  (Add/Change/Delete on Restricted) as a hard runtime floor that no profile
+  permission, `autonomy_overrides` entry, or emergency escalation can raise.
+  This complements the schema-level rejection of such profiles and guarantees
+  the boundary holds even for profiles built in code rather than loaded from a
+  validated file.
 
 ### Reference integrations
 
@@ -920,6 +928,8 @@ Certain permission escalations are **never** granted through the exception proce
 | Blanket "all operations" grants | Exceptions must be specifically scoped |
 
 For these scenarios, the operation must be performed by a human operator with appropriate authorization, with the agent potentially preparing or recommending the action.
+
+**Enforcement (rmacd 0.7.0+):** The Change/Delete-on-Restricted prohibition — together with Add on Restricted — is enforced mechanically, not merely by convention. `schemas/profile-3d.schema.json` rejects any profile that lists A, C, or D under `permissions.restricted` or sets a `restricted.(A|C|D)` autonomy override to anything other than `prohibited`. Independently, the SDK evaluator applies an immutable runtime floor (`IMMUTABLE_PROHIBITIONS`) that returns `PROHIBITED` for these cells before any permission, override, or emergency-escalation path is consulted, so a hand-built or programmatically-constructed profile cannot bypass the boundary even if it sidesteps schema validation.
 
 ## **12.6 Exception Metrics and Governance**
 
