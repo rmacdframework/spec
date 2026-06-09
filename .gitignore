@@ -20,3 +20,13 @@ todo.md
 
 # Audit logs produced by the example demos
 examples/**/audit.jsonl
+
+# Claude Code / AI assistant artifacts — never commit these to the public repo.
+# Excluded at the repo level (not just via a machine-local global ignore) so the
+# exclusion holds on fresh clones, CI, and other contributors' machines.
+CLAUDE.md
+CLAUDE.local.md
+.claude/
+
+# Stray local test-output dumps
+test_output.txt
