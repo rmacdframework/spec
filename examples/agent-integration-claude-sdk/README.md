@@ -45,8 +45,8 @@ cd spec/examples/agent-integration-claude-sdk
 pip install -e ../../sdk/python
 pip install claude-agent-sdk
 
-# Option B: once rmacd-framework 0.4.0 is on PyPI
-pip install rmacd-framework>=0.4.0 claude-agent-sdk
+# Option B: from PyPI
+pip install "rmacd-framework>=0.8.0" claude-agent-sdk
 ```
 
 ## Run

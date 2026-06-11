@@ -18,6 +18,8 @@ Version 1.4.0 | June 2026
 
 *Version 1.3.2 Update: Hardened enforcement of the §12.5 safety boundary in rmacd 0.7.0 — Add/Change/Delete on Restricted data is now rejected both by `profile-3d.schema.json` (at profile-authoring time) and by an immutable runtime floor in the evaluator (at decision time), closing a gap where an `autonomy_overrides` entry could previously raise a prohibited cell. Also fixed time-window midnight wraparound, an egress allow-list substring-match bypass and scheme-less host handling, MCP keyword misclassification, and redaction-pattern issues; expanded the SDK test suite from 60 to 148 tests. See CHANGELOG.*
 
+*Version 1.4.0 SDK updates (June 2026): rmacd 0.9.1 single-sourced the package version and bundled the three profile JSON schemas into the wheel. rmacd 0.10.0 added **LLM-assisted tool classification** — an optional `LLMToolClassifier` (install extra `rmacd-framework[llm]`) that has a Claude model classify ambiguous tool definitions into RMACD terms with a rationale and confidence score, wired into `MCPRegistryBridge` as a fallback (or replacement) for the keyword heuristic. Every auto-classified MCP tool now carries a capability ceiling capped at its inferred operation and classification provenance metadata, with a `low_confidence_tools()` human-review queue; the bridge registers into an existing enforcer registry and accepts raw MCP `tools/list` responses. The bash classifier learned shell control keywords, process substitution, and additional destructive binaries; registry denials are now audited. LLM classification is advisory input at registration time — runtime enforcement (the §12.5 floor, the agent profile, the capability ceiling) remains deterministic. See CHANGELOG.*
+
 *Version 1.4.0 Update: Made the Tools Registry a first-class RMACD policy layer in rmacd 0.8.0. Each tool registers its RMACD operation, an optional dynamic classifier (args → operation/tier/target), and an optional capability ceiling; `PolicyEnforcer.enforce_tool_call(tool, args)` classifies a call through the registry and enforces **profile ∩ tool capability** with the §12.5 floor, returning an audited allow/deny/approve at the tool-call boundary. This is the universal hook for a Claude Agent SDK `PreToolUse` hook, an OpenAI Agents SDK tool guardrail / `needs_approval`, or a Microsoft Agent Framework `FunctionMiddleware` (see `docs/framework-adapters.md`). The previously-standalone `tools-registry/` directory was folded into `rmacd.registry` and removed. The specification document was renamed `v1.3` → `v1.4` per the minor-release convention. See CHANGELOG.*
 
 # **Abstract**
@@ -465,8 +467,9 @@ The Tools Registry provides:
 - **Tool Registration and Classification** — Register tools with their RMACD level, data classification requirements, and HITL controls
 - **Permission Validation** — Validate tool access against agent permission profiles before execution
 - **Risk Scoring** — Automatically calculate risk scores for individual tools and multi-tool workflows
-- **Audit Logging** — Track all tool registrations, access validations, and policy decisions
-- **MCP Integration** — Auto-classify Model Context Protocol (MCP) tools based on their operations
+- **Audit Logging** — Track all tool registrations, access validations (allows *and* denials), and policy decisions
+- **MCP Integration** — Auto-classify Model Context Protocol (MCP) tools, with a capability ceiling at the inferred operation, classification provenance metadata, and a human-review queue for low-confidence results
+- **LLM-Assisted Classification** (SDK 0.10.0+, optional) — A Claude model classifies tool definitions the keyword heuristic cannot, returning a structured `(operation, tier, HITL)` with rationale and confidence; advisory only — runtime enforcement remains deterministic
 
 ### Risk Scoring Algorithm
 
@@ -596,19 +599,30 @@ The Tools Registry integrates with agent platforms through:
   tool guardrail / `needs_approval`, Microsoft Agent Framework
   `FunctionMiddleware`); see `docs/framework-adapters.md`.
 - **JSON Export/Import** — Exchange tool catalogs between systems
-- **MCP Bridge** — Auto-classify MCP tools and manage agent permissions
+- **MCP Bridge** (`MCPRegistryBridge`) — Auto-classify an MCP server's
+  `tools/list` response (raw dicts accepted, bulk registration supported) into
+  the same registry the enforcer consults. Two classification engines: a
+  deterministic keyword heuristic, and an optional Claude-backed
+  `LLMToolClassifier` (`pip install rmacd-framework[llm]`) used in `fallback`
+  mode (only for tools the keywords cannot classify confidently) or `always`
+  mode. LLM failures degrade to the keyword result — registration is never
+  blocked. Every auto-classified tool carries a capability ceiling at its
+  inferred operation and provenance in `metadata["classification"]`;
+  `low_confidence_tools()` surfaces the human-review queue.
 - **Bash command classifier** (`classify_bash_command` / `make_bash_classifier`)
   — for the opaque `bash` tool, parse a shell command into the maximum RMACD
   operation (honouring switch-level distinctions such as `sed -n` vs `sed -i`,
-  `nslookup` vs `nsupdate`, and `>` redirects), failing closed on unknown
-  binaries. Operation-level; pair with a 2D profile or a path→tier resolver.
+  `nslookup` vs `nsupdate`, `>` redirects, shell control keywords so
+  `for f in *; do rm "$f"; done` resolves to Delete, and process substitution),
+  failing closed on unknown binaries. Operation-level; pair with a 2D profile
+  or a path→tier resolver.
 
 ### Module Location
 
 The implementation lives in the SDK at `sdk/python/rmacd/registry/`
-(`tools.py`, `mcp.py`). Import via `from rmacd.registry import ...`. The
-previously-standalone `tools-registry/` directory was removed in v1.4.0; its
-content is now `rmacd.registry`.
+(`tools.py`, `mcp.py`, `bash.py`, `llm.py`). Import via
+`from rmacd.registry import ...`. The previously-standalone `tools-registry/`
+directory was removed in v1.4.0; its content is now `rmacd.registry`.
 
 ## **9.5 Python SDK Enforcement Layer**
 
@@ -675,9 +689,12 @@ Runnable end-to-end examples live in `spec/examples/`:
   semantics, SDK error contract, agent self-restriction prompt, DC2D
   runtime, and an end-to-end integration checklist with the
   SDK-provides-vs-integrator-provides boundary.
-- **`docs/framework-adapters.md`** — copy-pasteable integration code
-  for LangChain (callback handler + per-tool decorator), AutoGen v0.4+
-  (function-tool wrapper), CrewAI (`BaseTool` mixin), plus a generic
+- **`docs/framework-adapters.md`** — registry-backed `enforce_tool_call`
+  (including bash-command and MCP auto-classification), plus copy-pasteable
+  integration code for the OpenAI Agents SDK (tool guardrail +
+  `needs_approval`), Microsoft Agent Framework (`FunctionMiddleware`),
+  LangChain (callback handler + per-tool decorator), AutoGen v0.4+
+  (function-tool wrapper), CrewAI (`BaseTool` mixin), and a generic
   dispatch-site pattern.
 
 ### Relationship to the Tools Registry
@@ -1525,7 +1542,7 @@ The RMACD enforcement architecture consists of four primary components that work
 When an AI agent attempts an operation, the following evaluation sequence occurs:
 
 - Agent requests operation (e.g., 'CHANGE configuration on server-prod-01')
-- PEP intercepts request and extracts: operation type, target resource, data classification
+- PEP intercepts request and extracts: operation type, target resource, data classification (in the reference SDK this extraction is the Tools Registry, §9.4 — static tool metadata plus an optional per-call dynamic classifier)
 - PEP queries PDP with: agent_id, profile_id, operation, resource_classification
 - PDP loads agent's assigned permission profile from Policy Store
 - PDP evaluates: Does profile grant this operation for this classification?
@@ -1586,23 +1603,33 @@ RMACD enforcement can be integrated with agentic platforms through several patte
 - **SDK Integration:** Embed the RMACD SDK directly into the agent runtime. The SDK intercepts tool calls and API requests, evaluating each against the assigned profile before execution.
 
 ```python
-# Python SDK Example
-from rmacd import PolicyEnforcer, Profile
+# Python SDK Example (rmacd-framework)
+from rmacd import PolicyEnforcer, ProfileLoader
 
 enforcer = PolicyEnforcer(
-policy_store_url="https://policies.internal/rmacd",
-agent_id="devops-agent-001"
+    profile=ProfileLoader().load_file("profiles/operations.json"),
+    agent_id="devops-agent-001",
 )
 
-@enforcer.guard  # Decorator intercepts and evaluates
-def modify_config(server_id: str, config: dict):
-"""Agent function to modify server configuration."""
-return infrastructure_api.update_config(server_id, config)
+@enforcer.guard(  # Decorator intercepts and evaluates before the body runs
+    operation="C",
+    classifier=lambda *, server_id, **_: (
+        f"server://{server_id}",
+        "confidential" if server_id.startswith("prod-") else "internal",
+    ),
+)
+def modify_config(*, server_id: str, config: dict):
+    """Agent function to modify server configuration."""
+    return infrastructure_api.update_config(server_id, config)
 
 # Enforcement happens automatically:
 # - If ALLOW: function executes normally
-# - If DENY: RMACDPermissionError raised
-# - If QUEUE: function blocks until approval received
+# - If DENY: a typed RMACDPolicyError subclass is raised
+# - If approval-gated: routed through the ApprovalGateway first
+
+# Alternatively, gate a framework's tool-call hook through the Tools
+# Registry (§9.4) with a single call — no per-function decorators:
+#   enforcer.enforce_tool_call(tool_name, tool_args)
 ```
 
 - **API Gateway Integration:** Deploy RMACD as a policy layer in the API gateway. All agent requests pass through the gateway, which evaluates permissions before forwarding to backend services.

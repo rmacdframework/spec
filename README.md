@@ -85,7 +85,7 @@ RMACD answers the fundamental governance question: *"What can this agent do, to 
 - [Raw Anthropic SDK integration example](examples/agent-integration-anthropic-sdk/) — Runnable RMACD-governed agent (manual tool-use loop)
 - [DC2D customer-support example](examples/dc2d-customer-support/) — Redaction + egress controls demo (DC2D variant)
 - [Framework adapters](docs/framework-adapters.md) — registry-backed `enforce_tool_call` for OpenAI Agents SDK, Microsoft Agent Framework, Claude Agent SDK, LangChain, AutoGen, CrewAI
-- [Python Tools Registry](sdk/python/rmacd/registry/) — First-class tool→RMACD classifier + capability ceiling, consulted by `PolicyEnforcer.enforce_tool_call`
+- [Python Tools Registry](sdk/python/rmacd/registry/) — First-class tool→RMACD classifier + capability ceiling, consulted by `PolicyEnforcer.enforce_tool_call`; MCP auto-classification (`MCPRegistryBridge`) with optional Claude-powered classification (`LLMToolClassifier`, `pip install rmacd-framework[llm]`)
 - [JSON Schema Templates](schemas/)
 - [Website](https://rmacd-framework.org)
 

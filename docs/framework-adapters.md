@@ -1,7 +1,8 @@
 # RMACD framework adapters
 
 **Companion to:** `runtime-patterns.md` (this doc is the framework-specific
-cookbook). Targets SDK ≥ 0.4.0.
+cookbook). Targets SDK ≥ 0.8.0 (registry-backed `enforce_tool_call`);
+the MCP auto-classification section targets ≥ 0.10.0.
 
 Two reference integrations ship as full runnable examples:
 
@@ -134,8 +135,10 @@ def enforce_or_explain(tool_name: str, tool_args: dict) -> str | None:
 
 `bash` is the hard case: one tool, any command. `make_bash_classifier()` parses
 the command line — binary, subcommand, flags, pipes/`&&`/`;`, redirects, `sudo`,
-`$(...)` — and returns the **maximum** RMACD operation, failing closed (Change)
-on an unrecognised binary. Switch-level distinctions are honoured: `sed -n` is a
+`$(...)`, process substitution `<(...)`, and shell control keywords (so
+`for f in *; do rm "$f"; done` classifies as the Delete it is, not as an
+unknown `do`) — and returns the **maximum** RMACD operation, failing closed
+(Change) on an unrecognised binary. Switch-level distinctions are honoured: `sed -n` is a
 Read but `sed -i` is a Change; `pico`/`nano`/`vim` edit (Change) but `pico -v`
 / `vim -R` view (Read); `nslookup` is all-Read while `nsupdate` is a Change;
 `--help`/`--version` is always Read; a `>` redirect makes any command at least a
@@ -159,6 +162,33 @@ data tier, so it returns `tier=None` and pairs naturally with a **2D profile**
 (operations × autonomy). For 3D governance, layer a path→resource resolver to
 supply the tier. The classifier is a governance/audit heuristic, **not** a
 sandbox — pair it with OS-level controls.
+
+### Auto-classifying MCP tools (SDK ≥ 0.10.0)
+
+When the agent's tools come from an MCP server, you don't hand-register them —
+`MCPRegistryBridge` classifies each `tools/list` entry and registers it into
+the same registry the enforcer consults, with a capability ceiling at the
+inferred operation and provenance recorded in `metadata["classification"]`:
+
+```python
+from rmacd.registry import MCPRegistryBridge
+from rmacd.registry.llm import LLMToolClassifier   # optional: rmacd-framework[llm]
+
+bridge = MCPRegistryBridge(
+    registry=registry,                  # the enforcer's registry
+    llm_classifier=LLMToolClassifier(), # optional; reads ANTHROPIC_API_KEY
+    llm_mode="fallback",                # LLM only when the keyword heuristic is unsure
+)
+bridge.register_mcp_tools(tools_list_response["tools"])   # raw MCP dicts OK
+
+# Human-review queue: tools neither engine classified with confidence
+for tool in bridge.low_confidence_tools():
+    print(tool.tool_id, tool.metadata["classification"])
+```
+
+After this, `enforcer.enforce_tool_call(name, args)` governs MCP tool calls
+exactly like hand-registered ones. The LLM classification is advisory input —
+enforcement stays deterministic (§12.5 floor, profile, capability ceiling).
 
 ---
 

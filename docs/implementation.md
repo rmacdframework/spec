@@ -26,6 +26,15 @@ Choose this if:
 - You operate in a regulated industry
 - Your agents access data across multiple sensitivity levels
 
+### Data-Classification Two-Dimensional Model (DC2D: Data Classification + HITL)
+
+Choose this if:
+- Your primary governance lever is data sensitivity, not operation type
+- Operational permissions are already governed upstream (IAM/RBAC, DLP, gateway)
+- You need redaction and egress controls as the enforcement surface
+
+See spec Appendix D for the full DC2D variant.
+
 ## Step 2: Define Permission Profiles
 
 Start with the provided templates:
@@ -138,6 +147,21 @@ classifier and capability ceiling that `PolicyEnforcer.enforce_tool_call`
 consults to enforce *profile ∩ tool*. The previously-standalone
 `tools-registry/` directory has been removed; its content lives in
 `rmacd.registry`.
+
+Classification engines available at tool-registration time:
+
+- **Manual** — `ToolDefinition(rmacd_level=..., data_access=...)`, optionally
+  with a dynamic `classifier=` that resolves `(operation, tier, target)` from
+  the call's arguments (e.g. `make_bash_classifier()` for shell commands).
+- **Keyword heuristic** — `MCPRegistryBridge` auto-classifies MCP
+  `tools/list` entries; every auto-classified tool gets a capability ceiling
+  at its inferred operation plus provenance metadata, and
+  `bridge.low_confidence_tools()` surfaces the human-review queue.
+- **LLM-assisted** (optional, `pip install rmacd-framework[llm]`) —
+  `LLMToolClassifier` has a Claude model classify ambiguous tool definitions;
+  used as `llm_mode="fallback"` (only when keywords are unsure) or
+  `"always"`. Advisory only: the §12.5 floor, profile, and capability
+  ceiling remain deterministically enforced.
 
 ---
 

@@ -1,17 +1,17 @@
-"""Render a draw.io diagram to PNG using matplotlib.
+"""Render a draw.io diagram to PNG using Pillow.
 
 A pragmatic fallback for environments without draw.io desktop or a
-headless Chromium. Parses each ``<mxCell>`` from the .drawio XML,
-positions the boxes on a figure at their declared geometry, then
-renders edges as arrows between the centres of their source and
-target boxes. Style attributes (fill/stroke colour, dashed lines,
-font sizes) are extracted from the cell's ``style`` attribute when
-present and applied to the matplotlib patch.
+headless X server (the snap's ``drawio -x`` export needs a display).
+Parses each ``<mxCell>`` from the .drawio XML, draws the boxes at
+their declared geometry with real font metrics — text is wrapped to
+the box width, bold/italic map to the DejaVu face variants, dashed
+strokes and rounded corners are honoured — and routes edges
+orthogonally between the exit/entry points declared in the edge style.
 
-Output is intentionally not pixel-identical to draw.io's own
-renderer — it's a clean, readable preview suitable for GitHub
-rendering and code review. To edit the diagram, use draw.io directly
-on the .drawio file; this script regenerates the .png after edits.
+Output is intentionally not pixel-identical to draw.io's own renderer —
+it's a clean, readable preview suitable for GitHub rendering and code
+review. To edit the diagram, use draw.io directly on the .drawio file;
+this script regenerates the .png after edits.
 
 Usage::
 
@@ -21,16 +21,23 @@ Usage::
 
 from __future__ import annotations
 
-import re
 import sys
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
 
-import matplotlib.patches as patches
-import matplotlib.pyplot as plt
-from matplotlib.patches import FancyArrowPatch
+from PIL import Image, ImageDraw, ImageFont
+
+SCALE = 2  # render at 2x for crisp text on GitHub
+PAD = 40.0  # page margin in drawio units
+
+_FONT_DIR = Path("/usr/share/fonts/truetype/dejavu")
+_FACES = {
+    (False, False): _FONT_DIR / "DejaVuSans.ttf",
+    (True, False): _FONT_DIR / "DejaVuSans-Bold.ttf",
+    (False, True): _FONT_DIR / "DejaVuSans-Oblique.ttf",
+    (True, True): _FONT_DIR / "DejaVuSans-BoldOblique.ttf",
+}
 
 
 @dataclass
@@ -38,6 +45,7 @@ class Cell:
     id: str
     value: str
     style: dict[str, str]
+    is_text_only: bool
     x: float
     y: float
     width: float
@@ -58,190 +66,224 @@ def parse_style(style: str | None) -> dict[str, str]:
             k, _, v = part.partition("=")
             out[k.strip()] = v.strip()
         else:
-            # Unkeyed style shape (e.g. "rounded") — store as a flag.
-            out[part.strip()] = "1"
+            out[part.strip()] = "1"  # unkeyed style shape (e.g. "rounded")
     return out
 
 
 def parse_cells(drawio_path: Path) -> list[Cell]:
     tree = ET.parse(drawio_path)
-    root = tree.getroot()
     cells: list[Cell] = []
-    for cell in root.iter("mxCell"):
+    for cell in tree.getroot().iter("mxCell"):
         cell_id = cell.get("id", "")
         if cell_id in {"0", "1"}:
             continue  # synthetic root cells
-        value = (cell.get("value") or "").replace("&#10;", "\n").replace(
-            "&lt;", "<"
-        ).replace("&gt;", ">").replace("&amp;", "&")
-        style = parse_style(cell.get("style"))
-        is_edge = cell.get("edge") == "1"
-        source_id = cell.get("source")
-        target_id = cell.get("target")
-        x = y = width = height = 0.0
+        raw_style = cell.get("style") or ""
+        # ET already decodes XML character references; strip any HTML drawio
+        # may embed when html=1 labels were edited in the app.
+        value = (
+            (cell.get("value") or "")
+            .replace("<br>", "\n").replace("<br/>", "\n")
+            .replace("&nbsp;", " ")
+        )
         geom = cell.find("mxGeometry")
-        if geom is not None:
-            x = float(geom.get("x") or 0)
-            y = float(geom.get("y") or 0)
-            width = float(geom.get("width") or 0)
-            height = float(geom.get("height") or 0)
+        g = (lambda k: float(geom.get(k) or 0)) if geom is not None else (lambda k: 0.0)
         cells.append(
             Cell(
                 id=cell_id,
                 value=value,
-                style=style,
-                x=x,
-                y=y,
-                width=width,
-                height=height,
-                is_edge=is_edge,
-                source_id=source_id,
-                target_id=target_id,
+                style=parse_style(raw_style),
+                is_text_only=raw_style.startswith("text"),
+                x=g("x"), y=g("y"), width=g("width"), height=g("height"),
+                is_edge=cell.get("edge") == "1",
+                source_id=cell.get("source"),
+                target_id=cell.get("target"),
             )
         )
     return cells
 
 
-def hex_or_default(color: str | None, default: str) -> str:
-    if not color or color == "none":
+def color(value: str | None, default: str) -> str:
+    if not value or value == "none":
         return default
-    if color.startswith("#"):
-        return color
-    return default
+    return value if value.startswith("#") else default
 
 
-def render(drawio_path: Path, out_path: Path | None = None, dpi: int = 100) -> Path:
+def font_for(style: dict[str, str]) -> ImageFont.FreeTypeFont:
+    size = float(style.get("fontSize", "11"))
+    fs = style.get("fontStyle", "0")
+    bold, italic = fs in {"1", "3"}, fs in {"2", "3"}
+    # Fall back through faces — oblique variants are not installed everywhere.
+    for face in (_FACES[(bold, italic)], _FACES[(bold, False)], _FACES[(False, False)]):
+        if face.exists():
+            return ImageFont.truetype(str(face), int(round(size * SCALE)))
+    return ImageFont.load_default(int(round(size * SCALE)))
+
+
+def wrap_text(text: str, font: ImageFont.FreeTypeFont, max_width: float) -> list[str]:
+    """Wrap each hard line to max_width using real glyph metrics."""
+    lines: list[str] = []
+    for hard in text.split("\n"):
+        if not hard:
+            lines.append("")
+            continue
+        words, current = hard.split(" "), ""
+        for word in words:
+            trial = f"{current} {word}".strip()
+            if font.getlength(trial) <= max_width or not current:
+                current = trial
+            else:
+                lines.append(current)
+                current = word
+        lines.append(current)
+    return lines
+
+
+def dashed_line(draw: ImageDraw.ImageDraw, p1, p2, fill, width, dash=8 * SCALE) -> None:
+    (x1, y1), (x2, y2) = p1, p2
+    length = ((x2 - x1) ** 2 + (y2 - y1) ** 2) ** 0.5
+    if length == 0:
+        return
+    ux, uy = (x2 - x1) / length, (y2 - y1) / length
+    pos = 0.0
+    while pos < length:
+        end = min(pos + dash, length)
+        draw.line(
+            [(x1 + ux * pos, y1 + uy * pos), (x1 + ux * end, y1 + uy * end)],
+            fill=fill, width=width,
+        )
+        pos += dash * 2
+
+
+def polyline(draw, points, fill, width, dashed) -> None:
+    for p1, p2 in zip(points, points[1:]):
+        if dashed:
+            dashed_line(draw, p1, p2, fill, width)
+        else:
+            draw.line([p1, p2], fill=fill, width=width)
+
+
+def arrow_head(draw, p_from, p_to, fill, size=7 * SCALE) -> None:
+    (x1, y1), (x2, y2) = p_from, p_to
+    length = ((x2 - x1) ** 2 + (y2 - y1) ** 2) ** 0.5 or 1.0
+    ux, uy = (x2 - x1) / length, (y2 - y1) / length
+    base = (x2 - ux * size, y2 - uy * size)
+    left = (base[0] - uy * size * 0.5, base[1] + ux * size * 0.5)
+    right = (base[0] + uy * size * 0.5, base[1] - ux * size * 0.5)
+    draw.polygon([(x2, y2), left, right], fill=fill)
+
+
+def render(drawio_path: Path, out_path: Path | None = None) -> Path:
     cells = parse_cells(drawio_path)
     by_id = {c.id: c for c in cells}
+    boxes = [c for c in cells if not c.is_edge]
 
-    # Page extents from the largest declared coordinates
-    max_x = max((c.x + c.width for c in cells if not c.is_edge), default=1000.0)
-    max_y = max((c.y + c.height for c in cells if not c.is_edge), default=800.0)
-    pad = 40.0
-    fig_w = (max_x + pad * 2) / 100.0
-    fig_h = (max_y + pad * 2) / 100.0
+    max_x = max((c.x + c.width for c in boxes), default=1000.0)
+    max_y = max((c.y + c.height for c in boxes), default=800.0)
+    img_w = int(round((max_x + PAD * 2) * SCALE))
+    img_h = int(round((max_y + PAD * 2) * SCALE))
+    img = Image.new("RGB", (img_w, img_h), "white")
+    draw = ImageDraw.Draw(img)
 
-    fig, ax = plt.subplots(figsize=(fig_w, fig_h), dpi=dpi)
-    ax.set_xlim(0, max_x + pad * 2)
-    ax.set_ylim(0, max_y + pad * 2)
-    ax.invert_yaxis()  # drawio y grows downward
-    ax.set_aspect("equal")
-    ax.axis("off")
+    def px(v: float) -> float:
+        return (v + PAD) * SCALE
 
-    # Draw vertices first
-    for c in cells:
-        if c.is_edge:
+    # ----- vertices ---------------------------------------------------------
+    for c in boxes:
+        x1, y1 = px(c.x), px(c.y)
+        x2, y2 = px(c.x + c.width), px(c.y + c.height)
+        if not c.is_text_only:
+            fill = color(c.style.get("fillColor"), "#FFFFFF")
+            stroke = color(c.style.get("strokeColor"), "#444444")
+            sw = int(round(float(c.style.get("strokeWidth", "1")) * SCALE))
+            fill_arg = None if c.style.get("fillColor") == "none" else fill
+            if c.style.get("dashed") == "1":
+                if fill_arg:
+                    draw.rectangle([x1, y1, x2, y2], fill=fill_arg)
+                for p1, p2 in [((x1, y1), (x2, y1)), ((x2, y1), (x2, y2)),
+                               ((x2, y2), (x1, y2)), ((x1, y2), (x1, y1))]:
+                    dashed_line(draw, p1, p2, stroke, sw)
+            elif c.style.get("rounded") == "1":
+                draw.rounded_rectangle(
+                    [x1, y1, x2, y2], radius=8 * SCALE,
+                    fill=fill_arg, outline=stroke, width=sw,
+                )
+            else:
+                draw.rectangle([x1, y1, x2, y2], fill=fill_arg, outline=stroke, width=sw)
+
+        if not c.value:
             continue
-        fill = hex_or_default(c.style.get("fillColor"), "#FFFFFF")
-        stroke = hex_or_default(c.style.get("strokeColor"), "#444444")
-        stroke_width = float(c.style.get("strokeWidth", "1"))
-        dashed = c.style.get("dashed") == "1"
-        rounded = c.style.get("rounded") == "1"
-        font_size = float(c.style.get("fontSize", "11"))
-        font_color = hex_or_default(c.style.get("fontColor"), "#000000")
-        is_italic = c.style.get("fontStyle", "0") in {"2", "3"}
-        is_bold = c.style.get("fontStyle", "0") in {"1", "3"}
 
-        # Boxes with no fillColor and stroke=none act as label-only cells;
-        # skip the rectangle for those.
-        has_box = c.style.get("fillColor") != "none" or stroke != "#444444"
-        if has_box and (fill != "none" or stroke != "none"):
-            boxstyle = "round,pad=0,rounding_size=8" if rounded else "square,pad=0"
-            patch = patches.FancyBboxPatch(
-                (c.x + pad, c.y + pad),
-                c.width,
-                c.height,
-                boxstyle=boxstyle,
-                linewidth=stroke_width,
-                edgecolor=stroke,
-                facecolor=fill,
-                linestyle="--" if dashed else "-",
-            )
-            ax.add_patch(patch)
+        font = font_for(c.style)
+        font_color = color(c.style.get("fontColor"), "#000000")
+        inset = 8 * SCALE
+        spacing_left = float(c.style.get("spacingLeft", "0")) * SCALE
+        spacing_top = float(c.style.get("spacingTop", "0")) * SCALE
+        avail = max((x2 - x1) - 2 * inset - spacing_left, 4 * SCALE)
+        lines = wrap_text(c.value, font, avail)
+        line_h = int(round(font.size * 1.25))
+        block_h = line_h * len(lines)
 
-        if c.value:
-            verticalalignment = c.style.get("verticalAlign", "middle")
-            va = {"top": "top", "middle": "center", "bottom": "bottom"}.get(
-                verticalalignment, "center"
-            )
-            align = c.style.get("align", "center")
-            ha = {"left": "left", "center": "center", "right": "right"}.get(
-                align, "center"
-            )
-            spacing_top = float(c.style.get("spacingTop", "0"))
-            spacing_left = float(c.style.get("spacingLeft", "0"))
+        va = c.style.get("verticalAlign", "middle")
+        if va == "top":
+            ty = y1 + spacing_top + 2 * SCALE
+        elif va == "bottom":
+            ty = y2 - block_h - spacing_top - 2 * SCALE
+        else:
+            ty = (y1 + y2) / 2 - block_h / 2
 
-            text_x = c.x + pad + (
-                spacing_left
-                if ha == "left"
-                else c.width - spacing_left
-                if ha == "right"
-                else c.width / 2
-            )
-            text_y = c.y + pad + (
-                spacing_top
-                if va == "top"
-                else c.height - spacing_top
-                if va == "bottom"
-                else c.height / 2
-            )
-            weight = "bold" if is_bold else "normal"
-            style_val = "italic" if is_italic else "normal"
-            ax.text(
-                text_x,
-                text_y,
-                c.value,
-                ha=ha,
-                va=va,
-                fontsize=font_size,
-                color=font_color,
-                fontweight=weight,
-                fontstyle=style_val,
-                wrap=True,
-            )
+        ha = c.style.get("align", "center")
+        for line in lines:
+            lw = font.getlength(line)
+            if ha == "left":
+                tx = x1 + inset + spacing_left
+            elif ha == "right":
+                tx = x2 - inset - lw
+            else:
+                tx = (x1 + x2) / 2 - lw / 2
+            draw.text((tx, ty), line, font=font, fill=font_color)
+            ty += line_h
 
-    # Draw edges
+    # ----- edges ------------------------------------------------------------
     for c in cells:
         if not c.is_edge:
             continue
-        src = by_id.get(c.source_id or "")
-        tgt = by_id.get(c.target_id or "")
+        src, tgt = by_id.get(c.source_id or ""), by_id.get(c.target_id or "")
         if not src or not tgt:
             continue
 
-        # Compute edge endpoints from exit/entry style ratios when present,
-        # else use box centres.
-        def _point(box: Cell, x_ratio_key: str, y_ratio_key: str) -> tuple[float, float]:
-            xr = c.style.get(x_ratio_key)
-            yr = c.style.get(y_ratio_key)
-            if xr is not None and yr is not None:
-                return (
-                    box.x + pad + box.width * float(xr),
-                    box.y + pad + box.height * float(yr),
-                )
-            return (box.x + pad + box.width / 2, box.y + pad + box.height / 2)
+        def anchor(box: Cell, xr: str | None, yr: str | None) -> tuple[float, float]:
+            fx = float(xr) if xr is not None else 0.5
+            fy = float(yr) if yr is not None else 0.5
+            return (px(box.x + box.width * fx), px(box.y + box.height * fy))
 
-        x1, y1 = _point(src, "exitX", "exitY")
-        x2, y2 = _point(tgt, "entryX", "entryY")
-        stroke_width = float(c.style.get("strokeWidth", "1"))
-        stroke = hex_or_default(c.style.get("strokeColor"), "#444444")
-        dashed = c.style.get("dashed") == "1"
-        arrow = FancyArrowPatch(
-            (x1, y1),
-            (x2, y2),
-            arrowstyle="-|>" if c.style.get("endArrow", "classic") != "none" else "-",
-            mutation_scale=12,
-            linewidth=stroke_width,
-            color=stroke,
-            linestyle="--" if dashed else "-",
-            shrinkA=2,
-            shrinkB=2,
-        )
-        ax.add_patch(arrow)
+        p1 = anchor(src, c.style.get("exitX"), c.style.get("exitY"))
+        p2 = anchor(tgt, c.style.get("entryX"), c.style.get("entryY"))
+        stroke = color(c.style.get("strokeColor"), "#444444")
+        sw = int(round(float(c.style.get("strokeWidth", "1")) * SCALE))
+        is_dashed = c.style.get("dashed") == "1"
+
+        # Orthogonal elbow routing matching drawio defaults: when leaving
+        # vertically and entering vertically, do V-H-V; when horizontal on
+        # both ends, H-V-H; otherwise a straight segment.
+        exit_vertical = c.style.get("exitY") in {"0", "1"}
+        entry_vertical = c.style.get("entryY") in {"0", "1"}
+        if p1[0] == p2[0] or p1[1] == p2[1]:
+            points = [p1, p2]
+        elif exit_vertical and entry_vertical:
+            mid_y = (p1[1] + p2[1]) / 2
+            points = [p1, (p1[0], mid_y), (p2[0], mid_y), p2]
+        elif not exit_vertical and not entry_vertical:
+            mid_x = (p1[0] + p2[0]) / 2
+            points = [p1, (mid_x, p1[1]), (mid_x, p2[1]), p2]
+        else:  # mixed: single elbow
+            points = [p1, (p2[0], p1[1]) if exit_vertical is False else (p1[0], p2[1]), p2]
+
+        polyline(draw, points, stroke, sw, is_dashed)
+        if c.style.get("endArrow", "classic") != "none":
+            arrow_head(draw, points[-2], points[-1], stroke)
 
     out = out_path or drawio_path.with_suffix(".drawio.png")
-    plt.savefig(out, bbox_inches="tight", dpi=dpi, facecolor="white")
-    plt.close(fig)
+    img.save(out)
     return out
 
 
@@ -249,14 +291,9 @@ def main() -> None:
     if len(sys.argv) < 2:
         print(f"usage: {sys.argv[0]} <file.drawio>", file=sys.stderr)
         sys.exit(2)
-    path = Path(sys.argv[1])
-    out = render(path)
+    out = render(Path(sys.argv[1]))
     print(f"wrote {out}")
 
 
 if __name__ == "__main__":
     main()
-
-
-# Pyflakes: re is reserved for future style-string parsing extensions.
-_ = re, Any

@@ -9,7 +9,7 @@
         <mxCell id="title" value="RMACD Runtime Architecture" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=22;fontStyle=1" vertex="1" parent="1">
           <mxGeometry x="40" y="20" width="1620" height="36" as="geometry" />
         </mxCell>
-        <mxCell id="subtitle" value="Spec Appendix C, with rmacd-framework SDK class names overlaid (SDK ≥ 0.5.0)" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=12;fontStyle=2;fontColor=#666666" vertex="1" parent="1">
+        <mxCell id="subtitle" value="Spec Appendix C, with rmacd-framework SDK class names overlaid (SDK ≥ 0.10.0)" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=12;fontStyle=2;fontColor=#666666" vertex="1" parent="1">
           <mxGeometry x="40" y="58" width="1620" height="20" as="geometry" />
         </mxCell>
 
@@ -83,11 +83,19 @@
         </mxCell>
 
         <!-- Resource Classifier (bottom-right) -->
-        <mxCell id="classifier_box" value="Resource Classifier&#10;&#10;(tool_name, args) →&#10;(operation, target, classification)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F3E0F3;strokeColor=#8E3F8E;fontSize=11;verticalAlign=top;spacingTop=8" vertex="1" parent="1">
+        <mxCell id="classifier_box" value="Tools Registry (Resource Classifier)&#10;&#10;(tool_name, args) →&#10;(operation, target, classification)&#10;+ per-tool capability ceiling" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F3E0F3;strokeColor=#8E3F8E;fontSize=11;verticalAlign=top;spacingTop=8" vertex="1" parent="1">
           <mxGeometry x="1200" y="560" width="320" height="110" as="geometry" />
         </mxCell>
-        <mxCell id="classifier_sdk" value="Integrator-provided function. Sources:&#10;data catalog, tag registry, DLP, URI convention." style="text;html=1;align=center;verticalAlign=middle;fontSize=10;fontStyle=2;fontColor=#8E3F8E" vertex="1" parent="1">
+        <mxCell id="classifier_sdk" value="rmacd.registry.ToolsRegistry — ToolDefinition.classifier,&#10;make_bash_classifier, MCPRegistryBridge" style="text;html=1;align=center;verticalAlign=middle;fontSize=10;fontStyle=2;fontColor=#8E3F8E" vertex="1" parent="1">
           <mxGeometry x="1200" y="650" width="320" height="32" as="geometry" />
+        </mxCell>
+
+        <!-- LLM classifier (feeds the registry at registration time) -->
+        <mxCell id="llm_classifier_ext" value="Auto-classification at registration:&#10;keyword heuristic + optional LLMToolClassifier&#10;(Claude, structured outputs) — advisory only" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#E8E8E8;strokeColor=#666666;fontSize=10;dashed=1" vertex="1" parent="1">
+          <mxGeometry x="1200" y="710" width="320" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="e_llm_classifier" style="endArrow=classic;html=1;exitX=0.5;exitY=0;entryX=0.5;entryY=1;strokeWidth=1;dashed=1" edge="1" parent="1" source="llm_classifier_ext" target="classifier_box">
+          <mxGeometry relative="1" as="geometry" />
         </mxCell>
 
         <!-- ===================== DC2D OVERLAY (bottom band) ===================== -->
@@ -123,8 +131,8 @@
         <mxCell id="e_agent_pep" style="endArrow=classic;html=1;strokeWidth=2;exitX=0.5;exitY=1;entryX=0.5;entryY=0" edge="1" parent="1" source="agent" target="pep_box">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="e_agent_pep_label" value="enforce(op, target, classification)" style="text;html=1;align=center;fontSize=10;fontStyle=2" vertex="1" parent="1">
-          <mxGeometry x="700" y="222" width="220" height="20" as="geometry" />
+        <mxCell id="e_agent_pep_label" value="enforce(op, target, classification) / enforce_tool_call(tool_name, args)" style="text;html=1;align=center;fontSize=10;fontStyle=2" vertex="1" parent="1">
+          <mxGeometry x="580" y="222" width="440" height="20" as="geometry" />
         </mxCell>
 
         <!-- Policy Store → PEP -->

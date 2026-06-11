@@ -1,7 +1,7 @@
 # RMACD Runtime Patterns
 
 **Companion to:** `RMACD_Framework_v1.4.md` (Appendices C and D)
-**Targets:** SDK ≥ 0.6.0 (`rmacd-framework` on PyPI)
+**Targets:** SDK ≥ 0.10.0 (`rmacd-framework` on PyPI)
 
 The canonical specification (Appendix C) describes the four-component
 enforcement architecture (Policy Store, PDP, PEP, Audit Engine) and the
@@ -244,6 +244,18 @@ Change (Change is strictly more risky than Add per the RMACD hierarchy).
 The agent will get a more conservative gate than strictly necessary, which
 is the right trade — false positives on the cautious side are
 recoverable; false negatives on the permissive side are not.
+
+### Classification at tool-onboarding time
+
+The patterns above classify a *call*. A separate classification problem is
+onboarding the *tool itself* — assigning a default RMACD level to each of an
+MCP server's advertised tools. The SDK ships two engines for this
+(SDK ≥ 0.10.0): a deterministic keyword heuristic and an optional
+Claude-backed `LLMToolClassifier` for the ambiguous tail, both via
+`MCPRegistryBridge` with capability ceilings and provenance recorded per
+tool. See `framework-adapters.md` → *Auto-classifying MCP tools*. Both are
+advisory inputs at registration time; runtime enforcement stays
+deterministic.
 
 ---
 

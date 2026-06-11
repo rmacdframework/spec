@@ -250,7 +250,7 @@
         <mxCell id="leg-note" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=9;fontColor=#666666;" value="Data Classification: Public (freely shareable) | Internal (business use) | Confidential (sensitive) | Restricted (maximum protection)" vertex="1">
           <mxGeometry height="20" width="500" x="599" y="555" as="geometry" />
         </mxCell>
-        <mxCell id="footer" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=10;fontColor=#888888;" value="RMACD Framework v1.0 | Created by Kash Kashyap | rmacd-framework.org | CC BY 4.0" vertex="1">
+        <mxCell id="footer" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=10;fontColor=#888888;" value="RMACD Framework v1.4 | Created by Kash Kashyap | rmacd-framework.org | CC BY 4.0" vertex="1">
           <mxGeometry height="20" width="400" x="429" y="600" as="geometry" />
         </mxCell>
       </root>
