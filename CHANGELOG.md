@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.4.0] - 2026-06-09
 
+### SDK 0.9.1 (2026-06-11)
+
+#### Fixed
+
+- `rmacd --version` and `rmacd.__version__` reported a stale hardcoded version.
+  Both now read the installed distribution version via
+  `importlib.metadata.version("rmacd-framework")`, making `pyproject.toml` the
+  single source of truth.
+- A wheel-only install could not validate profiles
+  (`SchemaValidationError: Schema directory not found`). The three profile
+  schemas are now bundled as package data under `rmacd/schemas/` and
+  `ProfileValidator` defaults to them via `importlib.resources`; the
+  `schema_dir` constructor argument and `--schema-dir` CLI flag remain as
+  overrides. A new `tests/test_schema_sync.py` fails if the bundled copies
+  drift from the authoritative `schemas/` directory.
+- SDK README: the validator example required a repo-relative `schema_dir` and
+  used `SchemaValidationError` without importing it; `PolicyDecision` was shown
+  as a dataclass (it is a Pydantic model); `ProfileDC2D` was missing from the
+  profile-types list.
+
 ### SDK 0.8.0 (2026-06-09)
 
 #### Added — first-class Tools Registry + registry-backed enforcement

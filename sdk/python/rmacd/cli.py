@@ -5,6 +5,7 @@ import json
 import sys
 from pathlib import Path
 
+import rmacd
 from rmacd.evaluator import PolicyEvaluator
 from rmacd.loader import ProfileLoader, ProfileLoadError
 from rmacd.models import DataClassification, EvaluationContext, Operation
@@ -215,7 +216,7 @@ def main() -> int:
         prog="rmacd",
         description="RMACD Framework CLI - Policy evaluation and profile management",
     )
-    parser.add_argument("--version", action="version", version="%(prog)s 0.8.0")
+    parser.add_argument("--version", action="version", version=f"%(prog)s {rmacd.__version__}")
 
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
 
@@ -227,7 +228,8 @@ def main() -> int:
         "profiles", nargs="+", help="Profile file(s) to validate"
     )
     validate_parser.add_argument(
-        "--schema-dir", help="Directory containing schema files"
+        "--schema-dir",
+        help="Directory containing schema files (default: schemas bundled with the package)",
     )
     validate_parser.add_argument(
         "-q", "--quiet", action="store_true", help="Only output errors"

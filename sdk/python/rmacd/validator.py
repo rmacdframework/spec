@@ -1,6 +1,7 @@
 """JSON Schema validator for RMACD Framework profiles."""
 
 import json
+from importlib import resources
 from pathlib import Path
 from typing import Any
 
@@ -28,8 +29,8 @@ class ProfileValidator:
         """Initialize the validator.
 
         Args:
-            schema_dir: Directory containing schema files. If None, will look
-                       for schemas in standard locations.
+            schema_dir: Directory containing schema files. If None, the
+                       schemas bundled with the package are used.
         """
         self._schema_dir = Path(schema_dir) if schema_dir else None
         self._schema_2d: dict | None = None
@@ -39,41 +40,27 @@ class ProfileValidator:
         self._validator_3d: Draft202012Validator | None = None
         self._validator_dc2d: Draft202012Validator | None = None
 
-    def _find_schema_dir(self) -> Path | None:
-        """Try to find the schema directory."""
-        if self._schema_dir and self._schema_dir.exists():
-            return self._schema_dir
-
-        # Try common locations
-        candidates = [
-            Path(__file__).parent.parent.parent.parent / "schemas",  # sdk/python/rmacd -> schemas
-            Path.cwd() / "schemas",
-            Path.cwd() / "spec" / "schemas",
-        ]
-
-        for candidate in candidates:
-            if candidate.exists() and (candidate / self.SCHEMA_2D_PATH).exists():
-                return candidate
-
-        return None
-
     def _load_schema(self, schema_path: str) -> dict:
-        """Load a JSON schema from file."""
-        schema_dir = self._find_schema_dir()
-        if not schema_dir:
-            raise SchemaValidationError(
-                "Schema directory not found. Please specify schema_dir in constructor."
-            )
+        """Load a JSON schema, from schema_dir if given, else from the bundled copies."""
+        if self._schema_dir is not None:
+            if not self._schema_dir.exists():
+                raise SchemaValidationError(f"Schema directory not found: {self._schema_dir}")
+            full_path = self._schema_dir / schema_path
+            if not full_path.exists():
+                raise SchemaValidationError(f"Schema file not found: {full_path}")
+            try:
+                with open(full_path, "r", encoding="utf-8") as f:
+                    return json.load(f)
+            except json.JSONDecodeError as e:
+                raise SchemaValidationError(f"Invalid JSON in schema file: {e}") from e
 
-        full_path = schema_dir / schema_path
-        if not full_path.exists():
-            raise SchemaValidationError(f"Schema file not found: {full_path}")
-
+        resource = resources.files("rmacd") / "schemas" / schema_path
         try:
-            with open(full_path, "r", encoding="utf-8") as f:
-                return json.load(f)
+            return json.loads(resource.read_text(encoding="utf-8"))
+        except FileNotFoundError as e:
+            raise SchemaValidationError(f"Bundled schema not found: {schema_path}") from e
         except json.JSONDecodeError as e:
-            raise SchemaValidationError(f"Invalid JSON in schema file: {e}") from e
+            raise SchemaValidationError(f"Invalid JSON in bundled schema: {e}") from e
 
     def _get_validator_2d(self) -> Draft202012Validator:
         """Get or create the 2D schema validator."""

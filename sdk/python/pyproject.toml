@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "rmacd-framework"
-version = "0.8.0"
+version = "0.9.1"
 description = "RMACD Framework SDK - Policy evaluation for autonomous AI agents"
 readme = "README.md"
 license = "CC-BY-4.0"
@@ -33,6 +33,9 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+llm = [
+    "anthropic>=0.40",
+]
 dev = [
     "pytest>=7.0",
     "pytest-cov>=4.0",
@@ -51,6 +54,9 @@ rmacd = "rmacd.cli:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["rmacd"]
+# Bundled copies of the authoritative schemas in <repo>/schemas/;
+# tests/test_schema_sync.py fails if they drift.
+artifacts = ["rmacd/schemas/*.schema.json"]
 
 [tool.ruff]
 line-length = 100

@@ -84,8 +84,11 @@ print(decision.requires_approval)  # True
 
 ```python
 from rmacd import ProfileValidator
+from rmacd.validator import SchemaValidationError
 
-validator = ProfileValidator(schema_dir="../../schemas")
+# Uses the JSON schemas bundled with the package by default;
+# pass schema_dir="path/to/schemas" to validate against other copies.
+validator = ProfileValidator()
 
 # Validate a profile file
 try:
@@ -262,6 +265,7 @@ new_registry.import_from_json("tools_catalog.json")
 
 - **Profile2D**: Two-dimensional profile (operations + autonomy, no data classification)
 - **Profile3D**: Three-dimensional profile (operations + data classification + autonomy)
+- **ProfileDC2D**: Data-classification 2D profile (data classification + autonomy, no operations axis)
 
 ### Core Enums
 
@@ -271,11 +275,10 @@ new_registry.import_from_json("tools_catalog.json")
 
 ### Policy Decision
 
-The `PolicyDecision` model contains:
+The `PolicyDecision` Pydantic model contains:
 
 ```python
-@dataclass
-class PolicyDecision:
+class PolicyDecision(BaseModel):
     allowed: bool                    # Whether operation is permitted
     operation: Operation             # The evaluated operation
     data_classification: DataClassification | None

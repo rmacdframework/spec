@@ -56,6 +56,8 @@ Tools Registry usage::
     allowed, reason = registry.validate_tool_access("file_reader", ["R", "M"], "internal")
 """
 
+import importlib.metadata as _metadata
+
 from rmacd.approval import (
     ApprovalDecision,
     ApprovalGateway,
@@ -104,7 +106,11 @@ from rmacd.prompts import build_system_prompt
 from rmacd.redaction import NullRedactor, RedactionResult, Redactor, RegexRedactor
 from rmacd.validator import ProfileValidator
 
-__version__ = "0.8.0"
+try:
+    __version__ = _metadata.version("rmacd-framework")
+except _metadata.PackageNotFoundError:  # running from a source tree without installation
+    __version__ = "0.0.0+unknown"
+
 __all__ = [
     # Core models
     "AutonomyLevel",
