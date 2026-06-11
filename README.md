@@ -155,6 +155,8 @@ Or see [CITATION.cff](CITATION.cff) for machine-readable citation.
 
 We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
+Questions, ideas, or feedback? Join the conversation in [GitHub Discussions](https://github.com/rmacdframework/spec/discussions).
+
 ---
 
 ## License
