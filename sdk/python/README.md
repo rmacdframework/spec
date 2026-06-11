@@ -12,6 +12,9 @@ Reference implementation for the RMACD (Read, Move, Add, Change, Delete) Framewo
 # From PyPI
 pip install rmacd-framework
 
+# With optional LLM-assisted tool classification (Anthropic SDK)
+pip install "rmacd-framework[llm]"
+
 # Or from source
 git clone https://github.com/rmacdframework/spec.git
 cd spec/sdk/python
@@ -177,6 +180,40 @@ rmacd matrix profiles/devops.json
 rmacd matrix profiles/devops.json --json
 ```
 
+## Policy Enforcement
+
+`PolicyEnforcer` is the runtime Policy Enforcement Point: it evaluates a call
+against the profile, routes approval-gated operations through an
+`ApprovalGateway`, writes an `AuditRecord` per decision, and raises a typed
+`RMACDError` subclass on any non-allowed outcome.
+
+```python
+from rmacd import PolicyEnforcer
+from rmacd.exceptions import RMACDPolicyError
+
+enforcer = PolicyEnforcer(profile, agent_id="devops-agent-01", registry=registry)
+
+# Direct enforcement (you already classified the action)
+enforcer.enforce(operation="C", target="server://web-01", classification="internal")
+
+# Registry-backed tool-call enforcement — the integration point for an agent
+# framework's tool hook (Claude PreToolUse, OpenAI needs_approval, ...).
+# Classifies (tool_name, args) via the registry, applies the tool's capability
+# ceiling, then enforces profile ∩ tool. Unknown tools fail closed.
+try:
+    enforcer.enforce_tool_call("Bash", {"command": "rm -rf build/"})
+except RMACDPolicyError as exc:
+    print(f"Blocked: {exc}")
+
+# Dry-run variant (no approval, no audit, no raise)
+decision = enforcer.evaluate_tool_call("Bash", {"command": "kubectl get pods"})
+```
+
+See [framework adapters](../../docs/framework-adapters.md) for wiring this
+into Claude Agent SDK, OpenAI Agents SDK, Microsoft Agent Framework, LangChain,
+AutoGen, and CrewAI, and [runtime patterns](../../docs/runtime-patterns.md)
+for the surrounding architecture.
+
 ## Tools Registry
 
 The SDK includes a Tools Registry for managing and validating AI agent tool access.
@@ -226,17 +263,24 @@ print(f"Highest RMACD: {risk['highest_rmacd']}")
 ```python
 from rmacd.registry import MCPTool, MCPRegistryBridge
 
-# Create MCP bridge
-bridge = MCPRegistryBridge("mcp-demo")
+# Bridge into the same registry your PolicyEnforcer uses (or omit registry=
+# to let the bridge create its own)
+bridge = MCPRegistryBridge(registry=registry)
 
-# Register MCP tool with auto-classification
-mcp_tool = MCPTool(
+# Register MCP tools with auto-classification — accepts MCPTool objects or
+# raw MCP tools/list entries; each gets a capability ceiling at its inferred
+# operation and classification provenance in metadata["classification"]
+tool = bridge.register_mcp_tool(MCPTool(
     name="filesystem-read",
     description="Read files from the filesystem",
     inputSchema={"type": "object", "properties": {"path": {"type": "string"}}},
     operations=["read", "list"]
-)
-bridge.register_mcp_tool(mcp_tool)
+))
+bridge.register_mcp_tools(tools_list_response["tools"])  # bulk, raw dicts OK
+
+# Tools the keyword heuristic could not classify confidently
+for t in bridge.low_confidence_tools():
+    print(t.tool_id, t.metadata["classification"])
 
 # Check agent access
 allowed, reason = bridge.can_agent_use_tool(
@@ -244,6 +288,52 @@ allowed, reason = bridge.can_agent_use_tool(
     agent_permissions=["R", "M"],
     agent_data_tier="internal"
 )
+```
+
+#### LLM-assisted classification (optional)
+
+The keyword heuristic only sees surface strings. With the `llm` extra
+(`pip install rmacd-framework[llm]`), a Claude model reads the whole tool
+definition and returns a structured classification with a rationale and
+confidence score:
+
+```python
+from rmacd.registry import MCPRegistryBridge
+from rmacd.registry.llm import LLMToolClassifier
+
+bridge = MCPRegistryBridge(
+    registry=registry,
+    llm_classifier=LLMToolClassifier(),  # reads ANTHROPIC_API_KEY; default model claude-fable-5
+    llm_mode="fallback",  # LLM only for tools the keywords can't classify ("always" for all)
+)
+```
+
+LLM failures degrade gracefully to the keyword result — registration is never
+blocked. The LLM classification is advisory input to governance: the §12.5
+safety floor, the agent profile, and the tool capability ceiling are still
+enforced deterministically.
+
+### Bash Command Classification
+
+`bash` is the hard governance case: one tool, an opaque command string, any
+action. The bundled classifier parses a command line — binaries, subcommands,
+flags, pipes, redirects, sub-shells, shell control keywords — into the
+**maximum** RMACD operation, failing closed (Change) on unknown binaries:
+
+```python
+from rmacd.models import Operation
+from rmacd.registry import ToolDefinition, classify_bash_command, make_bash_classifier
+
+classify_bash_command("git log --oneline").operation        # Operation.READ
+classify_bash_command("sed -i s/a/b/ conf").operation       # Operation.CHANGE
+classify_bash_command("for f in *; do rm $f; done").operation  # Operation.DELETE
+
+# As a dynamic classifier on a registered Bash tool:
+registry.register_tool(ToolDefinition(
+    "Bash", "Shell", "C",  # nominal level for indexing
+    classifier=make_bash_classifier(),
+))
+enforcer.enforce_tool_call("Bash", {"command": "rm -rf build/"})  # → Delete
 ```
 
 ### Export/Import

@@ -32,6 +32,7 @@ from rmacd.registry.bash import (
     classify_bash_command,
     make_bash_classifier,
 )
+from rmacd.registry.llm import LLMToolClassifier, ToolClassification
 from rmacd.registry.mcp import MCPRegistryBridge, MCPTool
 from rmacd.registry.tools import (
     ResolvedCall,
@@ -53,6 +54,8 @@ __all__ = [
     "quick_register",
     "MCPTool",
     "MCPRegistryBridge",
+    "LLMToolClassifier",
+    "ToolClassification",
     "BashClassification",
     "classify_bash_command",
     "make_bash_classifier",

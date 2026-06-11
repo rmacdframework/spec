@@ -98,6 +98,20 @@ _WRAPPERS = {
     "command", "builtin", "exec", "xargs", "setsid", "timeout",
     "watch", "strace", "ltrace", "chrt",
 }
+# Shell control keywords that *precede* a real command in the same segment
+# (`if grep …`, `then rm …`, `do mv …`, `! test …`). Stripped like wrappers —
+# critical: without this, `do rm $f` reads `do` as an unknown binary and
+# fail-closes to Change, *hiding* the Delete behind it.
+_SHELL_KEYWORD_PREFIX = {"if", "elif", "while", "until", "then", "else", "do", "!"}
+# Keywords/segments that carry no command of their own: loop/branch closers and
+# the `for`/`case`/`select` headers (`for f in a b c` — the body arrives in a
+# later `;`-split segment; any $(...) in the header was already extracted).
+_SHELL_KEYWORD_NOOP = {"fi", "done", "esac", "{", "}", "break", "continue"}
+# Segments that are a complete read-only construct by themselves: loop/case
+# headers (`for f in a b c` — the body arrives in a later split segment) and
+# test expressions (`[ -f x ]`, `[[ … ]]`, `:`), whose arguments must not be
+# misread as a binary.
+_SHELL_TERMINAL_READ = {"for", "case", "select", "function", "[", "[[", ":"}
 # Wrappers that take a leading positional value before the command (a duration,
 # priority, etc.) — `timeout 5 cmd`, `nice 10 cmd`, `chrt 1 cmd`.
 _WRAPPER_TAKES_VALUE = {"timeout", "nice", "ionice", "chrt", "setsid"}
@@ -148,6 +162,13 @@ _FIXED: dict[str, Operation] = {
     "passwd": C, "nsupdate": C,
     # Delete
     "rm": D, "rmdir": D, "shred": D, "unlink": D, "wipe": D,
+    # Accounts: creating is Add, removing is Delete.
+    "useradd": A, "adduser": A, "groupadd": A, "addgroup": A,
+    "userdel": D, "deluser": D, "groupdel": D, "delgroup": D,
+    # Disk/filesystem destruction and host-level state changes.
+    "mkswap": D, "wipefs": D, "cfdisk": D,
+    "swapon": C, "swapoff": C,
+    "shutdown": C, "reboot": C, "halt": C, "poweroff": C,
 }
 
 # Subcommand- and flag-driven binaries.
@@ -282,6 +303,12 @@ _RULES: dict[str, CmdRule] = {
     "redis-cli": CmdRule(base=C),
     "mysqldump": CmdRule(base=R),
     "pg_dump": CmdRule(base=R),
+    # partition editors: rewriting a partition table destroys data, but the
+    # ubiquitous `-l` / `--list` invocation is a pure Read.
+    "fdisk": CmdRule(base=D, view_flags={"-l", "--list"}),
+    "sfdisk": CmdRule(base=D, view_flags={"-l", "--list", "-d", "--dump"}),
+    "gdisk": CmdRule(base=D, view_flags={"-l"}),
+    "parted": CmdRule(base=D, view_flags={"-l", "--list"}),
 }
 
 # Cloud-CLI verbs (aws/gcloud/az/...): map a recognised verb to an operation.
@@ -309,7 +336,9 @@ _CLOUD_VERB = {
 # at the start of a post-shlex token, so a quoted `>` or a `->` arrow — which
 # stay mid-token after quote removal — are not mistaken for redirects).
 _REDIRECT_RE = re.compile(r"(?:\d*|&)>>?")
-_SUBSHELL_RE = re.compile(r"\$\(([^()]*)\)|`([^`]*)`")
+# Command substitution ($(...) / `...`) and process substitution (<(...) / >(...))
+# — all run an inner command that must be classified.
+_SUBSHELL_RE = re.compile(r"\$\(([^()]*)\)|`([^`]*)`|[<>]\(([^()]*)\)")
 _SPLIT_RE = re.compile(r"\|\||&&|[|;\n]")
 
 
@@ -410,6 +439,13 @@ def _classify_segment(seg: str, default: Operation) -> tuple[Operation, str, str
         t = tokens[0]
         base = t.rsplit("/", 1)[-1]
         if "=" in t and re.match(r"^\w+=", t):
+            tokens = tokens[1:]
+            continue
+        if base in _SHELL_TERMINAL_READ:
+            # `for f in a b c` / `case $x in` / `[ -f x ]` — no command here.
+            return (Operation.READ, base, f"shell '{base}' construct (no command)")
+        if base in _SHELL_KEYWORD_PREFIX or base in _SHELL_KEYWORD_NOOP:
+            # control keyword — the real command (if any) follows it.
             tokens = tokens[1:]
             continue
         if base in _WRAPPERS:
@@ -535,6 +571,11 @@ def _classify_binary(
         if writes:
             return (Operation.CHANGE, "awk (writes a file / shells out)")
         return (Operation.READ, "awk")
+
+    # mkfs and its dotted variants (mkfs.ext4, mkfs.xfs, …) format a device —
+    # destroys everything on it. Prefix-matched so new variants are covered.
+    if binary == "mkfs" or binary.startswith("mkfs."):
+        return (Operation.DELETE, f"{binary} (formats a device)")
 
     if binary in _RULES:
         rule = _RULES[binary]

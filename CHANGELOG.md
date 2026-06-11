@@ -7,6 +7,55 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.4.0] - 2026-06-09
 
+### SDK 0.10.0 (2026-06-11)
+
+#### Added — LLM-assisted classification + registry governance hardening
+
+- **LLM tool classifier** (`rmacd.registry.llm`, optional extra
+  `pip install rmacd-framework[llm]`) — `LLMToolClassifier` asks a Claude model
+  (default `claude-fable-5`) to classify a tool definition into
+  `(rmacd_level, data_access, required_hitl)` with a rationale and confidence
+  score, via structured outputs (Pydantic `ToolClassification`). Importing the
+  module needs no `anthropic` package; only use does. The LLM output is
+  advisory input to governance — the §12.5 floor, agent profile, and capability
+  ceiling remain deterministically enforced.
+- **MCP bridge upgrades** (`MCPRegistryBridge`):
+  - accepts an existing `registry=` so MCP tools land in the same registry a
+    `PolicyEnforcer` enforces against (previously the bridge always created an
+    isolated one);
+  - `llm_classifier=` + `llm_mode="fallback"|"always"` — keyword heuristic
+    handles the obvious cases, the LLM handles the ambiguous tail (fallback) or
+    everything (always); LLM failures degrade to the keyword result and are
+    recorded, never blocking registration;
+  - every auto-classified tool now gets a **capability ceiling** capped at its
+    inferred operation (a tool classified Read can never represent a Delete);
+  - **classification provenance** in `metadata["classification"]` (engine,
+    evidence/rationale, confidence) and `bridge.low_confidence_tools()` to
+    surface the human-review queue;
+  - `register_mcp_tool` accepts raw MCP `tools/list` dicts and returns the
+    registered `ToolDefinition`; new bulk `register_mcp_tools`;
+  - keyword inference gains an explicit Read keyword list and secret detection
+    for `private_key`/`api_key`/`access_token`/`auth_token` (→ restricted).
+- **Registry management**: `unregister_tool`, `list_tools`,
+  `get_tools_by_tag`, and iteration over a `ToolsRegistry`.
+- **Bash classifier hardening**:
+  - shell control keywords are now understood — `for f in *; do rm "$f"; done`
+    previously read `do` as an unknown binary and fail-closed to Change,
+    *hiding* the Delete; `if`/`then`/`else`/`while`/`until`/`do`/`!` are
+    stripped like wrappers, `for`/`case`/`[`/`[[` headers classify as Read;
+  - process substitution `<(...)` / `>(...)` inner commands are classified;
+  - destructive-binary coverage: `mkfs`/`mkfs.*` (prefix-matched), `wipefs`,
+    `mkswap`, `userdel`/`groupdel` (Delete), `useradd`/`groupadd` (Add),
+    `fdisk`/`sfdisk`/`gdisk`/`parted` (Delete, with `-l`/`--list` → Read),
+    `shutdown`/`reboot`/`swapon`/`swapoff` (Change).
+
+#### Fixed
+
+- `validate_tool_access` now audits **denials** (previously only successful
+  checks were logged — backwards for a governance layer), and denial reasons
+  name the operation (`highest allowed is M`) instead of an internal rank
+  number.
+
 ### SDK 0.9.1 (2026-06-11)
 
 #### Fixed

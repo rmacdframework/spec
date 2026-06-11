@@ -83,7 +83,9 @@ class TestMCPClassification:
     )
     def test_keyword_classification(self, name: str, expected: str) -> None:
         tool = MCPTool(name=name, description="", inputSchema={})
-        assert tool._infer_rmacd_level() == expected
+        level, evidence = tool._infer_rmacd_level()
+        assert level == expected
+        assert evidence is not None  # a keyword matched → high confidence
 
     @pytest.mark.parametrize(
         "name",
@@ -93,7 +95,8 @@ class TestMCPClassification:
         # "set" in asset, "drop" in dropdown, "new" in newsletter, "add" in
         # addendum must NOT be classified as mutating ops.
         tool = MCPTool(name=name, description="", inputSchema={})
-        assert tool._infer_rmacd_level() == "R"
+        level, _ = tool._infer_rmacd_level()
+        assert level == "R"
 
     def test_data_classification_inference_from_schema(self) -> None:
         tool = MCPTool(

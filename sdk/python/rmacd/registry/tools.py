@@ -415,10 +415,29 @@ class ToolsRegistry:
         )
         return tool
 
+    def unregister_tool(self, tool_id: str) -> bool:
+        """Remove a tool from the registry. Returns True if it was registered."""
+        normalized_id = tool_id.strip().lower().replace(" ", "_")
+        tool = self._tools.pop(normalized_id, None)
+        if tool is None:
+            return False
+        self._index_by_level[tool.rmacd_level].discard(normalized_id)
+        self._log_audit("unregister", normalized_id, {"rmacd_level": tool.rmacd_level.value})
+        logger.info("Tool '%s' unregistered", normalized_id)
+        return True
+
     def get_tool(self, tool_id: str) -> ToolDefinition | None:
         """Retrieve a tool by ID."""
         normalized_id = tool_id.strip().lower().replace(" ", "_")
         return self._tools.get(normalized_id)
+
+    def list_tools(self) -> list[ToolDefinition]:
+        """All registered tools, in registration order."""
+        return list(self._tools.values())
+
+    def get_tools_by_tag(self, tag: str) -> list[ToolDefinition]:
+        """All tools carrying a given tag (e.g. 'mcp', 'auto-classified')."""
+        return [t for t in self._tools.values() if tag in t.tags]
 
     def get_tools_by_level(self, rmacd_level: Operation | str) -> list[ToolDefinition]:
         """Get all tools at a specific RMACD level."""
@@ -445,23 +464,29 @@ class ToolsRegistry:
 
         Returns a tuple of (is_allowed, reason).
         """
+        def deny(reason: str) -> tuple[bool, str]:
+            # Denials are audited too — for a governance layer the refusals are
+            # the interesting half of the log.
+            self._log_audit("validate_access", tool_id, {"allowed": False, "reason": reason})
+            return False, reason
+
         tool = self.get_tool(tool_id)
         if tool is None:
-            return False, f"Tool '{tool_id}' not found in registry"
+            return deny(f"Tool '{tool_id}' not found in registry")
 
         allowed_ops = [parse_operation(lvl) for lvl in allowed_levels]
 
         # Cumulative check: the agent's highest granted level must cover the
         # tool's required level.
         if allowed_ops:
-            max_allowed = max(_OP_ORDER[o] for o in allowed_ops)
-            if _OP_ORDER[tool.rmacd_level] > max_allowed:
-                return False, (
+            max_op = max(allowed_ops, key=lambda o: _OP_ORDER[o])
+            if _OP_ORDER[tool.rmacd_level] > _OP_ORDER[max_op]:
+                return deny(
                     f"Tool requires {tool.rmacd_level.value} permission, "
-                    f"but highest allowed is rank {max_allowed}"
+                    f"but highest allowed is {max_op.value}"
                 )
         else:
-            return False, "No allowed levels provided"
+            return deny("No allowed levels provided")
 
         # Check data classification if 3D model
         if data_tier is not None:
@@ -471,14 +496,14 @@ class ToolsRegistry:
                 and tool.data_access is not None
                 and _TIER_ORDER[tool.data_access] > _TIER_ORDER[dt]
             ):
-                return False, (
+                return deny(
                     f"Tool requires {tool.data_access.value} data access, "
                     f"but only {dt.value} allowed"
                 )
 
         # Check HITL requirements
         if tool.required_hitl == AutonomyLevel.PROHIBITED:
-            return False, "Tool is explicitly prohibited"
+            return deny("Tool is explicitly prohibited")
 
         self._log_audit("validate_access", tool_id, {
             "allowed": True,
@@ -606,6 +631,9 @@ class ToolsRegistry:
 
     def __len__(self) -> int:
         return len(self._tools)
+
+    def __iter__(self):
+        return iter(self._tools.values())
 
     def __contains__(self, tool_id: str) -> bool:
         normalized_id = tool_id.strip().lower().replace(" ", "_")
