@@ -21,7 +21,6 @@ from rmacd import (
     build_system_prompt,
 )
 
-
 FIXTURE_DIR = Path(__file__).resolve().parent.parent.parent.parent / "schemas" / "examples"
 
 

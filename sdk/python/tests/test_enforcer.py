@@ -12,7 +12,6 @@ from __future__ import annotations
 
 import io
 import json
-import os
 from pathlib import Path
 
 import pytest
@@ -25,15 +24,14 @@ from rmacd import (
     AutoApproveGateway,
     JSONLAuditLogger,
     PolicyEnforcer,
-    ProfileLoader,
     Profile3D,
+    ProfileLoader,
     RejectAllApprovalGateway,
     RMACDApprovalDeniedError,
     RMACDApprovalTimeoutError,
     RMACDPermissionDeniedError,
     RMACDProhibitedError,
 )
-
 
 FIXTURE_DIR = Path(__file__).resolve().parent.parent.parent.parent / "schemas" / "examples"
 

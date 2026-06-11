@@ -17,14 +17,13 @@ from rmacd import (
     NullRedactor,
     PolicyDrivenEgressGate,
     PolicyEnforcer,
-    ProfileLoader,
     Profile3D,
     ProfileDC2D,
+    ProfileLoader,
     RegexRedactor,
     RMACDEgressBlockedError,
 )
 from rmacd.models import EgressControls, RedactionPolicy
-
 
 FIXTURE_DIR = Path(__file__).resolve().parent.parent.parent.parent / "schemas" / "examples"
 

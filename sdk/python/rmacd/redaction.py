@@ -34,6 +34,7 @@ This module ships two ``Redactor`` implementations:
 from __future__ import annotations
 
 import re
+from collections.abc import Callable
 from typing import Protocol
 
 from pydantic import BaseModel, Field
@@ -193,7 +194,9 @@ class RegexRedactor:
         return RedactionResult(content=out, redactions_applied=applied, tier=tier)
 
     @staticmethod
-    def _make_replacement(name: str, default: str, tokenize: bool):
+    def _make_replacement(
+        name: str, default: str, tokenize: bool
+    ) -> Callable[[re.Match[str]], str]:
         if not tokenize:
             return lambda _m: default
 

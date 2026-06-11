@@ -2,11 +2,11 @@
 
 import json
 from pathlib import Path
-from typing import Union
+from typing import Any
 
 from rmacd.models import Profile2D, Profile3D, ProfileDC2D
 
-AnyProfile = Union[Profile2D, Profile3D, ProfileDC2D]
+AnyProfile = Profile2D | Profile3D | ProfileDC2D
 
 
 class ProfileLoadError(Exception):
@@ -39,7 +39,7 @@ class ProfileLoader:
             raise ProfileLoadError(f"Profile must be a JSON file: {path}")
 
         try:
-            with open(path, "r", encoding="utf-8") as f:
+            with open(path, encoding="utf-8") as f:
                 data = json.load(f)
         except json.JSONDecodeError as e:
             raise ProfileLoadError(f"Invalid JSON in profile file: {e}") from e
@@ -49,7 +49,7 @@ class ProfileLoader:
         return self.load_dict(data, source=str(path))
 
     def load_dict(
-        self, data: dict, source: str = "<dict>"
+        self, data: dict[str, Any], source: str = "<dict>"
     ) -> AnyProfile:
         """Load a profile from a dictionary.
 
@@ -99,7 +99,7 @@ class ProfileLoader:
 
         return self.load_dict(data, source)
 
-    def _load_3d(self, data: dict, source: str) -> Profile3D:
+    def _load_3d(self, data: dict[str, Any], source: str) -> Profile3D:
         """Load a 3D profile."""
         try:
             # Pydantic handles string->DataClassification/Operation coercion.
@@ -107,14 +107,14 @@ class ProfileLoader:
         except Exception as e:
             raise ProfileLoadError(f"Invalid 3D profile ({source}): {e}") from e
 
-    def _load_2d(self, data: dict, source: str) -> Profile2D:
+    def _load_2d(self, data: dict[str, Any], source: str) -> Profile2D:
         """Load a 2D profile."""
         try:
             return Profile2D.model_validate(data)
         except Exception as e:
             raise ProfileLoadError(f"Invalid 2D profile ({source}): {e}") from e
 
-    def _load_dc2d(self, data: dict, source: str) -> ProfileDC2D:
+    def _load_dc2d(self, data: dict[str, Any], source: str) -> ProfileDC2D:
         """Load a Data-Classification 2D profile."""
         try:
             return ProfileDC2D.model_validate(data)
@@ -136,7 +136,7 @@ class ProfileLoader:
         path = Path(path)
 
         try:
-            with open(path, "r", encoding="utf-8") as f:
+            with open(path, encoding="utf-8") as f:
                 data = json.load(f)
         except (json.JSONDecodeError, OSError) as e:
             raise ProfileLoadError(f"Cannot read profile: {e}") from e
@@ -145,4 +145,4 @@ class ProfileLoader:
         if model_type not in ("two-dimensional", "three-dimensional", "data-classification-2d"):
             raise ProfileLoadError(f"Unknown or missing model type: {model_type}")
 
-        return model_type
+        return str(model_type)

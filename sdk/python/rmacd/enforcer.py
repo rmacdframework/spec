@@ -67,12 +67,14 @@ from rmacd.loader import ProfileLoader
 from rmacd.models import (
     AutonomyLevel,
     DataClassification,
+    EgressControls,
     Environment,
     EvaluationContext,
     Operation,
     PolicyDecision,
     Profile3D,
     ProfileDC2D,
+    RedactionPolicy,
 )
 from rmacd.redaction import NullRedactor, RedactionResult, Redactor, RegexRedactor
 from rmacd.registry.tools import ToolsRegistry
@@ -494,7 +496,7 @@ class PolicyEnforcer:
             )
         return decision
 
-    def _redaction_policy(self):
+    def _redaction_policy(self) -> RedactionPolicy | None:
         # Only DC2D profiles carry a redaction block. Read it off the
         # constraints; return None for non-DC2D or unconstrained profiles.
         if not isinstance(self.profile, ProfileDC2D):
@@ -503,7 +505,7 @@ class PolicyEnforcer:
             return None
         return self.profile.constraints.redaction
 
-    def _egress_controls(self):
+    def _egress_controls(self) -> EgressControls | None:
         if not isinstance(self.profile, ProfileDC2D):
             return None
         if self.profile.constraints is None:

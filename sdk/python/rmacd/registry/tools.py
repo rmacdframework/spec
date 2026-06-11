@@ -30,7 +30,7 @@ from __future__ import annotations
 
 import json
 import logging
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
@@ -632,7 +632,7 @@ class ToolsRegistry:
     def __len__(self) -> int:
         return len(self._tools)
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[ToolDefinition]:
         return iter(self._tools.values())
 
     def __contains__(self, tool_id: str) -> bool:

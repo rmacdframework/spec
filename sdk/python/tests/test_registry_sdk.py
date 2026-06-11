@@ -140,7 +140,8 @@ class TestClassificationAndCapability:
             classifier=lambda args: (None, None, "tgt"),
         )
         r = tool.resolve_call({})
-        assert (r.operation, r.tier, r.target) == (Operation.MOVE, DataClassification.INTERNAL, "tgt")
+        expected = (Operation.MOVE, DataClassification.INTERNAL, "tgt")
+        assert (r.operation, r.tier, r.target) == expected
 
     def test_capability_2d_membership(self) -> None:
         cap = ToolCapability(operations={Operation.READ, Operation.MOVE})
@@ -193,7 +194,10 @@ class TestRegistryIndexing:
     def test_import_from_json_reports_partial_failure(self, tmp_path) -> None:
         reg = ToolsRegistry()
         bad = tmp_path / "reg.json"
-        bad.write_text('{"tools": [{"tool_id": "ok", "tool_name": "OK", "rmacd_level": "R"}, {"tool_id": "bad"}]}')
+        bad.write_text(
+            '{"tools": [{"tool_id": "ok", "tool_name": "OK", "rmacd_level": "R"},'
+            ' {"tool_id": "bad"}]}'
+        )
         # one tool missing required fields -> overall False, but the good one lands
         assert reg.import_from_json(bad) is False
         assert "ok" in reg

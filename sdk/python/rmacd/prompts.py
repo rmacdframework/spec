@@ -24,7 +24,7 @@ from __future__ import annotations
 
 from typing import cast
 
-from rmacd.evaluator import DEFAULT_AUTONOMY_2D, DEFAULT_AUTONOMY_3D, DEFAULT_AUTONOMY_DC2D
+from rmacd.evaluator import DEFAULT_AUTONOMY_2D, DEFAULT_AUTONOMY_3D
 from rmacd.models import (
     AutonomyLevel,
     DataClassification,
@@ -192,7 +192,7 @@ def _build_2d(profile: Profile2D, title: str | None) -> str:
     perm_codes = ", ".join(op.value for op in _OPS_IN_ORDER if op in perms)
     lines.append(f"- {perm_codes}")
     lines.append("")
-    overrides = cast(dict, profile.autonomy_overrides or {})
+    overrides = cast("dict[str, AutonomyLevel]", profile.autonomy_overrides or {})
     lines.append("Autonomy stance per operation:")
     lines.append("")
     lines.append("| Operation | Required oversight |")

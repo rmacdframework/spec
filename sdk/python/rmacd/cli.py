@@ -4,6 +4,7 @@ import argparse
 import json
 import sys
 from pathlib import Path
+from typing import Any
 
 import rmacd
 from rmacd.evaluator import PolicyEvaluator
@@ -53,7 +54,10 @@ def cmd_evaluate(args: argparse.Namespace) -> int:
     try:
         operation = Operation(args.operation.upper())
     except ValueError:
-        print(f"ERROR: Invalid operation '{args.operation}'. Must be R, M, A, C, or D.", file=sys.stderr)
+        print(
+            f"ERROR: Invalid operation '{args.operation}'. Must be R, M, A, C, or D.",
+            file=sys.stderr,
+        )
         return 1
 
     # Parse data classification (required for 3D)
@@ -110,7 +114,7 @@ def cmd_info(args: argparse.Namespace) -> int:
     evaluator = PolicyEvaluator(profile)
 
     if args.json:
-        info = {
+        info: dict[str, Any] = {
             "profile_id": profile.profile_id,
             "profile_name": profile.profile_name,
             "model": profile.model,
@@ -122,7 +126,9 @@ def cmd_info(args: argparse.Namespace) -> int:
             info["metadata"] = {
                 "status": profile.metadata.status.value if profile.metadata.status else None,
                 "author": profile.metadata.author,
-                "created": profile.metadata.created.isoformat() if profile.metadata.created else None,
+                "created": (
+                    profile.metadata.created.isoformat() if profile.metadata.created else None
+                ),
             }
         print(json.dumps(info, indent=2))
     else:
@@ -153,7 +159,8 @@ def cmd_info(args: argparse.Namespace) -> int:
 
         if profile.metadata:
             print("\nMetadata:")
-            print(f"  Status: {profile.metadata.status.value if profile.metadata.status else 'N/A'}")
+            status = profile.metadata.status.value if profile.metadata.status else "N/A"
+            print(f"  Status: {status}")
             print(f"  Author: {profile.metadata.author}")
 
     return 0
@@ -192,6 +199,8 @@ def cmd_matrix(args: argparse.Namespace) -> int:
             for classification in ["public", "internal", "confidential", "restricted"]:
                 if classification in matrix:
                     row = matrix[classification]
+                    if not isinstance(row, dict):
+                        continue
                     print(
                         f"{classification:<15} "
                         f"{row.get('R', 'N/A'):<12} "

@@ -103,10 +103,7 @@ class TestPolicyEvaluator3D:
             model="three-dimensional",
             version="1.0",
             permissions={
-                DataClassification.PUBLIC: [Operation.READ, Operation.MOVE, Operation.ADD, Operation.CHANGE, Operation.DELETE],
-                DataClassification.INTERNAL: [Operation.READ, Operation.MOVE, Operation.ADD, Operation.CHANGE, Operation.DELETE],
-                DataClassification.CONFIDENTIAL: [Operation.READ, Operation.MOVE, Operation.ADD, Operation.CHANGE, Operation.DELETE],
-                DataClassification.RESTRICTED: [Operation.READ, Operation.MOVE, Operation.ADD, Operation.CHANGE, Operation.DELETE],
+                tier: list(Operation) for tier in DataClassification
             },
         )
         evaluator = PolicyEvaluator(profile)
@@ -560,6 +557,7 @@ class TestProfileDC2DLoaderAndValidator:
 
     def test_validator_accepts_example_file(self) -> None:
         from pathlib import Path
+
         from rmacd.validator import ProfileValidator
 
         example = (

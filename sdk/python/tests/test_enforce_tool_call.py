@@ -11,7 +11,9 @@ from rmacd import (
     RMACDToolCapabilityError,
 )
 from rmacd.approval import AutoApproveGateway
-from rmacd.models import AutonomyLevel, DataClassification as DC, Operation as Op, Profile3D
+from rmacd.models import AutonomyLevel, Profile3D
+from rmacd.models import DataClassification as DC
+from rmacd.models import Operation as Op
 from rmacd.registry import ToolCapability, ToolDefinition, ToolsRegistry
 
 
@@ -127,7 +129,9 @@ class TestApprovalRouting:
             },
         )
         reg = ToolsRegistry()
-        reg.register_tool(ToolDefinition("edit_cfg", "Edit Config", Op.CHANGE, data_access="internal"))
+        reg.register_tool(
+            ToolDefinition("edit_cfg", "Edit Config", Op.CHANGE, data_access="internal")
+        )
         enf = PolicyEnforcer(
             profile=profile, agent_id="a", registry=reg,
             approval_gateway=AutoApproveGateway(),

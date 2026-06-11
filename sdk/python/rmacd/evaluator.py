@@ -1,23 +1,21 @@
 """Policy evaluator for RMACD Framework profiles."""
 
 from datetime import datetime, time
-from typing import Union
 from zoneinfo import ZoneInfo
 
 from rmacd.models import (
     AutonomyLevel,
     DataClassification,
-    Environment,
+    EmergencyEscalationDC2D,
     EvaluationContext,
     Operation,
     PolicyDecision,
     Profile2D,
     Profile3D,
     ProfileDC2D,
-    TriggerCondition,
 )
 
-AnyProfile = Union[Profile2D, Profile3D, ProfileDC2D]
+AnyProfile = Profile2D | Profile3D | ProfileDC2D
 
 
 # Default autonomy matrix from RMACD Framework spec
@@ -277,7 +275,9 @@ class PolicyEvaluator:
                 autonomy_level=AutonomyLevel.PROHIBITED,
                 requires_approval=False,
                 requires_notification=False,
-                blocked_reason=f"Access to {data_classification.value} tier not permitted by this profile",
+                blocked_reason=(
+                    f"Access to {data_classification.value} tier not permitted by this profile"
+                ),
                 constraints_applied=constraints_applied,
                 emergency_mode=context.emergency_active,
             )
@@ -352,9 +352,12 @@ class PolicyEvaluator:
         if not constraints:
             return None
 
-        if constraints.environments and context.environment:
-            if context.environment not in constraints.environments:
-                return f"Environment {context.environment.value} not permitted"
+        if (
+            constraints.environments
+            and context.environment
+            and context.environment not in constraints.environments
+        ):
+            return f"Environment {context.environment.value} not permitted"
 
         if constraints.time_windows:
             time_error = self._check_time_windows(context.timestamp)
@@ -385,17 +388,25 @@ class PolicyEvaluator:
 
         op_key = operation.value
 
-        # Check for profile-specific autonomy overrides
-        if self.profile.autonomy_overrides:
-            if self._is_3d and data_classification:
+        # Check for profile-specific autonomy overrides (DC2D profiles have
+        # no autonomy_overrides — their autonomy lives in per-tier policies).
+        profile = self.profile
+        if isinstance(profile, Profile3D) and profile.autonomy_overrides:
+            if data_classification:
                 # 3D override format: "classification.operation" (e.g., "internal.C")
                 override_key = f"{data_classification.value}.{op_key}"
-                if override_key in self.profile.autonomy_overrides:
-                    return AutonomyLevel(self.profile.autonomy_overrides[override_key])
-            else:
-                # 2D override format: just operation (e.g., "C")
-                if op_key in self.profile.autonomy_overrides:
-                    return AutonomyLevel(self.profile.autonomy_overrides[op_key])
+                if override_key in profile.autonomy_overrides:
+                    return AutonomyLevel(profile.autonomy_overrides[override_key])
+            elif op_key in profile.autonomy_overrides:
+                # 3D profile evaluated without a tier: operation-only key
+                return AutonomyLevel(profile.autonomy_overrides[op_key])
+        elif (
+            isinstance(profile, Profile2D)
+            and profile.autonomy_overrides
+            # 2D override format: just the operation (e.g., "C")
+            and operation in profile.autonomy_overrides
+        ):
+            return AutonomyLevel(profile.autonomy_overrides[operation])
 
         # Fall back to defaults
         if self._is_3d and data_classification:
@@ -416,10 +427,18 @@ class PolicyEvaluator:
         if not escalation or not escalation.enabled:
             return False
 
+        # DC2D escalation is tier-based (escalated_tiers/escalated_autonomy)
+        # and is applied by the DC2D evaluation path, not by operation grants.
+        if isinstance(escalation, EmergencyEscalationDC2D):
+            return False
+
         # Verify trigger condition is valid
-        if context.emergency_trigger and escalation.trigger_conditions:
-            if context.emergency_trigger not in escalation.trigger_conditions:
-                return False
+        if (
+            context.emergency_trigger
+            and escalation.trigger_conditions
+            and context.emergency_trigger not in escalation.trigger_conditions
+        ):
+            return False
 
         # Check escalated permissions
         if escalation.escalated_permissions:
@@ -480,7 +499,10 @@ class PolicyEvaluator:
                 # the current time is after the start OR before the end.
                 in_window = current_time >= start_time or current_time <= end_time
             if not in_window:
-                return f"Operations only permitted between {time_windows.allowed_hours.start} and {time_windows.allowed_hours.end}"
+                return (
+                    f"Operations only permitted between {time_windows.allowed_hours.start} "
+                    f"and {time_windows.allowed_hours.end}"
+                )
 
         # Check blackout dates
         if time_windows.blackout_dates:

@@ -136,9 +136,10 @@ class PolicyDrivenEgressGate:
             )
 
         # Rule 2: explicit allow-list, if set, is exhaustive.
-        if controls.allowed_destinations:
-            if not self._matches_allowlist(destination, controls.allowed_destinations):
-                return EgressDecision(
+        if controls.allowed_destinations and not self._matches_allowlist(
+            destination, controls.allowed_destinations
+        ):
+            return EgressDecision(
                     allowed=False,
                     destination=destination,
                     tier=tier,

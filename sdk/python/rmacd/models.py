@@ -1,6 +1,6 @@
 """Pydantic models for RMACD Framework profiles and policy decisions."""
 
-from datetime import datetime, time
+from datetime import datetime
 from enum import Enum
 from typing import Literal
 
@@ -353,7 +353,9 @@ class TierPolicy(BaseModel):
     )
     data_categories: list[str] | None = Field(
         default=None,
-        description="Optional regulatory/organizational tags scoping this tier (e.g., PII, PHI, PCI)",
+        description=(
+            "Optional regulatory/organizational tags scoping this tier (e.g., PII, PHI, PCI)"
+        ),
     )
 
 
@@ -369,7 +371,8 @@ class DataAccess(BaseModel):
 
     def for_tier(self, tier: DataClassification) -> TierPolicy:
         """Return the TierPolicy for the given classification tier."""
-        return getattr(self, tier.value)
+        policy: TierPolicy = getattr(self, tier.value)
+        return policy
 
 
 class RateLimitsDC2D(BaseModel):

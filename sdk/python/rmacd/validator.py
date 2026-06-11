@@ -5,7 +5,6 @@ from importlib import resources
 from pathlib import Path
 from typing import Any
 
-import jsonschema
 from jsonschema import Draft202012Validator, ValidationError
 
 
@@ -33,14 +32,14 @@ class ProfileValidator:
                        schemas bundled with the package are used.
         """
         self._schema_dir = Path(schema_dir) if schema_dir else None
-        self._schema_2d: dict | None = None
-        self._schema_3d: dict | None = None
-        self._schema_dc2d: dict | None = None
+        self._schema_2d: dict[str, Any] | None = None
+        self._schema_3d: dict[str, Any] | None = None
+        self._schema_dc2d: dict[str, Any] | None = None
         self._validator_2d: Draft202012Validator | None = None
         self._validator_3d: Draft202012Validator | None = None
         self._validator_dc2d: Draft202012Validator | None = None
 
-    def _load_schema(self, schema_path: str) -> dict:
+    def _load_schema(self, schema_path: str) -> dict[str, Any]:
         """Load a JSON schema, from schema_dir if given, else from the bundled copies."""
         if self._schema_dir is not None:
             if not self._schema_dir.exists():
@@ -49,14 +48,16 @@ class ProfileValidator:
             if not full_path.exists():
                 raise SchemaValidationError(f"Schema file not found: {full_path}")
             try:
-                with open(full_path, "r", encoding="utf-8") as f:
-                    return json.load(f)
+                with open(full_path, encoding="utf-8") as f:
+                    schema: dict[str, Any] = json.load(f)
+                    return schema
             except json.JSONDecodeError as e:
                 raise SchemaValidationError(f"Invalid JSON in schema file: {e}") from e
 
         resource = resources.files("rmacd") / "schemas" / schema_path
         try:
-            return json.loads(resource.read_text(encoding="utf-8"))
+            bundled: dict[str, Any] = json.loads(resource.read_text(encoding="utf-8"))
+            return bundled
         except FileNotFoundError as e:
             raise SchemaValidationError(f"Bundled schema not found: {schema_path}") from e
         except json.JSONDecodeError as e:
@@ -83,7 +84,9 @@ class ProfileValidator:
             self._validator_dc2d = Draft202012Validator(self._schema_dc2d)
         return self._validator_dc2d
 
-    def validate(self, profile_data: dict | str | Path, model_type: str | None = None) -> bool:
+    def validate(
+        self, profile_data: dict[str, Any] | str | Path, model_type: str | None = None
+    ) -> bool:
         """Validate a profile against its schema.
 
         Args:
@@ -100,7 +103,7 @@ class ProfileValidator:
         if isinstance(profile_data, (str, Path)):
             path = Path(profile_data)
             if path.exists():
-                with open(path, "r", encoding="utf-8") as f:
+                with open(path, encoding="utf-8") as f:
                     data = json.load(f)
             else:
                 # Assume it's a JSON string
@@ -146,7 +149,7 @@ class ProfileValidator:
         """
         return self.validate(Path(path))
 
-    def get_errors(self, profile_data: dict | str | Path) -> list[str]:
+    def get_errors(self, profile_data: dict[str, Any] | str | Path) -> list[str]:
         """Get validation errors without raising an exception.
 
         Args:
@@ -161,7 +164,7 @@ class ProfileValidator:
         except SchemaValidationError as e:
             return e.errors
 
-    def is_valid(self, profile_data: dict | str | Path) -> bool:
+    def is_valid(self, profile_data: dict[str, Any] | str | Path) -> bool:
         """Check if a profile is valid without raising exceptions.
 
         Args:
@@ -181,7 +184,7 @@ class ProfileValidator:
         path = ".".join(str(p) for p in error.absolute_path) if error.absolute_path else "<root>"
         return f"{path}: {error.message}"
 
-    def get_schema(self, model_type: str) -> dict:
+    def get_schema(self, model_type: str) -> dict[str, Any]:
         """Get the raw JSON schema for a model type.
 
         Args:
