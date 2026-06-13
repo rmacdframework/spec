@@ -1,4 +1,4 @@
-# Classification Packs — Technical Design
+# Governance Packs — Technical Design
 
 **Status:** Proposed (SDK 0.11.0). Companion documents:
 [README](README.md), [roadmap](roadmap.md), [authoring guide](authoring-guide.md).
@@ -233,11 +233,11 @@ the review/sign/diff CLI, and the drift hashing.
 
 ## 6. SDK integration (minimal disruption)
 
-New package `rmacd.classification`:
+New package `rmacd.packs`:
 
 | New piece | Responsibility | Touches / reuses |
 |-----------|----------------|------------------|
-| `ClassificationPack` | load / validate / canonicalize / hash / verify | `classification-pack.schema.json` via the existing validator pattern |
+| `GovernancePack` | load / validate / canonicalize / hash / verify | `pack.schema.json` via the existing validator pattern |
 | `DeclarativeClassifier` | compile a rule → a callable matching the existing `ToolClassifier` protocol | assigned to `ToolDefinition.classifier`; **no enforcer change** |
 | `load_pack` / `load_packs` / `apply_pack` | register tools + compiled classifiers from packs | `ToolsRegistry.register_tool` |
 | resolver registry | `register_resolver(name)` + lookup | used by `DeclarativeClassifier` |
@@ -289,7 +289,7 @@ enforcer.registry = load_packs(["shell", "aws-cli", "kubectl", "acme/internal@2.
 | 2 | **Resolvers in scope for v1** — with fail-closed defaults and audit recording of resolved values. |
 | 3 | **All pack families ship**, sequenced shell → cloud CLIs → dev tools → MCP servers (SaaS, cloud-provider, M365). |
 | 4 | **Format:** YAML-authored, canonical JSON for hashing/signing. |
-| 5 | **Module home:** `rmacd.classification` (new top-level package). |
+| 5 | **Module home:** `rmacd.packs` (new top-level package; named for the artifact to avoid colliding with the data-classification axis). |
 | 6 | **Signing:** ed25519 detached signature over `content_hash`. |
 | 7 | **`bash.py`:** kept as the fast engine alongside the `shell` data pack, with golden parity tests. |
 

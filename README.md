@@ -86,6 +86,7 @@ RMACD answers the fundamental governance question: *"What can this agent do, to 
 - [DC2D customer-support example](examples/dc2d-customer-support/) — Redaction + egress controls demo (DC2D variant)
 - [Framework adapters](docs/framework-adapters.md) — registry-backed `enforce_tool_call` for OpenAI Agents SDK, Microsoft Agent Framework, Claude Agent SDK, LangChain, AutoGen, CrewAI
 - [Python Tools Registry](sdk/python/rmacd/registry/) — First-class tool→RMACD classifier + capability ceiling, consulted by `PolicyEnforcer.enforce_tool_call`; MCP auto-classification (`MCPRegistryBridge`) with optional Claude-powered classification (`LLMToolClassifier`, `pip install rmacd-framework[llm]`)
+- [Governance Packs](docs/governance-packs/) — *Proposed (SDK 0.11.0):* declarative, reusable, signed packs that map a tool surface to RMACD terms (operation/tier/target) so agents are governed off the shelf, plus an AI-compile authoring workflow ([overview](docs/governance-packs/README.md), [design](docs/governance-packs/design.md), [roadmap](docs/governance-packs/roadmap.md), [authoring guide](docs/governance-packs/authoring-guide.md))
 - [JSON Schema Templates](schemas/)
 - [Website](https://rmacd-framework.org)
 

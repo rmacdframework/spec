@@ -1,13 +1,13 @@
-# Classification Packs — Authoring Guide
+# Governance Packs — Authoring Guide
 
-How to write a classification pack. Companion documents:
+How to write a governance pack. Companion documents:
 [README](README.md), [design](design.md), [roadmap](roadmap.md).
 
 > A pack maps a tool call `(tool_name, args)` to RMACD terms
 > `(operation, data_tier, target)` — as data, not code. This guide covers the
-> anatomy of a pack, the two pack styles, the three classification primitives,
-> a fully worked example, and the required treatment of high-risk "passthrough"
-> tools.
+> anatomy of a pack, the three pack styles, the three classification primitives,
+> fully worked examples (Jira, boto3, Azure MCP), and the required treatment of
+> high-risk "passthrough" tools.
 
 ---
 
@@ -41,7 +41,7 @@ A rule that does not set every field falls back to the pack/tool defaults; any
 field a rule omits is filled from `default_operation`, the resolver/pattern_map
 default, or the rendered target template.
 
-## 2. Two pack styles
+## 2. Three pack styles
 
 The verb that determines the operation lives in different places depending on the
 tool surface. Knowing which style you are writing is the first decision.
@@ -75,6 +75,25 @@ MCP servers expose each capability as its own named tool: `jira_delete_issue`,
   classify: { operation: D, tier: { resolver: jira_project_tier, from: project_key, default: confidential }, target: "jira://{project_key}/{issue_key}" }
 ```
 
+### SDK / library style (verb is in the method name)
+
+Cloud SDKs such as **boto3** expose operations as method names with consistent
+verb prefixes (`describe_*`, `create_*`, `delete_*`). When an agent calls them
+through a generic invoker — `aws_call(service, operation, params)` — extract the
+leading verb token of the `operation` argument and match it with a `verb_table`.
+Because the prefixes are uniform across hundreds of APIs, one small pack governs
+the *entire* SDK. This is a passthrough surface (see §5) — cap it with a
+worst-case ceiling. Full example in §4.2.
+
+```yaml
+- id: boto3-call
+  when: { tool: aws_call }
+  parse: { arg: operation, delimiter: "_", token: first }   # leading verb token
+  verb_table: { describe: R, get: R, list: R, create: A, put: C, update: C, delete: D, terminate: D }
+  default: C
+  capability: { operations: [R, M, A, C, D] }               # passthrough → worst-case
+```
+
 ## 3. The three primitives
 
 | Primitive | Produces | Use when |
@@ -103,7 +122,7 @@ could apply, the most sensitive tier is taken. Falls back to `default`.
 A named hook declared in the pack and implemented once in the deployment:
 
 ```python
-from rmacd.classification import register_resolver
+from rmacd.packs import register_resolver
 
 @register_resolver("jira_project_tier")
 def jira_project_tier(value: str, ctx) -> str:
@@ -115,7 +134,13 @@ the pack's `fail_closed_default` is used, and the resolved value is recorded in
 the audit record so the decision stays reconstructable. Write **one resolver per
 concept**, not one per tool.
 
-## 4. Worked example — the `jira` pack
+## 4. Worked examples
+
+Three examples, each introducing something new: **Jira** (MCP-style + resolvers),
+**boto3** (SDK-style governing a whole SDK with one verb table), and **Azure MCP**
+(large namespaced server + cross-rule tier overlay).
+
+### 4.1 Jira (MCP-style)
 
 Jira is an MCP server, so this is an MCP-style pack. The same shape applies to
 `confluence` (they ship from the same Atlassian MCP server).
@@ -186,9 +211,7 @@ rules:
     confidence: high
 ```
 
-### How a call flows
-
-`jira_delete_issue(project_key="SEC", issue_key="SEC-42")`:
+**How a call flows.** `jira_delete_issue(project_key="SEC", issue_key="SEC-42")`:
 
 1. `jira-delete` matches → operation **Delete**; the `jira_project_tier` resolver
    returns **restricted** for `SEC`; target `jira://SEC/SEC-42`.
@@ -197,6 +220,167 @@ rules:
 
 `jira_search(project_key="ENG")` → Read on internal → allowed and logged. Same
 pack, opposite outcomes, no hand-written classifier code.
+
+### 4.2 boto3 (Python SDK via a generic invoker)
+
+boto3 is the AWS Python SDK. Agents usually reach it through a single generic
+invoker — `aws_call(service, operation, params)` — where `operation` is the boto3
+method name. boto3's method names follow uniform verb prefixes across *every*
+service, so one `verb_table` on the leading token classifies the entire SDK. This
+is a **passthrough** tool (§5): its risk is in the argument, so it gets a
+worst-case ceiling and a fail-closed default.
+
+```yaml
+pack: boto3
+version: 1.0.0
+description: RMACD classification for a generic boto3 invoker — aws_call(service, operation, params)
+default_operation: C
+
+provenance:
+  authored_by: platform-sec@acme
+  llm_assisted: true
+  reviewed_by: jdoe@acme
+
+resolvers:
+  - name: aws_resource_tier
+    description: Resolve an AWS resource identifier (bucket, ARN, instance id) to its tier
+    fail_closed_default: confidential
+
+rules:
+  - id: boto3-call
+    when: { tool: aws_call }
+    # the boto3 method name is in `operation`; match on its leading verb token
+    parse: { arg: operation, delimiter: "_", token: first }
+    verb_table:
+      describe: R
+      get: R
+      list: R
+      head: R
+      copy: M
+      create: A
+      register: A
+      run: A           # run_instances
+      import: A
+      put: C           # put_* overwrites — treat as Change (conservative)
+      update: C
+      modify: C
+      set: C
+      attach: C
+      detach: C
+      associate: C
+      enable: C
+      disable: C
+      start: C
+      stop: C
+      reboot: C
+      tag: C
+      delete: D
+      terminate: D
+      deregister: D
+      purge: D
+      release: D
+      revoke: D
+      cancel: D
+    default: C          # unmatched/compound verb (e.g. batch_*) → fail-closed Change
+    tier:
+      pattern_map:
+        - { arg_regex: { arg: params.Bucket, pattern: "(prod|pii|restricted)" }, tier: confidential }
+      resolver: aws_resource_tier
+      from: params
+      default: internal
+    target: "aws://{service}/{operation}"
+    capability: { operations: [R, M, A, C, D] }   # passthrough → worst-case ceiling
+    confidence: high
+```
+
+**Why this is powerful:** ~300 AWS services, one rule. `aws_call("s3",
+"delete_object", {...})` → leading verb `delete` → **Delete**; `aws_call("ec2",
+"describe_instances", {...})` → `describe` → **Read**. Note the deliberate
+conservatism: `put_*` → Change (it overwrites), and anything the table doesn't
+recognize (compound prefixes like `batch_*`) falls to the `C` default rather than
+sneaking through as a Read.
+
+### 4.3 Azure MCP (large namespaced server + tier overlay)
+
+The Azure MCP Server exposes 40+ services as namespaced tools
+(`azmcp_<service>_<verb>`) plus a passthrough that runs Azure CLI commands. Two
+techniques shine here:
+
+1. **Glob on the verb suffix** to write one rule per operation across all
+   services (`azmcp_*_delete`).
+2. **A tier-only overlay rule** for sensitive services: a rule that sets *only*
+   the tier (no operation) and relies on cross-rule combination — the operation
+   comes from the verb rule, the most-sensitive tier wins. This is how Key Vault
+   becomes restricted no matter which verb is used, without repeating the tier on
+   every rule.
+
+```yaml
+pack: azure-mcp
+version: 1.0.0
+description: RMACD classification for the Azure MCP Server (40+ services)
+default_operation: C
+
+provenance:
+  authored_by: platform-sec@acme
+  llm_assisted: true
+  reviewed_by: jdoe@acme
+
+resolvers:
+  - name: azure_resource_tier
+    description: Resolve an Azure resource group / resource id to its tier
+    fail_closed_default: confidential
+
+rules:
+  # --- tier overlay: Key Vault / secrets are ALWAYS restricted (operation omitted) ---
+  - id: az-keyvault-tier
+    when: { tool: "azmcp_keyvault_*" }
+    classify: { tier: restricted }      # no operation → combines with the verb rule below
+    confidence: high
+
+  # --- generic verb-suffix rules across every service ---
+  - id: az-read
+    when: { tool: ["azmcp_*_list", "azmcp_*_show", "azmcp_*_get", "azmcp_*_query"] }
+    classify:
+      operation: R
+      tier: { resolver: azure_resource_tier, from: resource_group, default: internal }
+      target: "azure://{service}/{name}"
+  - id: az-add
+    when: { tool: "azmcp_*_create" }
+    classify:
+      operation: A
+      tier: { resolver: azure_resource_tier, from: resource_group, default: internal }
+      target: "azure://{service}/{name}"
+  - id: az-change
+    when: { tool: ["azmcp_*_update", "azmcp_*_set"] }
+    classify:
+      operation: C
+      tier: { resolver: azure_resource_tier, from: resource_group, default: internal }
+      target: "azure://{service}/{name}"
+  - id: az-delete
+    when: { tool: "azmcp_*_delete" }
+    classify:
+      operation: D
+      tier: { resolver: azure_resource_tier, from: resource_group, default: confidential }
+      target: "azure://{service}/{name}"
+
+  # --- passthrough: the Azure CLI execution / generation tool ---
+  - id: az-cli
+    when: { tool: ["azmcp_extension_az", "az_command"] }
+    parse: { arg: command, strip_wrappers: [az] }
+    verb_table: { show: R, list: R, get: R, create: A, update: C, set: C, delete: D, purge: D }
+    default: C
+    tier: { resolver: azure_resource_tier, from: command, default: internal }
+    target: "azure-cli://{command}"
+    capability: { operations: [R, M, A, C, D] }   # passthrough → worst-case ceiling
+    confidence: high
+```
+
+**The overlay in action:** `azmcp_keyvault_secret_delete(...)` matches *both*
+`az-delete` (→ operation Delete) and `az-keyvault-tier` (→ tier restricted).
+Cross-rule combination takes the max operation and the most sensitive tier →
+**Delete on restricted** → the §12.5 floor → hard denied. You expressed "secrets
+are always restricted" once, and it correctly raised the tier on every Key Vault
+operation.
 
 ## 5. Passthrough tools (mandatory treatment)
 
@@ -234,7 +418,8 @@ changed and re-review only those.
 
 ## 7. Checklist for a good pack
 
-- [ ] Correct style chosen (CLI-style `verb_table` vs MCP-style name match).
+- [ ] Correct style chosen (CLI-style `verb_table`, MCP-style name match, or
+      SDK-style method-verb table).
 - [ ] `default_operation` set to a safe (high) value.
 - [ ] Every passthrough tool classified arg-aware with a worst-case ceiling.
 - [ ] Tiers default to the most sensitive plausible value, not the least.

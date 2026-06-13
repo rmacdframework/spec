@@ -1,6 +1,6 @@
-# Classification Packs & AI-Compile Authoring
+# Governance Packs & AI-Compile Authoring
 
-> Make agent onboarding *configuration, not code.* Classification Packs turn the
+> Make agent onboarding *configuration, not code.* Governance Packs turn the
 > work of mapping a tool call to RMACD terms into a declarative, reusable,
 > signed artifact — and the AI-compile workflow drafts those packs for you,
 > subject to human review.
@@ -34,7 +34,7 @@ dynamic classifier when serializing it. The result is duplicated effort,
 inconsistent governance across teams, and ~60–105 lines of brittle glue for
 every new agent.
 
-Classification Packs remove that tax.
+Governance Packs remove that tax.
 
 ## What ships
 
@@ -87,7 +87,7 @@ plus the dominant enterprise productivity suite, out of the box.
 
 ## Relationship to the rest of the framework
 
-Classification Packs are additive and change nothing about how enforcement
+Governance Packs are additive and change nothing about how enforcement
 works. They produce the `(operation, tier, target)` *input* to the evaluator —
 exactly what classifiers produce today. The §12.5 immutable floor, the agent
 profile, and the tool capability ceiling remain the authoritative runtime gates.

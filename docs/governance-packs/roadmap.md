@@ -1,4 +1,4 @@
-# Classification Packs — Delivery Roadmap
+# Governance Packs — Delivery Roadmap
 
 **Status:** Proposed. Target release: `rmacd-framework` 0.11.0. Companion
 documents: [README](README.md), [design](design.md), [authoring guide](authoring-guide.md).
@@ -14,9 +14,8 @@ foundation and validates the declarative language against the hardest known case
 
 **Goal:** a validated, hashable pack representation.
 
-- `schemas/classification-pack.schema.json` (pack, rule, selector, extractor,
-  classifier).
-- Pydantic/data models in `rmacd.classification`.
+- `schemas/pack.schema.json` (pack, rule, selector, extractor, classifier).
+- Pydantic/data models in `rmacd.packs`.
 - Canonical JSON serialization and `content_hash`.
 - Validation via the existing `ProfileValidator` pattern.
 

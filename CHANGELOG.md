@@ -5,6 +5,19 @@ All notable changes to the RMACD Framework will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Docs
+
+- **Governance Packs initiative** (`docs/governance-packs/`) — design for the
+  planned SDK 0.11.0 capability: declarative, reusable, signed *governance packs*
+  that map a tool call to RMACD terms `(operation, data tier, target)` as data
+  instead of hand-written per-integration classifiers, plus an AI-compile
+  authoring workflow (propose → human review → freeze → sign). Runtime stays
+  deterministic — the §12.5 floor, agent profile, and capability ceiling remain
+  authoritative. Includes an overview, technical design, delivery roadmap, and an
+  authoring guide (worked examples: Jira/Confluence MCP, boto3, Azure MCP).
+
 ## [1.4.0] - 2026-06-09
 
 ### SDK 0.10.0 (2026-06-11)
