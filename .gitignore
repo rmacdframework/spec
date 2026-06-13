@@ -12,6 +12,8 @@ uv.lock
 
 # Personal scratch / operational notes
 todo.md
+# Local-only planning / build-tracking workspace (never committed)
+planning/
 
 # Local environment files — never commit secrets
 .env
