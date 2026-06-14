@@ -47,7 +47,7 @@ def _load_text_as_dict(text: str, *, is_yaml: bool) -> dict[str, Any]:
         except ImportError as exc:  # pragma: no cover - environment dependent
             raise ImportError(
                 "YAML packs require PyYAML. Install it with "
-                "`pip install pyyaml` (or author the pack as JSON)."
+                "`pip install rmacd-framework[yaml]` (or author the pack as JSON)."
             ) from exc
         data: Any = yaml.safe_load(text)
     else:
@@ -75,37 +75,67 @@ def builtin_pack_names() -> list[str]:
     return sorted(names)
 
 
-def load_pack(source: Any, *, validate: bool = True) -> GovernancePack:
+def _enforce_signed(pack: GovernancePack, trusted_keys: str | list[str] | None) -> None:
+    """Raise unless *pack* carries a valid signature from one of *trusted_keys*."""
+    from rmacd.packs.signing import PackSignatureError, verify_pack
+
+    keys = [trusted_keys] if isinstance(trusted_keys, str) else list(trusted_keys or [])
+    if not keys:
+        raise ValueError(
+            "require_signed=True needs trusted_keys (one or more Ed25519 public-key PEMs)"
+        )
+    if not any(verify_pack(pack, key) for key in keys):
+        raise PackSignatureError(
+            f"pack '{pack.pack}' v{pack.version} is not signed by a trusted key "
+            "(content hash mismatch, missing signature, or untrusted key)"
+        )
+
+
+def load_pack(
+    source: Any,
+    *,
+    validate: bool = True,
+    require_signed: bool = False,
+    trusted_keys: str | list[str] | None = None,
+) -> GovernancePack:
     """Resolve *source* to a validated :class:`GovernancePack`.
 
     *source* may be a :class:`GovernancePack` (returned as-is), a mapping, a path
     to a ``.json``/``.yaml``/``.yml`` file, or a bare built-in pack name.
+
+    Set ``require_signed=True`` with ``trusted_keys`` (PEM public key, or a list)
+    to refuse any pack that is not validly signed by a trusted key — the
+    recommended production posture, since built-in packs ship unsigned.
     """
     if isinstance(source, GovernancePack):
-        return source
-
-    if isinstance(source, Mapping):
-        data = dict(source)
+        pack = source
     else:
-        text: str | None = None
-        path = Path(str(source))
-        if path.exists():
-            suffix = path.suffix.lower()
-            text = path.read_text(encoding="utf-8")
-            data = _load_text_as_dict(text, is_yaml=suffix in (".yaml", ".yml"))
+        if isinstance(source, Mapping):
+            data = dict(source)
         else:
-            # Treat a bare name as a built-in pack.
-            text = _builtin_pack_text(str(source))
-            if text is None:
-                raise FileNotFoundError(
-                    f"No pack file at '{source}' and no built-in pack named "
-                    f"'{source}' (built-ins: {', '.join(builtin_pack_names()) or 'none'})"
+            path = Path(str(source))
+            if path.exists():
+                suffix = path.suffix.lower()
+                data = _load_text_as_dict(
+                    path.read_text(encoding="utf-8"), is_yaml=suffix in (".yaml", ".yml")
                 )
-            data = _load_text_as_dict(text, is_yaml=False)
+            else:
+                # Treat a bare name as a built-in pack.
+                text = _builtin_pack_text(str(source))
+                if text is None:
+                    raise FileNotFoundError(
+                        f"No pack file at '{source}' and no built-in pack named "
+                        f"'{source}' (built-ins: {', '.join(builtin_pack_names()) or 'none'})"
+                    )
+                data = _load_text_as_dict(text, is_yaml=False)
 
-    if validate:
-        validate_pack_dict(data)
-    return GovernancePack.from_dict(data)
+        if validate:
+            validate_pack_dict(data)
+        pack = GovernancePack.from_dict(data)
+
+    if require_signed:
+        _enforce_signed(pack, trusted_keys)
+    return pack
 
 
 def _is_exact_tool(name: str) -> bool:
@@ -139,6 +169,25 @@ def apply_pack(
     ``tool_names`` (e.g. an MCP ``tools/list``) to govern a glob/regex pack.
     """
     names = list(tool_names) if tool_names is not None else exact_tool_names(pack)
+
+    # Warn when a pack's glob/regex rules can't be registered for lack of a
+    # concrete tool list — otherwise those rules silently govern nothing.
+    if tool_names is None:
+        glob_rules = [
+            r.id for r in pack.rules
+            if r.when.tool is not None
+            and not all(_is_exact_tool(t) for t in (
+                r.when.tool if isinstance(r.when.tool, list) else [r.when.tool]
+            ))
+        ]
+        if glob_rules:
+            logging.getLogger(__name__).warning(
+                "pack '%s' has %d glob/regex rule(s) (%s) that register nothing without an "
+                "explicit tool_names list (e.g. from an MCP tools/list); only its %d exact "
+                "tool(s) were registered",
+                pack.pack, len(glob_rules), ", ".join(glob_rules), len(names),
+            )
+
     registered: list[ToolDefinition] = []
     for name in names:
         classifier = DeclarativeClassifier(pack, name, resolvers=resolvers)
@@ -180,8 +229,13 @@ def load_packs(
     registry: ToolsRegistry | None = None,
     registry_id: str = "packs",
     resolvers: Mapping[str, ResolverFn] | None = None,
+    require_signed: bool = False,
+    trusted_keys: str | list[str] | None = None,
 ) -> ToolsRegistry:
     """Build (or extend) a registry from several packs — the integration one-liner.
+
+    Pass ``require_signed=True`` with ``trusted_keys`` to refuse any unsigned or
+    untrusted pack (recommended in production).
 
     Example::
 
@@ -189,7 +243,8 @@ def load_packs(
     """
     reg = registry if registry is not None else ToolsRegistry(registry_id)
     for source in sources:
-        apply_pack(reg, load_pack(source), resolvers=resolvers)
+        pack = load_pack(source, require_signed=require_signed, trusted_keys=trusted_keys)
+        apply_pack(reg, pack, resolvers=resolvers)
     return reg
 
 

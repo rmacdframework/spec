@@ -39,6 +39,9 @@ llm = [
 sign = [
     "cryptography>=41",
 ]
+yaml = [
+    "pyyaml>=6.0",
+]
 dev = [
     "pytest>=7.0",
     "pytest-cov>=4.0",
@@ -47,6 +50,8 @@ dev = [
     "ruff>=0.1",
     "pyyaml>=6.0",
     "types-pyyaml>=6.0",
+    # so the full test suite (signing) runs on a plain `.[dev]` install
+    "cryptography>=41",
 ]
 
 [project.urls]

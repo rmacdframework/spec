@@ -173,6 +173,60 @@ def test_cli_verify_rejects_tampered(tmp_path) -> None:
     assert cmd_pack_verify(argparse.Namespace(pack=str(pf), key=str(tmp_path / "k.pub"))) == 1
 
 
+def test_load_pack_require_signed(tmp_path) -> None:
+    from rmacd.packs import PackSignatureError, load_pack
+
+    priv, pub = generate_keypair()
+    signed = sign_pack(load_pack("jira"), priv)
+    pf = tmp_path / "jira-signed.json"
+    pf.write_text(signed.to_json(), encoding="utf-8")
+
+    # valid signature + trusted key -> loads
+    pack = load_pack(pf, require_signed=True, trusted_keys=pub)
+    assert pack.pack == "jira"
+
+    # wrong key -> refused
+    _, other_pub = generate_keypair()
+    with pytest.raises(PackSignatureError):
+        load_pack(pf, require_signed=True, trusted_keys=other_pub)
+
+    # unsigned built-in -> refused
+    with pytest.raises(PackSignatureError):
+        load_pack("jira", require_signed=True, trusted_keys=pub)
+
+    # require_signed without a key is a usage error
+    with pytest.raises(ValueError):
+        load_pack(pf, require_signed=True)
+
+
+def test_load_packs_require_signed_builds_registry(tmp_path) -> None:
+    from rmacd.packs import load_pack, load_packs
+
+    priv, pub = generate_keypair()
+    pf = tmp_path / "jira-signed.json"
+    pf.write_text(sign_pack(load_pack("jira"), priv).to_json(), encoding="utf-8")
+    reg = load_packs([str(pf)], require_signed=True, trusted_keys=pub)
+    assert reg.get_tool("jira_delete_issue") is not None
+
+
+def test_cli_pack_validate_flags_redos(tmp_path, capsys) -> None:
+    from rmacd.cli import cmd_pack_validate
+
+    bad = {
+        "pack": "redos", "version": "1.0.0",
+        "rules": [{
+            "id": "r",
+            "when": {"tool": "t", "arg_regex": {"arg": "x", "pattern": "(a+)+$"}},
+            "operation": "R",
+        }],
+    }
+    pf = tmp_path / "redos.json"
+    pf.write_text(GovernancePack.from_dict(bad).to_json(), encoding="utf-8")
+    rc = cmd_pack_validate(argparse.Namespace(pack=str(pf)))
+    assert rc == 1
+    assert "regex safety" in capsys.readouterr().err
+
+
 def test_signed_builtin_pack_verifies() -> None:
     from rmacd.packs import load_pack
 

@@ -18,6 +18,9 @@ pip install "rmacd-framework[llm]"
 # With optional governance-pack signing (Ed25519 via cryptography)
 pip install "rmacd-framework[sign]"
 
+# With optional YAML-authored governance packs (PyYAML)
+pip install "rmacd-framework[yaml]"
+
 # Or from source
 git clone https://github.com/rmacdframework/spec.git
 cd spec/sdk/python
@@ -253,7 +256,13 @@ rmacd pack diff  my-server.yaml tools.json                # detect drift later
 ```
 
 Built-in packs are **AI-drafted starting points** — review and sign before
-production use. Full guide: [docs/governance-packs/](../../docs/governance-packs/).
+production use. In production, refuse anything unsigned/untrusted:
+
+```python
+registry = load_packs(["my-org/devops"], require_signed=True, trusted_keys=PUBLIC_PEM)
+```
+
+Full guide: [docs/governance-packs/](../../docs/governance-packs/).
 
 ## Tools Registry
 

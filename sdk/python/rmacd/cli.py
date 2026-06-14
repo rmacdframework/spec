@@ -287,13 +287,11 @@ def cmd_classify(args: argparse.Namespace) -> int:
 
 
 def cmd_pack_validate(args: argparse.Namespace) -> int:
-    """Validate a governance pack against the pack schema."""
-    from rmacd.packs import PackValidationError, load_pack
+    """Validate a governance pack against the schema and ReDoS/lint checks."""
+    from rmacd.packs import PackValidationError, find_redos_risks, load_pack
 
     try:
-        load_pack(args.pack)
-        print(f"VALID: {args.pack}")
-        return 0
+        pack = load_pack(args.pack)
     except PackValidationError as e:
         print(f"INVALID: {args.pack}", file=sys.stderr)
         for error in e.errors:
@@ -302,6 +300,16 @@ def cmd_pack_validate(args: argparse.Namespace) -> int:
     except (OSError, ValueError, FileNotFoundError) as e:
         print(f"ERROR: {e}", file=sys.stderr)
         return 1
+
+    risks = find_redos_risks(pack.to_dict())
+    if risks:
+        print(f"INVALID: {args.pack} (regex safety)", file=sys.stderr)
+        for risk in risks:
+            print(f"  - {risk}", file=sys.stderr)
+        return 1
+
+    print(f"VALID: {args.pack}")
+    return 0
 
 
 def cmd_pack_review(args: argparse.Namespace) -> int:

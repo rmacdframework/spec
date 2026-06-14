@@ -25,7 +25,7 @@
         "date": "R", "uname": "R", "hostname": "R", "uptime": "R", "free": "R",
         "mv": "M", "rename": "M",
         "cp": "A", "mkdir": "A", "touch": "A", "tee": "A", "ln": "A", "install": "A",
-        "chmod": "C", "chown": "C", "chgrp": "C", "truncate": "C", "ln-sf": "C",
+        "chmod": "C", "chown": "C", "chgrp": "C", "truncate": "C",
         "rm": "D", "rmdir": "D", "shred": "D", "unlink": "D"
       },
       "default": "C",

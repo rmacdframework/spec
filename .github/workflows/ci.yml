@@ -29,6 +29,7 @@ jobs:
           cache-dependency-path: sdk/python/pyproject.toml
 
       - name: Install SDK with dev dependencies
+        # [dev] includes cryptography + pyyaml so the full suite (signing, YAML) runs.
         run: pip install -e ".[dev]"
 
       - name: Lint (ruff)
@@ -37,5 +38,13 @@ jobs:
       - name: Type-check (mypy strict)
         run: mypy rmacd
 
-      - name: Test (pytest)
-        run: pytest tests/
+      - name: Security scan (bandit)
+        run: pip install bandit && bandit -r rmacd -ll
+
+      # Note: dependency CVE audit (pip-audit on declared deps) runs in
+      # publish-sdk.yml at release time, where the env is clean and scoped to
+      # the project's runtime deps. Running it on PR CI would flag CVEs in the
+      # runner's base image / tooling, not in what we ship.
+
+      - name: Test (pytest + coverage gate)
+        run: pytest tests/ --cov-fail-under=85

@@ -153,6 +153,26 @@ def test_apply_pack_with_explicit_tool_names_for_glob_pack() -> None:
     assert tool.resolve_call({}).operation == Op.DELETE
 
 
+def test_apply_pack_warns_on_glob_only_pack(caplog) -> None:
+    import logging
+
+    pack = GovernancePack.from_dict(
+        {
+            "pack": "globby",
+            "version": "1.0.0",
+            "rules": [
+                {"id": "del", "when": {"tool": "azmcp_*_delete"},
+                 "classify": {"operation": "D", "tier": "internal"}},
+            ],
+        }
+    )
+    reg = ToolsRegistry()
+    with caplog.at_level(logging.WARNING):
+        registered = apply_pack(reg, pack)  # no tool_names
+    assert registered == []
+    assert any("register nothing without" in r.message for r in caplog.records)
+
+
 def test_resolver_used_through_registry() -> None:
     register_resolver("jira_project_tier", lambda v, ctx: "internal")
     reg = load_packs([JIRA_PACK_DICT])

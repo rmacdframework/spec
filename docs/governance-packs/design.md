@@ -197,9 +197,10 @@ AI-compile workflow flags every passthrough tool for explicit human review.
   "Read" is dangerous. Mitigations: (a) the per-tool **capability ceiling**
   defence-in-depth caps what a tool may represent; (b) packs are **signed** and
   provenance-tracked; (c) the agent profile gates independently.
-- **Regex DoS.** Pack-supplied regexes run against arguments. The engine
-  compiles with a complexity guard and a per-match timeout; the validator
-  rejects pathological patterns at `pack validate` time.
+- **Regex DoS.** Pack-supplied regexes run against arguments. The engine caps
+  the input length fed to any pack regex (defence in depth), and `rmacd pack
+  validate` runs `find_redos_risks` to flag over-long or nested-quantifier
+  patterns at authoring time.
 - **Untrusted packs.** Only signed packs (or packs from a configured trusted
   source) load in production; `pack verify` enforces this.
 
@@ -300,6 +301,6 @@ enforcer.registry = load_packs(["shell", "aws-cli", "kubectl", "acme/internal@2.
 | Pack under-classifies → bypass | Capability ceilings + signing + independent profile gate |
 | Declarative language too weak for a real case | `resolver` escape hatch covers live-data needs |
 | Language grows into a Turing tarpit | Fixed primitive set; escalate to a resolver rather than adding conditionals/loops |
-| Regex DoS from packs | Complexity guard + match timeout + validator rejection |
+| Regex DoS from packs | Engine input-length cap + `find_redos_risks` flagging at `pack validate` time |
 | Resolver non-determinism | Fail-closed default + resolved value recorded in audit |
 | Drift unnoticed as tools change | `source_hash` + `pack diff` maintenance loop |

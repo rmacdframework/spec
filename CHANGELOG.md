@@ -43,6 +43,13 @@ and `enforce_tool_call` are unchanged.
 - **Signing & integrity** — Ed25519 `sign_pack`/`verify_pack` (optional `[sign]`
   extra), drift detection (`pack_drift`), and a ReDoS guard (`find_redos_risks`
   + engine input cap). CLI: `rmacd pack sign|verify|diff|validate`.
+- **Trust enforcement** — `load_pack`/`load_packs` accept
+  `require_signed=True` + `trusted_keys=` to refuse unsigned/untrusted packs
+  (recommended production posture, since built-in packs ship unsigned).
+- **Hardening** — `rmacd pack validate` now runs the ReDoS/lint check (not just
+  schema); `apply_pack` warns when a glob/regex pack registers nothing without a
+  tool list; added a `[yaml]` extra for YAML-authored packs; PR CI now runs
+  bandit + a coverage gate (was release-only).
 
 ## [1.4.0] - 2026-06-09
 
