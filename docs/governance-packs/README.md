@@ -10,6 +10,15 @@ Normative specification status deferred to a later spec revision.
 
 ---
 
+## How it works
+
+![How RMACD Governance Packs work](../RMACD_Governance_Packs.drawio.png)
+
+Author a pack once — AI-assisted, human-approved, signed — then enforce it
+deterministically at runtime (the LLM never runs at enforcement time).
+
+---
+
 ## Quickstart
 
 ```python

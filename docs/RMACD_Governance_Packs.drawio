@@ -1,0 +1,126 @@
+<mxfile host="app.diagrams.net" agent="rmacd-framework" version="29.3.0">
+  <diagram id="rmacd-governance-packs" name="RMACD Governance Packs">
+    <mxGraphModel dx="1665" dy="890" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1700" pageHeight="900" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <!-- Title -->
+        <mxCell id="title" value="How RMACD Governance Packs Work" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;fontSize=22;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="40" y="20" width="1620" height="36" as="geometry" />
+        </mxCell>
+        <mxCell id="subtitle" value="Author once (AI-assisted, human-approved, signed) — then enforce deterministically. SDK 0.11.0 · rmacd.packs" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;fontSize=12;fontStyle=2;fontColor=#666666" vertex="1" parent="1">
+          <mxGeometry x="40" y="58" width="1620" height="20" as="geometry" />
+        </mxCell>
+
+        <!-- ===================== AUTHORING BAND ===================== -->
+        <mxCell id="auth_banner" value="AUTHORING — build time, AI-assisted (the LLM runs only here)" style="text;html=1;align=left;verticalAlign=middle;fontSize=13;fontStyle=1;fontColor=#8E3F8E" vertex="1" parent="1">
+          <mxGeometry x="40" y="100" width="1000" height="22" as="geometry" />
+        </mxCell>
+
+        <mxCell id="a1" value="Tool source&#10;&#10;MCP tools/list · OpenAPI · CLI list" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#E8E8E8;strokeColor=#666666;fontSize=11;dashed=1;verticalAlign=top;spacingTop=8" vertex="1" parent="1">
+          <mxGeometry x="40" y="140" width="230" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="a2" value="rmacd classify&#10;&#10;AI-compile: keyword + optional LLM" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F3E0F3;strokeColor=#8E3F8E;fontSize=11;verticalAlign=top;spacingTop=8" vertex="1" parent="1">
+          <mxGeometry x="320" y="140" width="230" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="a3" value="Proposal pack&#10;&#10;per-tool rules + confidence + provenance" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#3070b0;fontSize=11;verticalAlign=top;spacingTop=8" vertex="1" parent="1">
+          <mxGeometry x="600" y="140" width="270" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="a4" value="Human review&#10;&#10;rmacd pack review&#10;(low-confidence / delete-capable)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF4D6;strokeColor=#B98E20;fontSize=11;verticalAlign=top;spacingTop=8" vertex="1" parent="1">
+          <mxGeometry x="920" y="140" width="240" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="a5" value="Freeze + sign&#10;&#10;rmacd pack sign&#10;Ed25519 over content_hash" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E0F0E0;strokeColor=#3F9E3F;fontSize=11;verticalAlign=top;spacingTop=8" vertex="1" parent="1">
+          <mxGeometry x="1210" y="140" width="240" height="90" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e_a1_a2" style="endArrow=classic;html=1;strokeWidth=2;exitX=1;exitY=0.5;entryX=0;entryY=0.5" edge="1" parent="1" source="a1" target="a2">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_a2_a3" style="endArrow=classic;html=1;strokeWidth=2;exitX=1;exitY=0.5;entryX=0;entryY=0.5" edge="1" parent="1" source="a2" target="a3">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_a3_a4" style="endArrow=classic;html=1;strokeWidth=2;exitX=1;exitY=0.5;entryX=0;entryY=0.5" edge="1" parent="1" source="a3" target="a4">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_a4_a5" style="endArrow=classic;html=1;strokeWidth=2;exitX=1;exitY=0.5;entryX=0;entryY=0.5" edge="1" parent="1" source="a4" target="a5">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- ===================== ARTIFACT ===================== -->
+        <mxCell id="pack" value="Governance Pack — signed data&#10;&#10;YAML / JSON · content_hash + Ed25519 signature&#10;rules: when (tool / args) → operation · data tier · target&#10;verb_table · pattern_map · resolver · capability ceiling" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D6E4F1;strokeColor=#3070b0;strokeWidth=2;fontSize=11;fontStyle=1;verticalAlign=top;spacingTop=8" vertex="1" parent="1">
+          <mxGeometry x="360" y="300" width="470" height="130" as="geometry" />
+        </mxCell>
+        <mxCell id="builtins" value="19 built-in packs&#10;&#10;shell · aws · gcloud · az · kubectl · github · gitlab&#10;sql · filesystem · jira · confluence · slack&#10;google-drive · postgres · boto3 · aws-api-mcp&#10;azure-mcp · gcp-toolbox · ms365" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#E8E8E8;strokeColor=#666666;fontSize=10;dashed=1;verticalAlign=top;spacingTop=8" vertex="1" parent="1">
+          <mxGeometry x="900" y="300" width="360" height="130" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e_a5_pack" style="endArrow=classic;html=1;strokeWidth=2;exitX=0.5;exitY=1;entryX=0.7;entryY=0" edge="1" parent="1" source="a5" target="pack">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_a5_pack_label" value="produces a signed, versioned pack" style="text;html=1;align=center;fontSize=10;fontStyle=2;fontColor=#666666" vertex="1" parent="1">
+          <mxGeometry x="840" y="250" width="260" height="18" as="geometry" />
+        </mxCell>
+
+        <!-- ===================== RUNTIME BAND ===================== -->
+        <mxCell id="rt_banner" value="RUNTIME — deterministic (no LLM)" style="text;html=1;align=left;verticalAlign=middle;fontSize=13;fontStyle=1;fontColor=#3070b0" vertex="1" parent="1">
+          <mxGeometry x="40" y="470" width="1000" height="22" as="geometry" />
+        </mxCell>
+
+        <mxCell id="r1" value="Agent tool call&#10;&#10;(tool_name, args)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#E8E8E8;strokeColor=#666666;fontSize=11;dashed=1;verticalAlign=top;spacingTop=8" vertex="1" parent="1">
+          <mxGeometry x="40" y="510" width="220" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="r2" value="load_packs([...]) → ToolsRegistry&#10;&#10;DeclarativeClassifier per tool" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D6E4F1;strokeColor=#3070b0;fontSize=11;verticalAlign=top;spacingTop=8" vertex="1" parent="1">
+          <mxGeometry x="300" y="510" width="280" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="r3" value="Resolve&#10;&#10;(operation, data tier, target)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F3E0F3;strokeColor=#8E3F8E;fontSize=11;verticalAlign=top;spacingTop=8" vertex="1" parent="1">
+          <mxGeometry x="620" y="510" width="230" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="r4" value="PolicyEnforcer gate&#10;&#10;profile ∩ capability ceiling&#10;∩ §12.5 immutable floor" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D6E4F1;strokeColor=#3070b0;strokeWidth=2;fontSize=11;verticalAlign=top;spacingTop=8" vertex="1" parent="1">
+          <mxGeometry x="900" y="510" width="300" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="r5" value="Decision&#10;&#10;allow / approve / deny" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#444444;fontSize=11;verticalAlign=top;spacingTop=8" vertex="1" parent="1">
+          <mxGeometry x="1240" y="510" width="230" height="100" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e_r1_r2" style="endArrow=classic;html=1;strokeWidth=2;exitX=1;exitY=0.5;entryX=0;entryY=0.5" edge="1" parent="1" source="r1" target="r2">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_r2_r3" style="endArrow=classic;html=1;strokeWidth=2;exitX=1;exitY=0.5;entryX=0;entryY=0.5" edge="1" parent="1" source="r2" target="r3">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_r3_r4" style="endArrow=classic;html=1;strokeWidth=2;exitX=1;exitY=0.5;entryX=0;entryY=0.5" edge="1" parent="1" source="r3" target="r4">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_r4_r5" style="endArrow=classic;html=1;strokeWidth=2;exitX=1;exitY=0.5;entryX=0;entryY=0.5" edge="1" parent="1" source="r4" target="r5">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- pack + built-ins feed the registry -->
+        <mxCell id="e_pack_r2" style="endArrow=classic;html=1;strokeWidth=2;exitX=0.25;exitY=1;entryX=0.3;entryY=0;dashed=1" edge="1" parent="1" source="pack" target="r2">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_pack_r2_label" value="loaded once at startup" style="text;html=1;align=center;fontSize=9;fontStyle=2;fontColor=#666666" vertex="1" parent="1">
+          <mxGeometry x="300" y="458" width="180" height="16" as="geometry" />
+        </mxCell>
+        <mxCell id="e_builtins_r2" style="endArrow=classic;html=1;strokeWidth=2;exitX=0.25;exitY=1;entryX=0.75;entryY=0;dashed=1" edge="1" parent="1" source="builtins" target="r2">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- enforcer → audit -->
+        <mxCell id="audit" value="Audit record&#10;&#10;one AuditRecord per decision (Appendix C.6)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E0F0E0;strokeColor=#3F9E3F;fontSize=11;verticalAlign=top;spacingTop=8" vertex="1" parent="1">
+          <mxGeometry x="900" y="680" width="300" height="56" as="geometry" />
+        </mxCell>
+        <mxCell id="e_r4_audit" style="endArrow=classic;html=1;strokeWidth=2;exitX=0.5;exitY=1;entryX=0.5;entryY=0" edge="1" parent="1" source="r4" target="audit">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- ===================== NOTE ===================== -->
+        <mxCell id="note" value="Determinism &amp; trust: the LLM assists only at authoring time — runtime classification is pure data, so the same call always yields the same decision. The §12.5 immutable floor, the agent profile, and the per-tool capability ceiling always gate. In production, load_packs(require_signed=True, trusted_keys=…) refuses any unsigned or untrusted pack." style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#666666;fontSize=11;fontStyle=2;dashed=1;align=left;verticalAlign=top;spacingLeft=10;spacingTop=8" vertex="1" parent="1">
+          <mxGeometry x="40" y="770" width="1430" height="70" as="geometry" />
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
