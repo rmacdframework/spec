@@ -52,6 +52,10 @@ logger = logging.getLogger(__name__)
 _OP_RANK: dict[str, int] = {"R": 0, "M": 1, "A": 2, "C": 3, "D": 4}
 _TIER_RANK: dict[str, int] = {"public": 0, "internal": 1, "confidential": 2, "restricted": 3}
 
+# Cap the input length fed to pack-supplied regexes (ReDoS defence in depth;
+# the validator also flags risky patterns at authoring time).
+_MAX_REGEX_INPUT = 8192
+
 _SEGMENT_SEP = re.compile(r"\|\||&&|\||;|\n")
 _SUBSHELL = re.compile(r"\$\(([^()]*)\)")
 _BACKTICK = re.compile(r"`([^`]*)`")
@@ -175,7 +179,9 @@ def _selector_matches(sel: Selector, tool_name: str, args: Mapping[str, Any]) ->
                 return False
     if sel.arg_regex is not None:
         val = _get_arg(args, sel.arg_regex.arg)
-        if not isinstance(val, str) or re.search(sel.arg_regex.pattern, val) is None:
+        if not isinstance(val, str) or (
+            re.search(sel.arg_regex.pattern, val[:_MAX_REGEX_INPUT]) is None
+        ):
             return False
     if sel.argv_contains is not None:
         val = _get_arg(args, sel.argv_contains.arg)
@@ -249,7 +255,9 @@ def _resolve_tier(
     if spec.pattern_map:
         for entry in spec.pattern_map:
             val = _get_arg(args, entry.arg_regex.arg)
-            if isinstance(val, str) and re.search(entry.arg_regex.pattern, val) is not None:
+            if isinstance(val, str) and (
+                re.search(entry.arg_regex.pattern, val[:_MAX_REGEX_INPUT]) is not None
+            ):
                 candidates.append(entry.tier)
 
     if spec.resolver is not None:

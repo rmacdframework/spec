@@ -23,7 +23,7 @@ Author: Kash Kashyap
 License: CC BY 4.0
 """
 
-from rmacd.packs.compile import compile_pack, review_items
+from rmacd.packs.compile import compile_pack, pack_drift, review_items
 from rmacd.packs.engine import (
     ClassificationResult,
     DeclarativeClassifier,
@@ -58,8 +58,16 @@ from rmacd.packs.models import (
     TierSpec,
     TierStr,
 )
+from rmacd.packs.signing import (
+    PackSignatureError,
+    generate_keypair,
+    is_signed,
+    sign_pack,
+    verify_pack,
+)
 from rmacd.packs.validation import (
     PackValidationError,
+    find_redos_risks,
     get_schema,
     is_valid_pack,
     validate_pack_dict,
@@ -107,4 +115,12 @@ __all__ = [
     # AI-compile authoring
     "compile_pack",
     "review_items",
+    "pack_drift",
+    # signing & integrity
+    "sign_pack",
+    "verify_pack",
+    "is_signed",
+    "generate_keypair",
+    "PackSignatureError",
+    "find_redos_risks",
 ]

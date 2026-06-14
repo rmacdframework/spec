@@ -132,6 +132,29 @@ def review_items(pack: GovernancePack) -> list[ReviewItem]:
 ReviewItem = dict[str, Any]
 
 
+def pack_drift(pack: GovernancePack, tools: Sequence[dict[str, Any] | MCPTool]) -> dict[str, Any]:
+    """Compare a pack against a live tool source and report drift.
+
+    Returns whether the source hash changed since the pack was compiled, plus the
+    tool names added (present in the source, not in the pack) and removed
+    (present in the pack, gone from the source) — the set a human should re-review.
+    """
+    from rmacd.packs.loader import exact_tool_names
+
+    raw = [t if isinstance(t, dict) else _mcp_to_dict(t) for t in tools]
+    current = _source_hash(raw)
+    stored = pack.provenance.source_hash if pack.provenance else None
+    source_names = {t.get("name", "") for t in raw if t.get("name")}
+    pack_names = set(exact_tool_names(pack))
+    return {
+        "drifted": stored != current,
+        "stored_source_hash": stored,
+        "current_source_hash": current,
+        "added": sorted(source_names - pack_names),
+        "removed": sorted(pack_names - source_names),
+    }
+
+
 def _mcp_to_dict(tool: MCPTool) -> dict[str, Any]:
     return {
         "name": tool.name,
@@ -141,4 +164,4 @@ def _mcp_to_dict(tool: MCPTool) -> dict[str, Any]:
     }
 
 
-__all__ = ["compile_pack", "review_items", "ReviewItem"]
+__all__ = ["compile_pack", "review_items", "pack_drift", "ReviewItem"]

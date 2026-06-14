@@ -328,6 +328,64 @@ def cmd_pack_review(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_pack_sign(args: argparse.Namespace) -> int:
+    """Freeze and Ed25519-sign a pack."""
+    from rmacd.packs import load_pack, sign_pack
+
+    try:
+        pack = load_pack(args.pack)
+        key_pem = Path(args.key).read_text(encoding="utf-8")
+        signed = sign_pack(pack, key_pem)
+    except (OSError, ValueError, ImportError) as e:
+        print(f"ERROR: {e}", file=sys.stderr)
+        return 1
+    out = args.output or args.pack
+    _write_pack(signed, out)
+    print(f"Signed {out}\n  content_hash: {signed.content_hash}")
+    return 0
+
+
+def cmd_pack_verify(args: argparse.Namespace) -> int:
+    """Verify a signed pack against a public key."""
+    from rmacd.packs import load_pack, verify_pack
+
+    try:
+        pack = load_pack(args.pack)
+        key_pem = Path(args.key).read_text(encoding="utf-8")
+    except (OSError, ValueError, ImportError) as e:
+        print(f"ERROR: {e}", file=sys.stderr)
+        return 1
+    if verify_pack(pack, key_pem):
+        print(f"VERIFIED: {args.pack}")
+        return 0
+    print(f"UNVERIFIED: {args.pack} (hash mismatch, missing, or bad signature)", file=sys.stderr)
+    return 1
+
+
+def cmd_pack_diff(args: argparse.Namespace) -> int:
+    """Detect drift between a pack and a live tool source."""
+    from rmacd.packs import load_pack, pack_drift
+
+    try:
+        pack = load_pack(args.pack)
+        tools = _read_tool_source(args.source)
+    except (OSError, ValueError, json.JSONDecodeError) as e:
+        print(f"ERROR: {e}", file=sys.stderr)
+        return 1
+    drift = pack_drift(pack, tools)
+    if not drift["drifted"]:
+        print(f"IN SYNC: {args.pack}")
+        return 0
+    print(f"DRIFTED: {args.pack}")
+    if drift["added"]:
+        print(f"  added (re-review/classify):   {', '.join(drift['added'])}")
+    if drift["removed"]:
+        print(f"  removed (no longer in source): {', '.join(drift['removed'])}")
+    if not drift["added"] and not drift["removed"]:
+        print("  same tool names, but a tool definition changed (source hash differs)")
+    return 1
+
+
 def main() -> int:
     """Main entry point for the CLI."""
     parser = argparse.ArgumentParser(
@@ -419,6 +477,19 @@ def main() -> int:
     pack_review = pack_sub.add_parser("review", help="List rules that warrant human review")
     pack_review.add_argument("pack", help="Pack file to review")
 
+    pack_sign = pack_sub.add_parser("sign", help="Freeze and Ed25519-sign a pack")
+    pack_sign.add_argument("pack", help="Pack file to sign")
+    pack_sign.add_argument("-k", "--key", required=True, help="Ed25519 private key (PEM)")
+    pack_sign.add_argument("-o", "--output", help="Output file (default: overwrite input)")
+
+    pack_verify = pack_sub.add_parser("verify", help="Verify a signed pack")
+    pack_verify.add_argument("pack", help="Pack file to verify")
+    pack_verify.add_argument("-k", "--key", required=True, help="Ed25519 public key (PEM)")
+
+    pack_diff = pack_sub.add_parser("diff", help="Detect drift vs a live tool source")
+    pack_diff.add_argument("pack", help="Pack file")
+    pack_diff.add_argument("source", help="MCP tools/list JSON (or a JSON list of tools)")
+
     args = parser.parse_args()
 
     if args.command is None:
@@ -429,6 +500,9 @@ def main() -> int:
         pack_commands = {
             "validate": cmd_pack_validate,
             "review": cmd_pack_review,
+            "sign": cmd_pack_sign,
+            "verify": cmd_pack_verify,
+            "diff": cmd_pack_diff,
         }
         if getattr(args, "pack_command", None) is None:
             pack_parser.print_help()

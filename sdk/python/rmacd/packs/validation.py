@@ -13,6 +13,7 @@ License: CC BY 4.0
 from __future__ import annotations
 
 import json
+import re
 from importlib import resources
 from pathlib import Path
 from typing import Any
@@ -20,6 +21,11 @@ from typing import Any
 from jsonschema import Draft202012Validator
 
 SCHEMA_NAME = "pack.schema.json"
+
+# ReDoS guard: pattern length cap and a heuristic for nested quantifiers like
+# "(a+)+" / "(a*)*" that can cause catastrophic backtracking.
+_MAX_PATTERN_LEN = 1000
+_NESTED_QUANTIFIER = re.compile(r"\([^()]*[+*][^()]*\)\s*[+*]")
 
 
 class PackValidationError(Exception):
@@ -84,6 +90,49 @@ def validate_pack_file(path: str | Path) -> bool:
     return validate_pack_dict(data)
 
 
+def _iter_regex_patterns(data: dict[str, Any]) -> list[tuple[str, str]]:
+    """Yield (location, pattern) for every regex a pack would compile at runtime."""
+    found: list[tuple[str, str]] = []
+
+    def _scan_tier(loc: str, tier: Any) -> None:
+        if isinstance(tier, dict):
+            for i, entry in enumerate(tier.get("pattern_map") or []):
+                ar = entry.get("arg_regex") if isinstance(entry, dict) else None
+                if isinstance(ar, dict) and "pattern" in ar:
+                    found.append((f"{loc}.pattern_map[{i}]", ar["pattern"]))
+
+    for i, rule in enumerate(data.get("rules") or []):
+        if not isinstance(rule, dict):
+            continue
+        loc = f"rules[{i}]({rule.get('id', '?')})"
+        when = rule.get("when") or {}
+        ar = when.get("arg_regex") if isinstance(when, dict) else None
+        if isinstance(ar, dict) and "pattern" in ar:
+            found.append((f"{loc}.when.arg_regex", ar["pattern"]))
+        _scan_tier(f"{loc}.tier", rule.get("tier"))
+        classify = rule.get("classify")
+        if isinstance(classify, dict):
+            _scan_tier(f"{loc}.classify.tier", classify.get("tier"))
+    return found
+
+
+def find_redos_risks(data: dict[str, Any]) -> list[str]:
+    """Return human-readable warnings for pack regexes that look ReDoS-prone."""
+    risks: list[str] = []
+    for loc, pattern in _iter_regex_patterns(data):
+        if len(pattern) > _MAX_PATTERN_LEN:
+            risks.append(f"{loc}: pattern too long ({len(pattern)} > {_MAX_PATTERN_LEN})")
+        if _NESTED_QUANTIFIER.search(pattern):
+            risks.append(
+                f"{loc}: nested quantifier (ReDoS backtracking risk): {pattern!r}"
+            )
+        try:
+            re.compile(pattern)
+        except re.error as exc:
+            risks.append(f"{loc}: invalid regex: {exc}")
+    return risks
+
+
 __all__ = [
     "SCHEMA_NAME",
     "PackValidationError",
@@ -91,4 +140,5 @@ __all__ = [
     "validate_pack_dict",
     "is_valid_pack",
     "validate_pack_file",
+    "find_redos_risks",
 ]
