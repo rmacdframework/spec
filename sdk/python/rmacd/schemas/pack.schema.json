@@ -1,0 +1,220 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rmacd-framework.org/schema/v1/pack.json",
+  "title": "RMACD Governance Pack",
+  "description": "A declarative, reusable bundle of rules that map a tool call to RMACD terms (operation, data tier, target). See docs/governance-packs/.",
+  "type": "object",
+  "required": ["pack", "version", "rules"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": { "type": "string" },
+    "pack": {
+      "type": "string",
+      "description": "Ecosystem identifier (e.g. kubectl, jira, boto3).",
+      "pattern": "^[a-z0-9][a-z0-9._/-]*$"
+    },
+    "version": {
+      "type": "string",
+      "description": "Semantic version of this pack.",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+([.-].+)?$"
+    },
+    "description": { "type": "string" },
+    "default_operation": {
+      "description": "Fail-closed operation used when no rule/verb matches.",
+      "$ref": "#/$defs/operation",
+      "default": "C"
+    },
+    "provenance": {
+      "type": "object",
+      "description": "Authoring/review metadata.",
+      "additionalProperties": true,
+      "properties": {
+        "authored_by": { "type": "string" },
+        "llm_assisted": { "type": "boolean" },
+        "reviewed_by": { "type": "string" },
+        "source_hash": { "type": "string" }
+      }
+    },
+    "content_hash": {
+      "type": "string",
+      "description": "Canonical content hash, set by `rmacd pack sign`.",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "signature": {
+      "type": "string",
+      "description": "Detached signature over content_hash (optional)."
+    },
+    "resolvers": {
+      "type": "array",
+      "description": "Named live-lookup hooks this pack expects to be registered.",
+      "items": { "$ref": "#/$defs/resolverDecl" }
+    },
+    "rules": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/rule" }
+    }
+  },
+  "$defs": {
+    "operation": {
+      "type": "string",
+      "enum": ["R", "M", "A", "C", "D"],
+      "description": "RMACD operation: R=Read, M=Move, A=Add, C=Change, D=Delete."
+    },
+    "tier": {
+      "type": "string",
+      "enum": ["public", "internal", "confidential", "restricted"],
+      "description": "RMACD data classification tier."
+    },
+    "resolverDecl": {
+      "type": "object",
+      "required": ["name"],
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "fail_closed_default": {
+          "$ref": "#/$defs/tier",
+          "default": "restricted"
+        }
+      }
+    },
+    "argRegex": {
+      "type": "object",
+      "required": ["arg", "pattern"],
+      "additionalProperties": false,
+      "properties": {
+        "arg": { "type": "string", "description": "Argument name (dot-paths allowed, e.g. params.Bucket)." },
+        "pattern": { "type": "string", "description": "Regular expression matched against the argument value." }
+      }
+    },
+    "selector": {
+      "type": "object",
+      "description": "Conditions that decide whether a rule applies to a call (ANDed).",
+      "additionalProperties": false,
+      "properties": {
+        "tool": {
+          "description": "Tool-name match: exact, glob (with *), or /regex/. A list matches any.",
+          "oneOf": [
+            { "type": "string" },
+            { "type": "array", "items": { "type": "string" } }
+          ]
+        },
+        "arg_equals": {
+          "type": "object",
+          "description": "Argument must equal the given value(s).",
+          "additionalProperties": true
+        },
+        "arg_present": {
+          "type": "string",
+          "description": "Argument name that must be present (and non-empty)."
+        },
+        "arg_regex": { "$ref": "#/$defs/argRegex" },
+        "argv_contains": {
+          "type": "object",
+          "required": ["arg", "tokens"],
+          "additionalProperties": false,
+          "properties": {
+            "arg": { "type": "string" },
+            "tokens": { "type": "array", "items": { "type": "string" }, "minItems": 1 }
+          }
+        }
+      }
+    },
+    "parseSpec": {
+      "type": "object",
+      "description": "How to turn a string argument into tokens for verb matching.",
+      "required": ["arg"],
+      "additionalProperties": false,
+      "properties": {
+        "arg": { "type": "string", "description": "Argument holding the command/string to parse." },
+        "strip_wrappers": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Leading wrapper binaries to strip (e.g. sudo, env)."
+        },
+        "delimiter": {
+          "type": "string",
+          "description": "If set, split the argument on this delimiter instead of shell tokenization (e.g. \"_\" for SDK method names)."
+        },
+        "token": {
+          "type": "string",
+          "enum": ["first", "last"],
+          "description": "Which split token to use as the verb (with delimiter)."
+        }
+      }
+    },
+    "patternMapEntry": {
+      "type": "object",
+      "required": ["arg_regex", "tier"],
+      "additionalProperties": false,
+      "properties": {
+        "arg_regex": { "$ref": "#/$defs/argRegex" },
+        "tier": { "$ref": "#/$defs/tier" }
+      }
+    },
+    "tierSpec": {
+      "description": "A literal tier, or an object combining pattern_map / resolver / default (most-sensitive wins).",
+      "oneOf": [
+        { "$ref": "#/$defs/tier" },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "minProperties": 1,
+          "properties": {
+            "pattern_map": {
+              "type": "array",
+              "items": { "$ref": "#/$defs/patternMapEntry" }
+            },
+            "resolver": { "type": "string", "description": "Name of a declared resolver." },
+            "from": { "type": "string", "description": "Argument fed to the resolver." },
+            "default": { "$ref": "#/$defs/tier" }
+          }
+        }
+      ]
+    },
+    "classifySpec": {
+      "type": "object",
+      "description": "Literal classification form (fixed operation).",
+      "additionalProperties": false,
+      "properties": {
+        "operation": { "$ref": "#/$defs/operation" },
+        "tier": { "$ref": "#/$defs/tierSpec" },
+        "target": { "type": "string" }
+      }
+    },
+    "rule": {
+      "type": "object",
+      "required": ["id", "when"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string" },
+        "when": { "$ref": "#/$defs/selector" },
+        "parse": { "$ref": "#/$defs/parseSpec" },
+        "classify": { "$ref": "#/$defs/classifySpec" },
+        "operation": { "$ref": "#/$defs/operation" },
+        "verb_table": {
+          "type": "object",
+          "description": "Map of verb token -> operation. Result is the MAX operation over matched tokens.",
+          "additionalProperties": { "$ref": "#/$defs/operation" }
+        },
+        "default": {
+          "$ref": "#/$defs/operation",
+          "description": "Fail-closed operation when a verb_table matches nothing."
+        },
+        "tier": { "$ref": "#/$defs/tierSpec" },
+        "target": { "type": "string", "description": "Target template with {arg}/{capture} substitution." },
+        "capability": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/operation" },
+          "description": "Worst-case capability ceiling for this tool (defence in depth)."
+        },
+        "confidence": {
+          "type": "string",
+          "enum": ["high", "low"],
+          "default": "high"
+        }
+      }
+    }
+  }
+}

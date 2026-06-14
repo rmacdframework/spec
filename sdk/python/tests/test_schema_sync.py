@@ -16,6 +16,7 @@ SCHEMA_NAMES = [
     "profile-2d.schema.json",
     "profile-3d.schema.json",
     "profile-dc2d.schema.json",
+    "pack.schema.json",
 ]
 
 BUNDLED_DIR = Path(__file__).parent.parent / "rmacd" / "schemas"
