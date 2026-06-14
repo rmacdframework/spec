@@ -1,0 +1,34 @@
+{
+  "pack": "google-drive",
+  "version": "1.0.0",
+  "description": "RMACD classification for a Google Drive MCP server. Documents frequently hold sensitive data — pair with redaction/egress controls.",
+  "default_operation": "C",
+  "provenance": {"authored_by": "rmacd", "llm_assisted": true, "review_status": "ai-drafted"},
+  "rules": [
+    {
+      "id": "gdrive-read",
+      "when": {"tool": ["gdrive_search", "gdrive_read_file", "gdrive_list_files", "gdrive_get_file", "gdrive_export"]},
+      "classify": {"operation": "R", "tier": "internal", "target": "gdrive://{file_id}"}
+    },
+    {
+      "id": "gdrive-add",
+      "when": {"tool": ["gdrive_create_file", "gdrive_upload_file", "gdrive_copy_file"]},
+      "classify": {"operation": "A", "tier": "internal", "target": "gdrive://{file_id}"}
+    },
+    {
+      "id": "gdrive-move",
+      "when": {"tool": ["gdrive_move_file"]},
+      "classify": {"operation": "M", "tier": "internal", "target": "gdrive://{file_id}"}
+    },
+    {
+      "id": "gdrive-change",
+      "when": {"tool": ["gdrive_update_file", "gdrive_rename_file", "gdrive_share_file", "gdrive_set_permission"]},
+      "classify": {"operation": "C", "tier": "internal", "target": "gdrive://{file_id}"}
+    },
+    {
+      "id": "gdrive-delete",
+      "when": {"tool": ["gdrive_delete_file", "gdrive_trash_file"]},
+      "classify": {"operation": "D", "tier": "internal", "target": "gdrive://{file_id}"}
+    }
+  ]
+}

@@ -1,0 +1,42 @@
+{
+  "pack": "aws-api-mcp",
+  "version": "1.0.0",
+  "description": "RMACD classification for the AWS API MCP server (awslabs). call_aws executes arbitrary AWS CLI commands — a passthrough whose risk is in the argument; documentation tools are read-only.",
+  "default_operation": "C",
+  "provenance": {"authored_by": "rmacd", "llm_assisted": true, "review_status": "ai-drafted"},
+  "rules": [
+    {
+      "id": "aws-api-docs",
+      "when": {"tool": ["suggest_aws_commands", "get_aws_documentation", "read_documentation", "search_documentation"]},
+      "classify": {"operation": "R", "tier": "internal", "target": "aws-api://docs"}
+    },
+    {
+      "id": "aws-api-call",
+      "when": {"tool": ["call_aws", "execute_aws_command", "aws_api"]},
+      "parse": {"arg": "cli_command", "verb_prefix_delimiters": ["-"]},
+      "verb_table": {
+        "describe": "R", "get": "R", "list": "R", "ls": "R", "head": "R",
+        "lookup": "R", "search": "R", "scan": "R", "query": "R", "select": "R",
+        "mv": "M",
+        "cp": "A", "sync": "C", "create": "A", "run": "A", "register": "A",
+        "add": "A", "allocate": "A", "request": "A", "import": "A", "upload": "A",
+        "put": "C", "update": "C", "modify": "C", "set": "C", "attach": "C",
+        "detach": "C", "associate": "C", "enable": "C", "disable": "C",
+        "start": "C", "stop": "C", "reboot": "C", "tag": "C", "untag": "C",
+        "restore": "C", "reset": "C",
+        "delete": "D", "terminate": "D", "remove": "D", "deregister": "D",
+        "release": "D", "revoke": "D", "cancel": "D", "purge": "D", "rm": "D"
+      },
+      "default": "C",
+      "tier": {
+        "pattern_map": [
+          {"arg_regex": {"arg": "cli_command", "pattern": "(?i)(iam|kms|secretsmanager|secret|sts|cognito|password|credential)"}, "tier": "confidential"},
+          {"arg_regex": {"arg": "cli_command", "pattern": "(?i)(prod|prd|restricted|pii)"}, "tier": "confidential"}
+        ],
+        "default": "internal"
+      },
+      "target": "aws-api://{cli_command}",
+      "capability": ["R", "M", "A", "C", "D"]
+    }
+  ]
+}

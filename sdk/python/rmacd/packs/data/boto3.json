@@ -1,0 +1,42 @@
+{
+  "pack": "boto3",
+  "version": "1.0.0",
+  "description": "RMACD classification for a generic boto3 invoker — aws_call(service, operation, params). One verb-prefix table governs the whole AWS Python SDK; passthrough -> worst-case ceiling.",
+  "default_operation": "C",
+  "provenance": {"authored_by": "rmacd", "llm_assisted": true, "review_status": "ai-drafted"},
+  "resolvers": [
+    {"name": "aws_resource_tier", "description": "Resolve an AWS resource identifier to its tier", "fail_closed_default": "confidential"}
+  ],
+  "rules": [
+    {
+      "id": "boto3-call",
+      "when": {"tool": ["aws_call", "boto3_call", "call_boto3"]},
+      "parse": {"arg": "operation", "delimiter": "_", "token": "first"},
+      "verb_table": {
+        "describe": "R", "get": "R", "list": "R", "head": "R", "lookup": "R",
+        "search": "R", "query": "R", "scan": "R", "select": "R", "estimate": "R",
+        "copy": "M",
+        "create": "A", "register": "A", "run": "A", "import": "A", "allocate": "A",
+        "request": "A", "add": "A", "publish": "A", "upload": "A", "generate": "A",
+        "put": "C", "update": "C", "modify": "C", "set": "C", "attach": "C",
+        "detach": "C", "associate": "C", "disassociate": "C", "enable": "C",
+        "disable": "C", "start": "C", "stop": "C", "reboot": "C", "tag": "C",
+        "untag": "C", "restore": "C", "reset": "C", "rotate": "C",
+        "delete": "D", "terminate": "D", "deregister": "D", "purge": "D",
+        "release": "D", "revoke": "D", "cancel": "D", "remove": "D"
+      },
+      "default": "C",
+      "tier": {
+        "pattern_map": [
+          {"arg_regex": {"arg": "service", "pattern": "(?i)(iam|kms|secretsmanager|sts|cognito)"}, "tier": "confidential"},
+          {"arg_regex": {"arg": "params.Bucket", "pattern": "(?i)(prod|pii|restricted)"}, "tier": "confidential"}
+        ],
+        "resolver": "aws_resource_tier",
+        "from": "params",
+        "default": "internal"
+      },
+      "target": "aws://{service}/{operation}",
+      "capability": ["R", "M", "A", "C", "D"]
+    }
+  ]
+}

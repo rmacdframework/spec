@@ -1,0 +1,35 @@
+{
+  "pack": "postgres",
+  "version": "1.0.0",
+  "description": "RMACD classification for a Postgres MCP server: read-only metadata tools plus a passthrough SQL query tool (verb-aware, worst-case ceiling).",
+  "default_operation": "C",
+  "provenance": {"authored_by": "rmacd", "llm_assisted": true, "review_status": "ai-drafted"},
+  "rules": [
+    {
+      "id": "pg-meta-read",
+      "when": {"tool": ["list_tables", "describe_table", "get_schema", "list_schemas", "explain_query"]},
+      "classify": {"operation": "R", "tier": "internal", "target": "postgres://{table}"}
+    },
+    {
+      "id": "pg-query",
+      "when": {"tool": ["query", "read_query", "execute_query", "pg_query", "run_sql"]},
+      "parse": {"arg": "sql"},
+      "verb_table": {
+        "select": "R", "show": "R", "explain": "R", "with": "R", "table": "R",
+        "insert": "A", "create": "A", "copy": "A",
+        "update": "C", "alter": "C", "grant": "C", "revoke": "C", "merge": "C",
+        "delete": "D", "drop": "D", "truncate": "D"
+      },
+      "default": "C",
+      "tier": {
+        "pattern_map": [
+          {"arg_regex": {"arg": "sql", "pattern": "(?i)(password|ssn|credit[_ ]?card|secret|token|patients?)"}, "tier": "restricted"},
+          {"arg_regex": {"arg": "sql", "pattern": "(?i)(users?|customers?|accounts?|payment|email|salary)"}, "tier": "confidential"}
+        ],
+        "default": "internal"
+      },
+      "target": "postgres://{sql}",
+      "capability": ["R", "M", "A", "C", "D"]
+    }
+  ]
+}

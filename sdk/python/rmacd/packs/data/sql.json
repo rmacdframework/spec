@@ -1,0 +1,33 @@
+{
+  "pack": "sql",
+  "version": "1.0.0",
+  "description": "RMACD classification for a generic SQL execution tool — a passthrough whose risk is in the statement (verb-aware, worst-case ceiling).",
+  "default_operation": "C",
+  "provenance": {"authored_by": "rmacd", "llm_assisted": true, "review_status": "ai-drafted"},
+  "rules": [
+    {
+      "id": "sql-statement",
+      "when": {"tool": ["sql", "query", "run_sql", "execute_sql", "db_query", "run_query"]},
+      "parse": {"arg": "query"},
+      "verb_table": {
+        "select": "R", "show": "R", "describe": "R", "explain": "R", "with": "R",
+        "values": "R", "table": "R",
+        "insert": "A", "create": "A", "import": "A", "load": "A", "copy": "A",
+        "update": "C", "alter": "C", "merge": "C", "upsert": "C", "replace": "C",
+        "grant": "C", "revoke": "C", "set": "C", "call": "C", "exec": "C",
+        "execute": "C", "rename": "C", "comment": "C", "vacuum": "C", "analyze": "R",
+        "delete": "D", "drop": "D", "truncate": "D"
+      },
+      "default": "C",
+      "tier": {
+        "pattern_map": [
+          {"arg_regex": {"arg": "query", "pattern": "(?i)(password|ssn|credit[_ ]?card|card_number|secret|token|patients?|medical)"}, "tier": "restricted"},
+          {"arg_regex": {"arg": "query", "pattern": "(?i)(users?|customers?|accounts?|payment|email|address|salary|payroll)"}, "tier": "confidential"}
+        ],
+        "default": "internal"
+      },
+      "target": "sql://{query}",
+      "capability": ["R", "M", "A", "C", "D"]
+    }
+  ]
+}

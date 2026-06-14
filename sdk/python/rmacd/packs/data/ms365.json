@@ -1,0 +1,34 @@
+{
+  "pack": "ms365",
+  "version": "1.0.0",
+  "description": "RMACD classification for a Microsoft 365 / Graph MCP server (Outlook, Teams, SharePoint, OneDrive, Calendar). Mail and files frequently hold sensitive data — pair with redaction/egress controls.",
+  "default_operation": "C",
+  "provenance": {"authored_by": "rmacd", "llm_assisted": true, "review_status": "ai-drafted"},
+  "rules": [
+    {
+      "id": "ms365-read",
+      "when": {"tool": ["list_messages", "get_message", "search_messages", "list_events", "get_event", "list_files", "read_file", "search_files", "list_chats", "get_chat_messages", "list_sites", "get_contacts"]},
+      "classify": {"operation": "R", "tier": "confidential", "target": "ms365://{id}"}
+    },
+    {
+      "id": "ms365-add",
+      "when": {"tool": ["send_mail", "create_event", "create_draft", "upload_file", "post_chat_message", "create_folder", "add_contact"]},
+      "classify": {"operation": "A", "tier": "confidential", "target": "ms365://{id}"}
+    },
+    {
+      "id": "ms365-move",
+      "when": {"tool": ["move_message", "move_file"]},
+      "classify": {"operation": "M", "tier": "confidential", "target": "ms365://{id}"}
+    },
+    {
+      "id": "ms365-change",
+      "when": {"tool": ["update_event", "update_message", "update_file", "reply_to_message", "accept_event", "decline_event", "share_file"]},
+      "classify": {"operation": "C", "tier": "confidential", "target": "ms365://{id}"}
+    },
+    {
+      "id": "ms365-delete",
+      "when": {"tool": ["delete_message", "delete_event", "delete_file", "delete_contact"]},
+      "classify": {"operation": "D", "tier": "confidential", "target": "ms365://{id}"}
+    }
+  ]
+}

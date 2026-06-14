@@ -1,0 +1,39 @@
+{
+  "pack": "filesystem",
+  "version": "1.0.0",
+  "description": "RMACD classification for a filesystem MCP server (read/write/move/delete file tools).",
+  "default_operation": "C",
+  "provenance": {"authored_by": "rmacd", "llm_assisted": true, "review_status": "ai-drafted"},
+  "rules": [
+    {
+      "id": "fs-read",
+      "when": {"tool": ["read_file", "read_text_file", "read_media_file", "list_directory", "directory_tree", "get_file_info", "search_files", "list_allowed_directories"]},
+      "classify": {"operation": "R", "tier": "internal", "target": "file://{path}"}
+    },
+    {
+      "id": "fs-add",
+      "when": {"tool": ["create_directory", "write_file"]},
+      "classify": {"operation": "C", "tier": "internal", "target": "file://{path}"}
+    },
+    {
+      "id": "fs-change",
+      "when": {"tool": ["edit_file", "patch_file"]},
+      "classify": {"operation": "C", "tier": "internal", "target": "file://{path}"}
+    },
+    {
+      "id": "fs-move",
+      "when": {"tool": ["move_file", "rename_file"]},
+      "classify": {"operation": "M", "tier": "internal", "target": "file://{source}->{destination}"}
+    },
+    {
+      "id": "fs-delete",
+      "when": {"tool": ["delete_file", "delete_directory", "remove_file"]},
+      "classify": {"operation": "D", "tier": "internal", "target": "file://{path}"}
+    },
+    {
+      "id": "fs-sensitive-overlay",
+      "when": {"arg_regex": {"arg": "path", "pattern": "(?i)(\\.env|\\.pem|secret|credential|password|id_rsa|/etc/shadow|private[_-]?key)"}},
+      "classify": {"tier": "restricted"}
+    }
+  ]
+}

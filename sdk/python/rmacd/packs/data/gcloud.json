@@ -1,0 +1,34 @@
+{
+  "pack": "gcloud",
+  "version": "1.0.0",
+  "description": "RMACD classification for the Google Cloud CLI (gcloud).",
+  "default_operation": "C",
+  "provenance": {"authored_by": "rmacd", "llm_assisted": true, "review_status": "ai-drafted"},
+  "rules": [
+    {
+      "id": "gcloud-cli",
+      "when": {"tool": "gcloud"},
+      "parse": {"arg": "command", "strip_wrappers": ["sudo", "env"], "verb_prefix_delimiters": ["-"]},
+      "verb_table": {
+        "list": "R", "describe": "R", "get": "R", "read": "R", "lookup": "R",
+        "export": "R", "print": "R", "search": "R", "test": "R", "wait": "R",
+        "create": "A", "add": "A", "import": "A", "deploy": "A", "submit": "A",
+        "clone": "A", "copy": "A", "upload": "A", "enable": "C", "disable": "C",
+        "update": "C", "set": "C", "modify": "C", "patch": "C", "replace": "C",
+        "start": "C", "stop": "C", "restart": "C", "resume": "C", "suspend": "C",
+        "rotate": "C", "bind": "C", "unbind": "C",
+        "delete": "D", "remove": "D", "destroy": "D", "purge": "D", "cancel": "D"
+      },
+      "default": "C",
+      "tier": {
+        "pattern_map": [
+          {"arg_regex": {"arg": "command", "pattern": "(iam|kms|secrets|secret|password|credential|service-account)"}, "tier": "confidential"},
+          {"arg_regex": {"arg": "command", "pattern": "(prod|prd|restricted)"}, "tier": "confidential"}
+        ],
+        "default": "internal"
+      },
+      "target": "gcp://{command}",
+      "capability": ["R", "M", "A", "C", "D"]
+    }
+  ]
+}

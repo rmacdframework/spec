@@ -1,0 +1,31 @@
+{
+  "pack": "gitlab",
+  "version": "1.0.0",
+  "description": "RMACD classification for the GitLab CLI (glab).",
+  "default_operation": "C",
+  "provenance": {"authored_by": "rmacd", "llm_assisted": true, "review_status": "ai-drafted"},
+  "rules": [
+    {
+      "id": "glab-cli",
+      "when": {"tool": "glab"},
+      "parse": {"arg": "command", "strip_wrappers": ["sudo", "env"]},
+      "verb_table": {
+        "list": "R", "view": "R", "show": "R", "diff": "R", "status": "R",
+        "checkout": "R", "clone": "R", "search": "R", "browse": "R",
+        "create": "A", "add": "A", "fork": "A", "note": "C", "comment": "C",
+        "update": "C", "edit": "C", "merge": "C", "close": "C", "reopen": "C",
+        "approve": "C", "revoke": "C", "rebase": "C", "set": "C",
+        "delete": "D", "remove": "D"
+      },
+      "default": "C",
+      "tier": {
+        "pattern_map": [
+          {"arg_regex": {"arg": "command", "pattern": "(secret|token|variable|key|password|credential)"}, "tier": "confidential"}
+        ],
+        "default": "internal"
+      },
+      "target": "gitlab://{command}",
+      "capability": ["R", "M", "A", "C", "D"]
+    }
+  ]
+}

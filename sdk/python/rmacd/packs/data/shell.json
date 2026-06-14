@@ -1,0 +1,42 @@
+{
+  "pack": "shell",
+  "version": "1.0.0",
+  "description": "RMACD classification for shell/bash command tools. The hand-tuned rmacd.registry.bash engine remains the fast path; this data pack is the portable, signable representation (parity-tested on a representative subset).",
+  "default_operation": "C",
+  "provenance": {
+    "authored_by": "rmacd",
+    "llm_assisted": true,
+    "review_status": "ai-drafted"
+  },
+  "rules": [
+    {
+      "id": "shell-coreutils",
+      "when": {"tool": ["bash", "sh", "shell", "zsh", "run_command", "execute_command"]},
+      "parse": {
+        "arg": "command",
+        "strip_wrappers": ["sudo", "env", "nice", "nohup", "time", "timeout", "xargs", "doas"]
+      },
+      "verb_table": {
+        "ls": "R", "cat": "R", "grep": "R", "egrep": "R", "find": "R", "echo": "R",
+        "head": "R", "tail": "R", "wc": "R", "stat": "R", "pwd": "R", "which": "R",
+        "whoami": "R", "id": "R", "env": "R", "printenv": "R", "df": "R", "du": "R",
+        "ps": "R", "top": "R", "file": "R", "readlink": "R", "dirname": "R",
+        "basename": "R", "sort": "R", "uniq": "R", "diff": "R", "less": "R", "more": "R",
+        "date": "R", "uname": "R", "hostname": "R", "uptime": "R", "free": "R",
+        "mv": "M", "rename": "M",
+        "cp": "A", "mkdir": "A", "touch": "A", "tee": "A", "ln": "A", "install": "A",
+        "chmod": "C", "chown": "C", "chgrp": "C", "truncate": "C", "ln-sf": "C",
+        "rm": "D", "rmdir": "D", "shred": "D", "unlink": "D"
+      },
+      "default": "C",
+      "tier": {
+        "pattern_map": [
+          {"arg_regex": {"arg": "command", "pattern": "(shadow|/etc/sudoers|secret|credential|private[_-]?key|\\.pem|\\.env|password|token)"}, "tier": "confidential"}
+        ],
+        "default": "internal"
+      },
+      "target": "shell://{command}",
+      "capability": ["R", "M", "A", "C", "D"]
+    }
+  ]
+}

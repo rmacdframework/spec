@@ -71,6 +71,7 @@ class ParseSpec(_Strict):
     strip_wrappers: list[str] = Field(default_factory=list)
     delimiter: str | None = None
     token: Literal["first", "last"] | None = None
+    verb_prefix_delimiters: list[str] = Field(default_factory=list)
 
 
 class PatternMapEntry(_Strict):

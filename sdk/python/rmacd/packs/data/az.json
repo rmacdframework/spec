@@ -1,0 +1,33 @@
+{
+  "pack": "az",
+  "version": "1.0.0",
+  "description": "RMACD classification for the Azure CLI (az).",
+  "default_operation": "C",
+  "provenance": {"authored_by": "rmacd", "llm_assisted": true, "review_status": "ai-drafted"},
+  "rules": [
+    {
+      "id": "az-cli",
+      "when": {"tool": "az"},
+      "parse": {"arg": "command", "strip_wrappers": ["sudo", "env"], "verb_prefix_delimiters": ["-"]},
+      "verb_table": {
+        "list": "R", "show": "R", "get": "R", "export": "R", "check": "R",
+        "wait": "R", "download": "R", "preview": "R",
+        "create": "A", "add": "A", "import": "A", "deploy": "A", "upload": "A",
+        "clone": "A", "copy": "A", "set": "C", "update": "C", "modify": "C",
+        "configure": "C", "enable": "C", "disable": "C", "start": "C", "stop": "C",
+        "restart": "C", "renew": "C", "rotate": "C", "regenerate": "C", "assign": "C",
+        "delete": "D", "remove": "D", "purge": "D", "destroy": "D", "cancel": "D"
+      },
+      "default": "C",
+      "tier": {
+        "pattern_map": [
+          {"arg_regex": {"arg": "command", "pattern": "(keyvault|secret|key|certificate|ad\\s|role|password|credential)"}, "tier": "confidential"},
+          {"arg_regex": {"arg": "command", "pattern": "(prod|prd|restricted)"}, "tier": "confidential"}
+        ],
+        "default": "internal"
+      },
+      "target": "azure://{command}",
+      "capability": ["R", "M", "A", "C", "D"]
+    }
+  ]
+}

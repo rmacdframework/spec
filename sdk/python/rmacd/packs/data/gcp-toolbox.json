@@ -1,0 +1,35 @@
+{
+  "pack": "gcp-toolbox",
+  "version": "1.0.0",
+  "description": "RMACD classification for the Google Cloud MCP Toolbox for Databases (googleapis/mcp-toolbox): read-only metadata plus passthrough SQL execution (verb-aware, worst-case ceiling).",
+  "default_operation": "C",
+  "provenance": {"authored_by": "rmacd", "llm_assisted": true, "review_status": "ai-drafted"},
+  "rules": [
+    {
+      "id": "toolbox-meta-read",
+      "when": {"tool": ["list_tables", "list_datasets", "get_schema", "describe_table"]},
+      "classify": {"operation": "R", "tier": "internal", "target": "gcp-db://{table}"}
+    },
+    {
+      "id": "toolbox-sql",
+      "when": {"tool": ["execute_sql", "postgres_query", "mysql_query", "bigquery_query", "spanner_query", "run_sql"]},
+      "parse": {"arg": "sql"},
+      "verb_table": {
+        "select": "R", "show": "R", "explain": "R", "with": "R", "table": "R",
+        "insert": "A", "create": "A", "load": "A", "copy": "A",
+        "update": "C", "alter": "C", "grant": "C", "revoke": "C", "merge": "C",
+        "delete": "D", "drop": "D", "truncate": "D"
+      },
+      "default": "C",
+      "tier": {
+        "pattern_map": [
+          {"arg_regex": {"arg": "sql", "pattern": "(?i)(password|ssn|credit[_ ]?card|secret|token|patients?)"}, "tier": "restricted"},
+          {"arg_regex": {"arg": "sql", "pattern": "(?i)(users?|customers?|accounts?|payment|email|salary)"}, "tier": "confidential"}
+        ],
+        "default": "internal"
+      },
+      "target": "gcp-db://{sql}",
+      "capability": ["R", "M", "A", "C", "D"]
+    }
+  ]
+}

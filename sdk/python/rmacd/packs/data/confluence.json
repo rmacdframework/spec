@@ -1,0 +1,37 @@
+{
+  "pack": "confluence",
+  "version": "1.0.0",
+  "description": "RMACD classification for the Confluence MCP server (Atlassian). Free-text wiki pages frequently hold sensitive data — pair with redaction/egress controls.",
+  "default_operation": "C",
+  "provenance": {"authored_by": "rmacd", "llm_assisted": true, "review_status": "ai-drafted"},
+  "resolvers": [
+    {"name": "confluence_space_tier", "description": "Resolve a Confluence space key to its data classification", "fail_closed_default": "confidential"}
+  ],
+  "rules": [
+    {
+      "id": "confluence-read",
+      "when": {"tool": ["confluence_search", "confluence_get_page", "confluence_get_space", "confluence_list_pages", "confluence_get_comments"]},
+      "classify": {"operation": "R", "tier": {"resolver": "confluence_space_tier", "from": "space_key", "default": "internal"}, "target": "confluence://{space_key}/{page_id}"}
+    },
+    {
+      "id": "confluence-add",
+      "when": {"tool": ["confluence_create_page", "confluence_add_comment", "confluence_add_attachment"]},
+      "classify": {"operation": "A", "tier": {"resolver": "confluence_space_tier", "from": "space_key", "default": "internal"}, "target": "confluence://{space_key}"}
+    },
+    {
+      "id": "confluence-move",
+      "when": {"tool": "confluence_move_page"},
+      "classify": {"operation": "M", "tier": {"resolver": "confluence_space_tier", "from": "target_space_key", "default": "internal"}, "target": "confluence://{page_id}->{target_space_key}"}
+    },
+    {
+      "id": "confluence-change",
+      "when": {"tool": ["confluence_update_page", "confluence_edit_comment"]},
+      "classify": {"operation": "C", "tier": {"resolver": "confluence_space_tier", "from": "space_key", "default": "internal"}, "target": "confluence://{space_key}/{page_id}"}
+    },
+    {
+      "id": "confluence-delete",
+      "when": {"tool": ["confluence_delete_page", "confluence_delete_comment"]},
+      "classify": {"operation": "D", "tier": {"resolver": "confluence_space_tier", "from": "space_key", "default": "confidential"}, "target": "confluence://{space_key}/{page_id}"}
+    }
+  ]
+}

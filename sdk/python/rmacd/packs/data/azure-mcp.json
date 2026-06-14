@@ -1,0 +1,53 @@
+{
+  "pack": "azure-mcp",
+  "version": "1.0.0",
+  "description": "RMACD classification for the Azure MCP Server (40+ services, namespaced azmcp_<service>_<verb> tools) plus a passthrough Azure CLI tool. Glob rules need a discovered tool list (apply_pack(tool_names=...)).",
+  "default_operation": "C",
+  "provenance": {"authored_by": "rmacd", "llm_assisted": true, "review_status": "ai-drafted"},
+  "resolvers": [
+    {"name": "azure_resource_tier", "description": "Resolve an Azure resource group / resource id to its tier", "fail_closed_default": "confidential"}
+  ],
+  "rules": [
+    {
+      "id": "az-keyvault-tier",
+      "when": {"tool": "azmcp_keyvault_*"},
+      "classify": {"tier": "restricted"}
+    },
+    {
+      "id": "az-read",
+      "when": {"tool": ["azmcp_*_list", "azmcp_*_show", "azmcp_*_get", "azmcp_*_query"]},
+      "classify": {"operation": "R", "tier": {"resolver": "azure_resource_tier", "from": "resource_group", "default": "internal"}, "target": "azure://{service}/{name}"}
+    },
+    {
+      "id": "az-add",
+      "when": {"tool": "azmcp_*_create"},
+      "classify": {"operation": "A", "tier": {"resolver": "azure_resource_tier", "from": "resource_group", "default": "internal"}, "target": "azure://{service}/{name}"}
+    },
+    {
+      "id": "az-change",
+      "when": {"tool": ["azmcp_*_update", "azmcp_*_set"]},
+      "classify": {"operation": "C", "tier": {"resolver": "azure_resource_tier", "from": "resource_group", "default": "internal"}, "target": "azure://{service}/{name}"}
+    },
+    {
+      "id": "az-delete",
+      "when": {"tool": "azmcp_*_delete"},
+      "classify": {"operation": "D", "tier": {"resolver": "azure_resource_tier", "from": "resource_group", "default": "confidential"}, "target": "azure://{service}/{name}"}
+    },
+    {
+      "id": "az-cli-passthrough",
+      "when": {"tool": ["azmcp_extension_az", "az_command"]},
+      "parse": {"arg": "command", "strip_wrappers": ["az"], "verb_prefix_delimiters": ["-"]},
+      "verb_table": {
+        "list": "R", "show": "R", "get": "R", "export": "R",
+        "create": "A", "add": "A", "import": "A", "deploy": "A",
+        "set": "C", "update": "C", "enable": "C", "disable": "C", "start": "C",
+        "stop": "C", "restart": "C", "rotate": "C", "regenerate": "C",
+        "delete": "D", "remove": "D", "purge": "D"
+      },
+      "default": "C",
+      "tier": {"resolver": "azure_resource_tier", "from": "command", "default": "internal"},
+      "target": "azure-cli://{command}",
+      "capability": ["R", "M", "A", "C", "D"]
+    }
+  ]
+}

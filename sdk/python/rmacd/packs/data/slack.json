@@ -1,0 +1,34 @@
+{
+  "pack": "slack",
+  "version": "1.0.0",
+  "description": "RMACD classification for a Slack MCP server.",
+  "default_operation": "C",
+  "provenance": {"authored_by": "rmacd", "llm_assisted": true, "review_status": "ai-drafted"},
+  "rules": [
+    {
+      "id": "slack-read",
+      "when": {"tool": ["slack_list_channels", "slack_get_channel_history", "slack_get_thread_replies", "slack_get_users", "slack_get_user_profile", "slack_search_messages"]},
+      "classify": {"operation": "R", "tier": "internal", "target": "slack://{channel_id}"}
+    },
+    {
+      "id": "slack-add",
+      "when": {"tool": ["slack_post_message", "slack_reply_to_thread", "slack_add_reaction", "slack_upload_file"]},
+      "classify": {"operation": "A", "tier": "internal", "target": "slack://{channel_id}"}
+    },
+    {
+      "id": "slack-change",
+      "when": {"tool": ["slack_update_message", "slack_set_topic", "slack_invite_user"]},
+      "classify": {"operation": "C", "tier": "internal", "target": "slack://{channel_id}"}
+    },
+    {
+      "id": "slack-delete",
+      "when": {"tool": ["slack_delete_message", "slack_remove_reaction", "slack_archive_channel"]},
+      "classify": {"operation": "D", "tier": "internal", "target": "slack://{channel_id}"}
+    },
+    {
+      "id": "slack-dm-overlay",
+      "when": {"arg_regex": {"arg": "channel_id", "pattern": "^D"}},
+      "classify": {"tier": "confidential"}
+    }
+  ]
+}

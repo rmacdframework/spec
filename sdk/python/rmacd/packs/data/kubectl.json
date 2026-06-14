@@ -1,0 +1,33 @@
+{
+  "pack": "kubectl",
+  "version": "1.0.0",
+  "description": "RMACD classification for the kubectl CLI tool.",
+  "default_operation": "C",
+  "provenance": {"authored_by": "rmacd", "llm_assisted": true, "review_status": "ai-drafted"},
+  "rules": [
+    {
+      "id": "kubectl",
+      "when": {"tool": "kubectl"},
+      "parse": {"arg": "command", "strip_wrappers": ["sudo", "env"]},
+      "verb_table": {
+        "get": "R", "describe": "R", "logs": "R", "explain": "R", "top": "R",
+        "api-resources": "R", "api-versions": "R", "config": "R", "version": "R",
+        "cluster-info": "R", "auth": "R", "diff": "R", "wait": "R",
+        "cp": "A", "create": "A", "run": "A", "expose": "A",
+        "apply": "C", "edit": "C", "patch": "C", "set": "C", "scale": "C",
+        "rollout": "C", "label": "C", "annotate": "C", "cordon": "C",
+        "uncordon": "C", "drain": "C", "taint": "C", "exec": "C", "replace": "C",
+        "delete": "D"
+      },
+      "default": "C",
+      "tier": {
+        "pattern_map": [
+          {"arg_regex": {"arg": "command", "pattern": "(-n\\s+prod|--namespace[= ]prod|namespace=prod|secret)"}, "tier": "confidential"}
+        ],
+        "default": "internal"
+      },
+      "target": "k8s://{command}",
+      "capability": ["R", "M", "A", "C", "D"]
+    }
+  ]
+}

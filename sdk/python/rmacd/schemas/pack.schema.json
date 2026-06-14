@@ -141,6 +141,11 @@
           "type": "string",
           "enum": ["first", "last"],
           "description": "Which split token to use as the verb (with delimiter)."
+        },
+        "verb_prefix_delimiters": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "When a token does not match the verb_table directly, also try its prefix before any of these delimiters (e.g. [\"-\"] so \"describe-instances\" matches \"describe\")."
         }
       }
     },

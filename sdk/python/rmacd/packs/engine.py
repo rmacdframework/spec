@@ -206,8 +206,27 @@ def _rule_operation(rule: Rule, args: Mapping[str, Any]) -> str | None:
     if rule.verb_table is not None:
         value = _get_arg(args, rule.parse.arg) if rule.parse is not None else None
         tokens = _verb_tokens(value, rule.parse) if isinstance(value, str) else []
-        matched = [rule.verb_table[t] for t in tokens if t in rule.verb_table]
+        delims = rule.parse.verb_prefix_delimiters if rule.parse is not None else []
+        matched = [op for t in tokens if (op := _match_verb(t, rule.verb_table, delims))]
         return _max_op(matched) or rule.default
+    return None
+
+
+def _match_verb(token: str, verb_table: Mapping[str, str], delims: list[str]) -> str | None:
+    """Match a token against the verb table, optionally by prefix before a delimiter.
+
+    Matching is case-insensitive (verb tables are lowercase by convention, so SQL
+    ``SELECT`` matches ``select``). A direct hit wins; otherwise the token's prefix
+    before any configured delimiter is tried (so ``describe-instances`` matches a
+    ``describe`` verb).
+    """
+    t = token.lower()
+    if t in verb_table:
+        return verb_table[t]
+    for d in delims:
+        prefix = t.split(d, 1)[0]
+        if prefix and prefix in verb_table:
+            return verb_table[prefix]
     return None
 
 

@@ -1,0 +1,32 @@
+{
+  "pack": "github",
+  "version": "1.0.0",
+  "description": "RMACD classification for the GitHub CLI (gh).",
+  "default_operation": "C",
+  "provenance": {"authored_by": "rmacd", "llm_assisted": true, "review_status": "ai-drafted"},
+  "rules": [
+    {
+      "id": "gh-cli",
+      "when": {"tool": "gh"},
+      "parse": {"arg": "command", "strip_wrappers": ["sudo", "env"]},
+      "verb_table": {
+        "list": "R", "view": "R", "status": "R", "diff": "R", "checks": "R",
+        "browse": "R", "search": "R", "clone": "R", "checkout": "R", "download": "R",
+        "create": "A", "fork": "A", "add": "A", "comment": "C", "edit": "C",
+        "merge": "C", "close": "C", "reopen": "C", "ready": "C", "rename": "C",
+        "lock": "C", "unlock": "C", "pin": "C", "transfer": "C", "set": "C",
+        "set-default": "C", "sync": "C", "push": "C", "rerun": "C", "approve": "C",
+        "delete": "D", "remove": "D"
+      },
+      "default": "C",
+      "tier": {
+        "pattern_map": [
+          {"arg_regex": {"arg": "command", "pattern": "(secret|token|key|password|credential)"}, "tier": "confidential"}
+        ],
+        "default": "internal"
+      },
+      "target": "github://{command}",
+      "capability": ["R", "M", "A", "C", "D"]
+    }
+  ]
+}
