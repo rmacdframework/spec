@@ -23,6 +23,18 @@ Author: Kash Kashyap
 License: CC BY 4.0
 """
 
+from rmacd.packs.engine import (
+    ClassificationResult,
+    DeclarativeClassifier,
+    ResolverContext,
+    ResolverFn,
+    ResolverLookup,
+    capability_for,
+    classify_call,
+    clear_resolvers,
+    get_resolvers,
+    register_resolver,
+)
 from rmacd.packs.models import (
     ArgRegex,
     ArgvContains,
@@ -67,4 +79,15 @@ __all__ = [
     "validate_pack_file",
     "is_valid_pack",
     "get_schema",
+    # engine
+    "DeclarativeClassifier",
+    "classify_call",
+    "capability_for",
+    "ClassificationResult",
+    "ResolverContext",
+    "ResolverFn",
+    "ResolverLookup",
+    "register_resolver",
+    "get_resolvers",
+    "clear_resolvers",
 ]
