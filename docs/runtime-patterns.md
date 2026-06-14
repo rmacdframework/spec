@@ -257,6 +257,13 @@ tool. See `framework-adapters.md` → *Auto-classifying MCP tools*. Both are
 advisory inputs at registration time; runtime enforcement stays
 deterministic.
 
+**Governance Packs (SDK ≥ 0.11.0)** package this classification as reusable,
+signable data: `load_packs([...])` builds the enforcer's registry from built-in
+or authored packs so onboarding is configuration, not per-integration classifier
+code. The runtime classifier a pack compiles to is fully deterministic — the LLM
+is used only at authoring time (`rmacd classify`). See
+[`governance-packs/`](governance-packs/).
+
 ---
 
 ## 5. Approval-wait semantics for LLM agents

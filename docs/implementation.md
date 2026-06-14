@@ -165,6 +165,37 @@ Classification engines available at tool-registration time:
 
 ---
 
+## Governance Packs (SDK 0.11.0, recommended)
+
+Rather than hand-writing classification per integration, populate the enforcer's
+registry from **governance packs** (`rmacd.packs`) — declarative, reusable,
+signable artifacts that map a tool call to RMACD terms as data:
+
+```python
+from rmacd import PolicyEnforcer
+from rmacd.packs import load_packs
+
+enforcer = PolicyEnforcer(
+    profile, agent_id="agent-1",
+    registry=load_packs(["aws", "kubectl", "github", "sql", "jira"]),
+)
+```
+
+- **19 built-in packs** load by name (cloud CLIs, dev tools, and MCP servers for
+  Slack/Drive/Jira/Confluence/Postgres/Microsoft 365 + AWS/Azure/GCP).
+- **Author your own** with the AI-compile workflow: `rmacd classify <tools.json>`
+  → `rmacd pack review` → `rmacd pack sign` (Ed25519, `[sign]` extra) →
+  `rmacd pack verify` / `rmacd pack diff` (drift). The LLM runs only at authoring
+  time; runtime classification is fully deterministic.
+- Built-in packs are AI-drafted starting points — **review and sign** before
+  production trust.
+
+See [docs/governance-packs/](governance-packs/) for the full design, roadmap, and
+authoring guide, and the runnable
+[`examples/governance-packs-quickstart/`](../examples/governance-packs-quickstart/).
+
+---
+
 ## Need Help?
 
 - Email: contact@rmacd-framework.org

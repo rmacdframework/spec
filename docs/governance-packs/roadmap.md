@@ -1,12 +1,13 @@
 # Governance Packs — Delivery Roadmap
 
-**Status:** Proposed. Target release: `rmacd-framework` 0.11.0. Companion
+**Status:** Delivered in `rmacd-framework` 0.11.0 (Phases 0–6). Companion
 documents: [README](README.md), [design](design.md), [authoring guide](authoring-guide.md).
 
-This roadmap sequences the work into seven phases. Each phase is independently
-reviewable and leaves the SDK in a shippable state. The ordering front-loads the
-foundation and validates the declarative language against the hardest known case
-(`shell`) before investing in breadth.
+This roadmap sequenced the work into seven phases. Each phase was independently
+reviewable and left the SDK in a shippable state; the ordering front-loaded the
+foundation and validated the declarative language against the hardest known case
+(`shell`) before investing in breadth. All phases are implemented and tested
+(see `rmacd.packs` and the `tests/test_packs_*.py` suites).
 
 ---
 

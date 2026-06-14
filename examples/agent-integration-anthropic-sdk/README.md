@@ -1,5 +1,12 @@
 # RMACD ↔ raw Anthropic SDK reference integration
 
+> **Note (SDK 0.11.0):** this example hand-writes a classifier to show the full
+> mechanics. New integrations can skip that code and get classification from
+> **Governance Packs** — `registry=load_packs([...])` — see
+> [`docs/governance-packs/`](../../docs/governance-packs/) and
+> [`examples/governance-packs-quickstart/`](../governance-packs-quickstart/).
+> The enforcement wiring (the tool-use dispatch loop) is unchanged.
+
 The same RMACD enforcement pattern as the Claude Agent SDK example, but
 without any framework — just the `anthropic` Python SDK and a hand-rolled
 tool-use loop. The integration point is between receiving a `tool_use`

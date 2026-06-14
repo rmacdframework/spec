@@ -2,7 +2,8 @@
 
 **Companion to:** `runtime-patterns.md` (this doc is the framework-specific
 cookbook). Targets SDK ≥ 0.8.0 (registry-backed `enforce_tool_call`);
-the MCP auto-classification section targets ≥ 0.10.0.
+the MCP auto-classification section targets ≥ 0.10.0; Governance Packs
+(`load_packs`, see below) target ≥ 0.11.0.
 
 Two reference integrations ship as full runnable examples:
 

@@ -1,5 +1,10 @@
 # DC2D customer-support demo
 
+> **Note (SDK 0.11.0):** for classifying an agent's *tool surface*, see
+> **Governance Packs** (`load_packs([...])`) in
+> [`docs/governance-packs/`](../../docs/governance-packs/). This demo focuses on
+> the DC2D redaction/egress controls, which compose with packs.
+
 Runnable demonstration of the two DC2D-specific control surfaces:
 
 - **Redaction** — output masking and tokenization applied after access is

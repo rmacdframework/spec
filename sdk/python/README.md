@@ -15,6 +15,9 @@ pip install rmacd-framework
 # With optional LLM-assisted tool classification (Anthropic SDK)
 pip install "rmacd-framework[llm]"
 
+# With optional governance-pack signing (Ed25519 via cryptography)
+pip install "rmacd-framework[sign]"
+
 # Or from source
 git clone https://github.com/rmacdframework/spec.git
 cd spec/sdk/python
@@ -213,6 +216,44 @@ See [framework adapters](../../docs/framework-adapters.md) for wiring this
 into Claude Agent SDK, OpenAI Agents SDK, Microsoft Agent Framework, LangChain,
 AutoGen, and CrewAI, and [runtime patterns](../../docs/runtime-patterns.md)
 for the surrounding architecture.
+
+## Governance Packs (SDK 0.11.0)
+
+Instead of hand-writing a classifier for each tool, get classification from a
+**governance pack** (`rmacd.packs`) — a declarative, reusable, signable artifact
+that maps a tool call to RMACD terms `(operation, data tier, target)` as data.
+Build the enforcer's registry from packs in one line:
+
+```python
+from rmacd import PolicyEnforcer
+from rmacd.packs import load_packs
+
+enforcer = PolicyEnforcer(
+    profile, agent_id="agent-1",
+    registry=load_packs(["aws", "kubectl", "github", "sql", "jira"]),
+)
+enforcer.enforce_tool_call("kubectl", {"command": "delete pod web -n prod"})
+```
+
+19 built-in packs ship with the SDK (`shell`, `aws`, `gcloud`, `az`, `kubectl`,
+`github`, `gitlab`, `sql`, `filesystem`, `jira`, `confluence`, `slack`,
+`google-drive`, `postgres`, `boto3`, `aws-api-mcp`, `azure-mcp`, `gcp-toolbox`,
+`ms365`) and load by name. Runtime stays deterministic — packs only feed the
+evaluator; the §12.5 floor, profile, and capability ceiling still gate.
+
+Author, review, and sign a pack for a new server (the LLM runs only here, never
+at enforcement time):
+
+```bash
+rmacd classify tools.json -n my-server -o my-server.yaml  # AI-compile a draft
+rmacd pack review my-server.yaml                           # eyeball the uncertain tail
+rmacd pack sign  my-server.yaml -k signing.pem            # freeze + Ed25519 sign ([sign] extra)
+rmacd pack verify my-server.yaml -k signing.pub           # gate trust in CI/prod
+rmacd pack diff  my-server.yaml tools.json                # detect drift later
+```
+
+Built-in packs are **AI-drafted starting points** — review and sign before
+production use. Full guide: [docs/governance-packs/](../../docs/governance-packs/).
 
 ## Tools Registry
 

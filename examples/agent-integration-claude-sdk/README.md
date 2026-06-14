@@ -1,5 +1,12 @@
 # RMACD ↔ Claude Agent SDK reference integration
 
+> **Note (SDK 0.11.0):** this example hand-writes a classifier to show the full
+> mechanics. New integrations can skip that code and get classification from
+> **Governance Packs** — `registry=load_packs([...])` — see
+> [`docs/governance-packs/`](../../docs/governance-packs/) and
+> [`examples/governance-packs-quickstart/`](../governance-packs-quickstart/).
+> The enforcement wiring (the `PreToolUse` hook) is unchanged.
+
 A runnable end-to-end example showing an RMACD-governed agent built on the
 [Claude Agent SDK for Python](https://github.com/anthropics/claude-agent-sdk-python).
 Every tool the agent calls is intercepted by a Policy Enforcement Point that

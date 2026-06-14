@@ -1,6 +1,6 @@
 # Governance Packs — Technical Design
 
-**Status:** Proposed (SDK 0.11.0). Companion documents:
+**Status:** Implemented in SDK 0.11.0 (`rmacd.packs`). Companion documents:
 [README](README.md), [roadmap](roadmap.md), [authoring guide](authoring-guide.md).
 
 ---
