@@ -144,6 +144,7 @@ class Provenance(BaseModel):
     authored_by: str | None = None
     llm_assisted: bool | None = None
     reviewed_by: str | None = None
+    review_status: str | None = None
     source_hash: str | None = None
 
 

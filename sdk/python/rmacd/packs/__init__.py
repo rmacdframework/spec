@@ -23,6 +23,7 @@ Author: Kash Kashyap
 License: CC BY 4.0
 """
 
+from rmacd.packs.compile import compile_pack, review_items
 from rmacd.packs.engine import (
     ClassificationResult,
     DeclarativeClassifier,
@@ -103,4 +104,7 @@ __all__ = [
     "apply_pack",
     "exact_tool_names",
     "builtin_pack_names",
+    # AI-compile authoring
+    "compile_pack",
+    "review_items",
 ]

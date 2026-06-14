@@ -219,6 +219,115 @@ def cmd_matrix(args: argparse.Namespace) -> int:
     return 0
 
 
+def _read_tool_source(path: str) -> list[dict[str, Any]]:
+    """Read an MCP ``tools/list`` response (or a bare tool list) from a JSON file."""
+    data = json.loads(Path(path).read_text(encoding="utf-8"))
+    if isinstance(data, dict) and isinstance(data.get("tools"), list):
+        tools: list[dict[str, Any]] = data["tools"]
+        return tools
+    if isinstance(data, list):
+        return data
+    raise ValueError("source must be an MCP tools/list response or a JSON list of tools")
+
+
+def _write_pack(pack: Any, out_path: str) -> None:
+    p = Path(out_path)
+    if p.suffix.lower() in (".yaml", ".yml"):
+        import yaml
+
+        p.write_text(yaml.safe_dump(pack.to_dict(), sort_keys=False), encoding="utf-8")
+    else:
+        p.write_text(pack.to_json(), encoding="utf-8")
+
+
+def cmd_classify(args: argparse.Namespace) -> int:
+    """AI-compile a governance pack from a tool source (MCP tools/list, etc.)."""
+    from rmacd.packs.compile import compile_pack, review_items
+
+    try:
+        tools = _read_tool_source(args.source)
+    except (OSError, ValueError, json.JSONDecodeError) as e:
+        print(f"ERROR: {e}", file=sys.stderr)
+        return 1
+
+    llm = None
+    if args.llm:
+        try:
+            from rmacd.registry.llm import LLMToolClassifier
+
+            llm = LLMToolClassifier()
+        except ImportError as e:
+            print(f"ERROR: {e}", file=sys.stderr)
+            return 1
+
+    pack = compile_pack(
+        tools,
+        pack_name=args.name,
+        version=args.pack_version,
+        llm_classifier=llm,
+        llm_mode=args.llm_mode,
+    )
+
+    if args.output:
+        _write_pack(pack, args.output)
+        print(f"Wrote {args.output} ({len(pack.rules)} rules)")
+    else:
+        print(pack.to_json())
+
+    items = review_items(pack)
+    if items:
+        print(
+            f"\n{len(items)} rule(s) need review before signing "
+            "(low-confidence or delete-capable):",
+            file=sys.stderr,
+        )
+        for it in items:
+            print(f"  - {it['id']} [{it['operation']}] {it['reason']}", file=sys.stderr)
+    return 0
+
+
+def cmd_pack_validate(args: argparse.Namespace) -> int:
+    """Validate a governance pack against the pack schema."""
+    from rmacd.packs import PackValidationError, load_pack
+
+    try:
+        load_pack(args.pack)
+        print(f"VALID: {args.pack}")
+        return 0
+    except PackValidationError as e:
+        print(f"INVALID: {args.pack}", file=sys.stderr)
+        for error in e.errors:
+            print(f"  - {error}", file=sys.stderr)
+        return 1
+    except (OSError, ValueError, FileNotFoundError) as e:
+        print(f"ERROR: {e}", file=sys.stderr)
+        return 1
+
+
+def cmd_pack_review(args: argparse.Namespace) -> int:
+    """List the rules in a pack that warrant human review."""
+    from rmacd.packs import load_pack
+    from rmacd.packs.compile import review_items
+
+    try:
+        pack = load_pack(args.pack)
+    except Exception as e:  # noqa: BLE001 - surface any load error to the CLI user
+        print(f"ERROR: {e}", file=sys.stderr)
+        return 1
+
+    items = review_items(pack)
+    status = getattr(pack.provenance, "review_status", None) if pack.provenance else None
+    print(f"{pack.pack} v{pack.version}: {len(pack.rules)} rules, {len(items)} need review")
+    if status:
+        print(f"review status: {status}")
+    for it in items:
+        print(
+            f"  - {it['id']}: operation={it['operation']} "
+            f"confidence={it['confidence']} ({it['reason']})"
+        )
+    return 0
+
+
 def main() -> int:
     """Main entry point for the CLI."""
     parser = argparse.ArgumentParser(
@@ -278,17 +387,60 @@ def main() -> int:
         "--json", action="store_true", help="Output as JSON"
     )
 
+    # classify command (AI-compile a governance pack)
+    classify_parser = subparsers.add_parser(
+        "classify", help="AI-compile a governance pack from a tool source"
+    )
+    classify_parser.add_argument(
+        "source", help="MCP tools/list JSON (or a JSON list of tool definitions)"
+    )
+    classify_parser.add_argument("-n", "--name", required=True, help="Pack name")
+    classify_parser.add_argument(
+        "-o", "--output", help="Output pack file (.json or .yaml); prints to stdout if omitted"
+    )
+    classify_parser.add_argument(
+        "--pack-version", default="0.1.0", help="Pack version (default: 0.1.0)"
+    )
+    classify_parser.add_argument(
+        "--llm", action="store_true", help="Use the LLM classifier (needs the [llm] extra)"
+    )
+    classify_parser.add_argument(
+        "--llm-mode", choices=["fallback", "always"], default="fallback",
+        help="When to consult the LLM (default: fallback)",
+    )
+
+    # pack command group
+    pack_parser = subparsers.add_parser("pack", help="Author/validate governance packs")
+    pack_sub = pack_parser.add_subparsers(dest="pack_command", help="Pack subcommands")
+
+    pack_validate = pack_sub.add_parser("validate", help="Validate a pack against the schema")
+    pack_validate.add_argument("pack", help="Pack file to validate")
+
+    pack_review = pack_sub.add_parser("review", help="List rules that warrant human review")
+    pack_review.add_argument("pack", help="Pack file to review")
+
     args = parser.parse_args()
 
     if args.command is None:
         parser.print_help()
         return 0
 
+    if args.command == "pack":
+        pack_commands = {
+            "validate": cmd_pack_validate,
+            "review": cmd_pack_review,
+        }
+        if getattr(args, "pack_command", None) is None:
+            pack_parser.print_help()
+            return 0
+        return pack_commands[args.pack_command](args)
+
     commands = {
         "validate": cmd_validate,
         "evaluate": cmd_evaluate,
         "info": cmd_info,
         "matrix": cmd_matrix,
+        "classify": cmd_classify,
     }
 
     return commands[args.command](args)
