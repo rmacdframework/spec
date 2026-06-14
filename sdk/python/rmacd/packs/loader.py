@@ -22,6 +22,7 @@ License: CC BY 4.0
 from __future__ import annotations
 
 import json
+import logging
 from collections.abc import Iterable, Mapping
 from importlib import resources
 from pathlib import Path
@@ -141,7 +142,16 @@ def apply_pack(
     registered: list[ToolDefinition] = []
     for name in names:
         classifier = DeclarativeClassifier(pack, name, resolvers=resolvers)
-        static = classifier.resolve({})  # static defaults (no args)
+        # Static defaults (no args): silence the engine's resolver fail-closed
+        # warnings for this registration-time probe — they're expected here and
+        # only meaningful at actual call time.
+        _engine_log = logging.getLogger("rmacd.packs.engine")
+        _prev_level = _engine_log.level
+        _engine_log.setLevel(logging.ERROR)
+        try:
+            static = classifier.resolve({})
+        finally:
+            _engine_log.setLevel(_prev_level)
 
         cap_ops = capability_for(pack, name)
         capability = (

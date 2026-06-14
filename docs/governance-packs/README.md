@@ -5,8 +5,39 @@
 > signed artifact — and the AI-compile workflow drafts those packs for you,
 > subject to human review.
 
-**Status:** Proposed — SDK capability (target `rmacd-framework` 0.11.0).
+**Status:** Shipped in `rmacd-framework` 0.11.0 as the `rmacd.packs` package.
 Normative specification status deferred to a later spec revision.
+
+---
+
+## Quickstart
+
+```python
+from rmacd import PolicyEnforcer
+from rmacd.packs import load_packs
+
+# Off-the-shelf governance for an agent's tool surface — no classifier code.
+enforcer = PolicyEnforcer(
+    profile, agent_id="agent-1",
+    registry=load_packs(["aws", "kubectl", "github", "jira"]),
+)
+enforcer.enforce_tool_call("kubectl", {"command": "delete pod web -n prod"})
+```
+
+Author a pack for a new MCP server, review it, and sign it:
+
+```bash
+rmacd classify tools.json -n my-server -o my-server.yaml   # AI-compile a draft
+rmacd pack review my-server.yaml                            # eyeball the uncertain tail
+rmacd pack sign  my-server.yaml -k signing.pem             # freeze + Ed25519 sign
+rmacd pack verify my-server.yaml -k signing.pub            # gate trust in CI/prod
+rmacd pack diff  my-server.yaml tools.json                 # detect drift later
+```
+
+Built-in packs ship as data and are loadable by name (`load_pack("aws")`); they
+are **AI-drafted starting points** — review and sign them before relying on them
+in production. Signing needs the optional extra: `pip install rmacd-framework[sign]`;
+the LLM authoring path needs `pip install rmacd-framework[llm]`.
 
 ---
 

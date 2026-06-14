@@ -7,16 +7,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Docs
+### SDK 0.11.0 — Governance Packs
 
-- **Governance Packs initiative** (`docs/governance-packs/`) — design for the
-  planned SDK 0.11.0 capability: declarative, reusable, signed *governance packs*
-  that map a tool call to RMACD terms `(operation, data tier, target)` as data
-  instead of hand-written per-integration classifiers, plus an AI-compile
-  authoring workflow (propose → human review → freeze → sign). Runtime stays
-  deterministic — the §12.5 floor, agent profile, and capability ceiling remain
-  authoritative. Includes an overview, technical design, delivery roadmap, and an
-  authoring guide (worked examples: Jira/Confluence MCP, boto3, Azure MCP).
+Onboarding an agent becomes *configuration, not code*: classification is now a
+declarative, reusable, signable artifact (a **governance pack**) instead of a
+hand-written per-integration classifier. New top-level package `rmacd.packs`.
+Runtime stays 100% deterministic — packs only produce the
+`(operation, data tier, target)` input to the evaluator; the §12.5 floor, agent
+profile, and tool capability ceiling remain the authoritative gates, and the LLM
+never runs at enforcement time. Fully backward compatible; existing classifiers
+and `enforce_tool_call` are unchanged.
+
+#### Added
+
+- **Pack model & schema** — `GovernancePack` (+ `schemas/pack.schema.json`,
+  bundled), canonical JSON serialization, `content_hash`, `freeze()`/`verify_hash()`.
+- **Declarative engine** (`rmacd.packs.engine`) — tool-name selectors
+  (exact/glob/`/regex/`) + argument predicates; shell tokenization with wrapper
+  stripping and `$(...)` recursion; `verb_table` with MAX-operation combination;
+  `pattern_map`/`resolver` tier resolution (most-sensitive wins, fail-closed);
+  cross-rule combination (tier overlays); `verb_prefix_delimiters` for verb-noun
+  CLIs; case-insensitive verbs. `DeclarativeClassifier` plugs into the existing
+  `ToolClassifier` protocol.
+- **Loading & registration** — `load_pack` / `load_packs` / `apply_pack`; a
+  declarative classifier now round-trips through `ToolDefinition` export/import
+  (closes the prior "dynamic classifier dropped on serialization" gap). Resolver
+  registry (`register_resolver`) for live tier lookups, fail-closed + audit-logged.
+- **19 built-in packs** (wheel data) — `shell`, `aws`, `gcloud`, `az`, `kubectl`,
+  `github`, `gitlab`, `sql`, `filesystem`, `jira`, `confluence`, `slack`,
+  `google-drive`, `postgres`, `boto3`, `aws-api-mcp`, `azure-mcp`, `gcp-toolbox`,
+  `ms365`. (AI-drafted starting points; review + sign before production trust.)
+- **AI-compile authoring** — `compile_pack()` turns an MCP `tools/list` into a
+  proposal pack with per-rule confidence + provenance; `review_items()` surfaces
+  the uncertain/destructive tail. CLI: `rmacd classify`, `rmacd pack review`.
+- **Signing & integrity** — Ed25519 `sign_pack`/`verify_pack` (optional `[sign]`
+  extra), drift detection (`pack_drift`), and a ReDoS guard (`find_redos_risks`
+  + engine input cap). CLI: `rmacd pack sign|verify|diff|validate`.
 
 ## [1.4.0] - 2026-06-09
 

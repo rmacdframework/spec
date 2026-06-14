@@ -16,6 +16,29 @@ agent frameworks (LangChain, AutoGen, CrewAI) as concrete snippets you
 can drop into your codebase. The RMACD-side wiring is identical across
 all of them — what changes is *where* the enforcement call lands.
 
+> **Use Governance Packs to skip the classifier code.** Every snippet below
+> that hand-writes a classifier or `classifier=` lambda can instead get its
+> tool classification from a **governance pack** (`rmacd.packs`, SDK ≥ 0.11.0).
+> Build the enforcer's registry once with `load_packs([...])` and the
+> per-framework wiring reduces to "call `enforce_tool_call` at the dispatch
+> site" — no classification code at all:
+>
+> ```python
+> from rmacd import PolicyEnforcer
+> from rmacd.packs import load_packs
+>
+> enforcer = PolicyEnforcer(
+>     profile, agent_id="agent-1",
+>     registry=load_packs(["aws", "kubectl", "github", "sql", "jira"]),
+> )
+> # ...then in any framework's tool hook/middleware/callback:
+> enforcer.enforce_tool_call(tool_name, tool_args)
+> ```
+>
+> The same pack governs a LangChain, OpenAI, Claude, or AutoGen agent
+> identically. See `docs/governance-packs/`. The classifier snippets below
+> remain valid for bespoke tools not covered by a pack.
+
 ## Contents
 
 - [The pattern](#the-pattern)
