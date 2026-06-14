@@ -311,10 +311,12 @@ class ToolDefinition:
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for JSON serialization.
 
-        Note: a dynamic ``classifier`` is code and is not serialized — it must
-        be re-registered programmatically after loading from JSON.
+        A hand-written ``classifier`` *lambda* is code and is still dropped — it
+        must be re-registered programmatically after loading. A *declarative*
+        classifier (from ``rmacd.packs``) exposes ``to_spec()`` and IS serialized,
+        so a pack-backed tool round-trips losslessly.
         """
-        return {
+        data: dict[str, Any] = {
             "tool_id": self.tool_id,
             "tool_name": self.tool_name,
             "rmacd_level": self.rmacd_level.value,
@@ -329,6 +331,10 @@ class ToolDefinition:
             "target_template": self.target_template,
             "capability": self.capability.to_dict() if self.capability else None,
         }
+        to_spec = getattr(self.classifier, "to_spec", None)
+        if callable(to_spec):
+            data["classifier"] = to_spec()
+        return data
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> ToolDefinition:
@@ -347,6 +353,15 @@ class ToolDefinition:
         capability_data = data.get("capability")
         capability = ToolCapability.from_dict(capability_data) if capability_data else None
 
+        # Rebuild a *declarative* classifier from its serialized spec. Lazy import
+        # avoids a registry -> packs import cycle (packs depends on registry).
+        classifier: ToolClassifier | None = None
+        clf_spec = data.get("classifier")
+        if isinstance(clf_spec, dict) and clf_spec.get("kind") == "declarative":
+            from rmacd.packs.engine import DeclarativeClassifier
+
+            classifier = DeclarativeClassifier.from_spec(clf_spec)
+
         return cls(
             tool_id=data["tool_id"],
             tool_name=data["tool_name"],
@@ -361,6 +376,7 @@ class ToolDefinition:
             created_at=created_at,
             target_template=data.get("target_template"),
             capability=capability,
+            classifier=classifier,
         )
 
 

@@ -42,6 +42,8 @@ dev = [
     "mypy>=1.0",
     "types-jsonschema>=4.20",
     "ruff>=0.1",
+    "pyyaml>=6.0",
+    "types-pyyaml>=6.0",
 ]
 
 [project.urls]
@@ -55,9 +57,13 @@ rmacd = "rmacd.cli:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["rmacd"]
-# Bundled copies of the authoritative schemas in <repo>/schemas/;
-# tests/test_schema_sync.py fails if they drift.
-artifacts = ["rmacd/schemas/*.schema.json"]
+# Bundled copies of the authoritative schemas in <repo>/schemas/
+# (tests/test_schema_sync.py fails if they drift) and the built-in
+# governance packs shipped as data.
+artifacts = [
+    "rmacd/schemas/*.schema.json",
+    "rmacd/packs/data/*.json",
+]
 
 [tool.ruff]
 line-length = 100

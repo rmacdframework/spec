@@ -35,6 +35,13 @@ from rmacd.packs.engine import (
     get_resolvers,
     register_resolver,
 )
+from rmacd.packs.loader import (
+    apply_pack,
+    builtin_pack_names,
+    exact_tool_names,
+    load_pack,
+    load_packs,
+)
 from rmacd.packs.models import (
     ArgRegex,
     ArgvContains,
@@ -90,4 +97,10 @@ __all__ = [
     "register_resolver",
     "get_resolvers",
     "clear_resolvers",
+    # loading / registration
+    "load_pack",
+    "load_packs",
+    "apply_pack",
+    "exact_tool_names",
+    "builtin_pack_names",
 ]

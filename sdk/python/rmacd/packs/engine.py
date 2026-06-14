@@ -30,6 +30,7 @@ License: CC BY 4.0
 
 from __future__ import annotations
 
+import logging
 import re
 import shlex
 from collections.abc import Callable, Mapping, Sequence
@@ -44,6 +45,8 @@ from rmacd.packs.models import (
     Selector,
     TierSpec,
 )
+
+logger = logging.getLogger(__name__)
 
 # ----- orderings (by string value; independent of enum declaration order) ----
 _OP_RANK: dict[str, int] = {"R": 0, "M": 1, "A": 2, "C": 3, "D": 4}
@@ -245,11 +248,21 @@ def _resolve_tier(
         if result is None:
             failed = True
             result = fail_default
-        lookups.append(
-            ResolverLookup(
-                resolver=spec.resolver, arg=arg_name, value=value, result=result, failed=failed
-            )
+        lookup = ResolverLookup(
+            resolver=spec.resolver, arg=arg_name, value=value, result=result, failed=failed
         )
+        lookups.append(lookup)
+        # Audit-trail the resolution so a (non-deterministic) live lookup stays
+        # reconstructable. Failures are warned; successes logged at debug.
+        if failed:
+            logger.warning(
+                "resolver '%s' fell back to '%s' (arg %s=%r)",
+                spec.resolver, result, arg_name, value,
+            )
+        else:
+            logger.debug(
+                "resolver '%s' -> '%s' (arg %s=%r)", spec.resolver, result, arg_name, value
+            )
         candidates.append(result)
 
     if candidates:
@@ -375,6 +388,20 @@ class DeclarativeClassifier:
     ) -> tuple[str | None, str | None, str | None]:
         result = self.resolve(args)
         return (result.operation, result.tier, result.target)
+
+    # ----- serialization (self-contained; survives registry export) ----------
+    def to_spec(self) -> dict[str, Any]:
+        """A serializable, self-contained spec: the pack data + bound tool name.
+
+        Unlike a hand-written ``classifier`` lambda (which the registry drops on
+        export), a declarative classifier round-trips because it is data.
+        """
+        return {"kind": "declarative", "tool": self.tool_name, "pack": self.pack.to_dict()}
+
+    @classmethod
+    def from_spec(cls, spec: Mapping[str, Any]) -> DeclarativeClassifier:
+        """Rebuild a classifier from :meth:`to_spec` output (resolvers stay global)."""
+        return cls(GovernancePack.from_dict(spec["pack"]), spec["tool"])
 
 
 # ----- resolver registry -----------------------------------------------------
