@@ -1,0 +1,48 @@
+{
+  "pack": "gcp-iam",
+  "version": "1.0.0",
+  "description": "RMACD classification for the Google Cloud CLI focused on identity, access, and secrets (Cloud IAM, service accounts, IAM policy bindings on projects/folders/organizations, Secret Manager, and Cloud KMS). Hardens the privileged-access surface the general 'gcloud' pack treats generically: the identity surface is at least confidential, IAM policy-binding changes and secret/key access are restricted. Load this instead of 'gcloud' for agents whose role touches identity or secrets.",
+  "default_operation": "C",
+  "provenance": {"authored_by": "rmacd", "llm_assisted": true, "review_status": "ai-drafted"},
+  "rules": [
+    {
+      "id": "gcloud-general",
+      "when": {"tool": "gcloud"},
+      "parse": {"arg": "command", "strip_wrappers": ["sudo", "env"], "verb_prefix_delimiters": ["-"]},
+      "verb_table": {
+        "list": "R", "describe": "R", "get": "R", "read": "R", "lookup": "R",
+        "export": "R", "print": "R", "search": "R", "test": "R", "wait": "R",
+        "create": "A", "add": "A", "import": "A", "deploy": "A", "submit": "A",
+        "clone": "A", "copy": "A", "upload": "A",
+        "enable": "C", "disable": "C", "update": "C", "set": "C", "modify": "C",
+        "patch": "C", "replace": "C", "start": "C", "stop": "C", "restart": "C",
+        "resume": "C", "suspend": "C", "rotate": "C", "bind": "C", "unbind": "C",
+        "delete": "D", "remove": "D", "destroy": "D", "purge": "D", "cancel": "D"
+      },
+      "default": "C",
+      "tier": {
+        "pattern_map": [
+          {"arg_regex": {"arg": "command", "pattern": "(prod|prd|restricted)"}, "tier": "confidential"}
+        ],
+        "default": "internal"
+      },
+      "target": "gcp://{command}",
+      "capability": ["R", "M", "A", "C", "D"]
+    },
+    {
+      "id": "identity-surface",
+      "when": {"tool": "gcloud", "arg_regex": {"arg": "command", "pattern": "(\\biam\\b|iam-policy|service-account|\\bsecrets?\\b|\\bkms\\b|\\borganizations\\b)"}},
+      "classify": {"tier": "confidential"}
+    },
+    {
+      "id": "iam-policy-mutation",
+      "when": {"tool": "gcloud", "arg_regex": {"arg": "command", "pattern": "\\b(add-iam-policy-binding|remove-iam-policy-binding|set-iam-policy)\\b"}},
+      "classify": {"tier": "restricted"}
+    },
+    {
+      "id": "secret-and-key-access",
+      "when": {"tool": "gcloud", "arg_regex": {"arg": "command", "pattern": "(secrets\\s+versions\\s+access|\\bkms\\b.*\\b(decrypt|encrypt|destroy|disable)|service-accounts\\s+keys\\s+create|\\biam\\s+roles\\s+(create|delete|update))"}},
+      "classify": {"tier": "restricted"}
+    }
+  ]
+}

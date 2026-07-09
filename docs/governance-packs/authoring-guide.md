@@ -9,6 +9,12 @@ How to write a governance pack. Companion documents:
 > fully worked examples (Jira, boto3, Azure MCP), and the required treatment of
 > high-risk "passthrough" tools.
 
+The lifecycle this guide walks through — author (AI-assisted), review the
+uncertain tail, freeze and sign, then enforce deterministically (the LLM never
+runs at runtime):
+
+![Governance pack authoring lifecycle — AI-compile a draft, human-review low-confidence and delete-capable rules, freeze and Ed25519-sign, then enforce with no LLM on the runtime path](../RMACD_Governance_Packs.drawio.png)
+
 ---
 
 ## 1. Anatomy of a pack
@@ -139,6 +145,13 @@ concept**, not one per tool.
 Three examples, each introducing something new: **Jira** (MCP-style + resolvers),
 **boto3** (SDK-style governing a whole SDK with one verb table), and **Azure MCP**
 (large namespaced server + cross-rule tier overlay).
+
+> **Reference packs to read next.** The 22 built-in packs are worked examples in
+> their own right. For the CLI-style + `restricted`-tier pattern in particular,
+> read the three cloud-identity packs (`aws-iam`, `az-identity`, `gcp-iam`): each
+> overlays a cloud CLI and raises IAM / directory / secrets / KMS operations to
+> `restricted`, so a Change/Delete there meets the §12.5 floor. See
+> [catalog.md](catalog.md) for the full generated reference.
 
 ### 4.1 Jira (MCP-style)
 

@@ -1,7 +1,9 @@
 # Governance Packs — Delivery Roadmap
 
-**Status:** Delivered in `rmacd-framework` 0.11.0 (Phases 0–6). Companion
-documents: [README](README.md), [design](design.md), [authoring guide](authoring-guide.md).
+**Status:** Delivered in `rmacd-framework` 0.11.0 (Phases 0–6); the catalog and
+approval surface were extended in 0.12.0 (see [Post-0.11.0](#post-0110-follow-on-work)).
+Companion documents: [README](README.md), [design](design.md),
+[authoring guide](authoring-guide.md).
 
 This roadmap sequenced the work into seven phases. Each phase was independently
 reviewable and left the SDK in a shippable state; the ordering front-loaded the
@@ -61,6 +63,7 @@ wheel data with golden classification fixtures.
 |-------|-------|
 | Shell | `shell` (port `bash.py`; **build first**) |
 | Cloud CLIs | `aws`, `gcloud`, `az`, `kubectl` |
+| Cloud IAM / identity | `aws-iam`, `az-identity`, `gcp-iam` *(added in 0.12.0)* |
 | Dev tools | `github`, `gitlab`, `sql`, `filesystem` |
 | SaaS / collab MCPs | `slack`, `google-drive`, `jira`, `confluence`, `postgres` |
 | Cloud-provider MCPs | AWS `awslabs/mcp` suite (incl. the GA AWS API MCP), Azure MCP Server, Google Cloud MCP Toolbox for Databases + Cloud Run MCP |
@@ -110,6 +113,31 @@ provenance and correctly flagged low-confidence entries.
 - Version bump to SDK 0.11.0, CHANGELOG, tag `sdk-v0.11.0`, publish.
 
 **Exit criteria:** 0.11.0 published; examples run on packs.
+
+---
+
+## Post-0.11.0 follow-on work
+
+Incremental hardening delivered after the initial 0.11.0 cut. These are additive
+— no runtime or API breaks, and the determinism/§12.5 invariants are unchanged.
+
+### 0.12.0 — Cloud IAM packs + CLI approval gateway
+
+- **3 cloud-identity built-in packs** — `aws-iam`, `az-identity`, `gcp-iam` —
+  bringing the built-in catalog to **22 packs**. They overlay the corresponding
+  cloud CLI (`aws` / `az` / `gcloud`) and map the most-sensitive
+  IAM / directory / secrets / KMS operations to the `restricted` tier, so a
+  Change/Delete on those surfaces meets the §12.5 floor. Golden fixtures cover
+  every Delete/Change path; the reference catalog (`catalog.md`) is regenerated
+  from the pack data.
+- **`CLIApprovalGateway` promoted into the SDK** (`rmacd.approval`) — an
+  interactive stdin/stderr approval surface, so an approval-gated agent is
+  testable straight from `pip install` with no example glue. It fails closed on
+  EOF and joins the existing `RejectAllApprovalGateway` (default) and
+  `AutoApproveGateway`; the agent examples now import it from the SDK.
+
+**Exit criteria:** identity packs pass their golden fixtures; the SDK ships a
+ready-to-use interactive approval gateway; 0.12.0 published.
 
 ---
 

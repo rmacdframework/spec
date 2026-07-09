@@ -9,7 +9,7 @@
         <mxCell id="title" value="How RMACD Governance Packs Work" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;fontSize=22;fontStyle=1" vertex="1" parent="1">
           <mxGeometry x="40" y="20" width="1620" height="36" as="geometry" />
         </mxCell>
-        <mxCell id="subtitle" value="Author once (AI-assisted, human-approved, signed) — then enforce deterministically. SDK 0.11.0 · rmacd.packs" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;fontSize=12;fontStyle=2;fontColor=#666666" vertex="1" parent="1">
+        <mxCell id="subtitle" value="Author once (AI-assisted, human-approved, signed) — then enforce deterministically. SDK 0.12.0 · rmacd.packs" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;fontSize=12;fontStyle=2;fontColor=#666666" vertex="1" parent="1">
           <mxGeometry x="40" y="58" width="1620" height="20" as="geometry" />
         </mxCell>
 
@@ -51,8 +51,8 @@
         <mxCell id="pack" value="Governance Pack — signed data&#10;&#10;YAML / JSON · content_hash + Ed25519 signature&#10;rules: when (tool / args) → operation · data tier · target&#10;verb_table · pattern_map · resolver · capability ceiling" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D6E4F1;strokeColor=#3070b0;strokeWidth=2;fontSize=11;fontStyle=1;verticalAlign=top;spacingTop=8" vertex="1" parent="1">
           <mxGeometry x="360" y="300" width="470" height="130" as="geometry" />
         </mxCell>
-        <mxCell id="builtins" value="19 built-in packs&#10;&#10;shell · aws · gcloud · az · kubectl · github · gitlab&#10;sql · filesystem · jira · confluence · slack&#10;google-drive · postgres · boto3 · aws-api-mcp&#10;azure-mcp · gcp-toolbox · ms365" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#E8E8E8;strokeColor=#666666;fontSize=10;dashed=1;verticalAlign=top;spacingTop=8" vertex="1" parent="1">
-          <mxGeometry x="900" y="300" width="360" height="130" as="geometry" />
+        <mxCell id="builtins" value="22 built-in packs&#10;&#10;shell · aws · gcloud · az · kubectl · github · gitlab&#10;sql · filesystem · jira · confluence · slack&#10;google-drive · postgres · boto3 · aws-api-mcp&#10;azure-mcp · gcp-toolbox · ms365&#10;aws-iam · az-identity · gcp-iam" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#E8E8E8;strokeColor=#666666;fontSize=10;dashed=1;verticalAlign=top;spacingTop=8" vertex="1" parent="1">
+          <mxGeometry x="900" y="300" width="360" height="150" as="geometry" />
         </mxCell>
 
         <mxCell id="e_a5_pack" style="endArrow=classic;html=1;strokeWidth=2;exitX=0.5;exitY=1;entryX=0.7;entryY=0" edge="1" parent="1" source="a5" target="pack">

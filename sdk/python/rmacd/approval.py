@@ -12,7 +12,7 @@ approvals an integrator should subclass ``ApprovalGateway`` so the ``request``
 call internally suspends or polls — the enforcer simply waits for the
 ``ApprovalDecision`` to arrive, whether that takes 30 seconds or 30 minutes.
 
-Two reference gateways ship with the SDK:
+Three reference gateways ship with the SDK:
 
 - ``RejectAllApprovalGateway`` — used as the enforcer's default. Approvals
   always fail unless an integrator explicitly opts in to one. Failing closed
@@ -22,10 +22,17 @@ Two reference gateways ship with the SDK:
   Used in unit tests and deterministic scripted demos where the goal is
   to verify the approval *flow* fires; not appropriate where an actual
   approval decision is required.
+- ``CLIApprovalGateway`` — prompts a human operator on stdout / stdin. For
+  interactive local runs (a terminal-driven agent, a demo). Real deployments
+  route approvals to ServiceNow, Slack, PagerDuty, or a webhook by subclassing
+  ``ApprovalGateway``; the CLI gateway exists so an interactive agent is
+  testable straight from ``pip install`` with no extra glue.
 """
 
 from __future__ import annotations
 
+import sys
+import threading
 import uuid
 from datetime import datetime, timezone
 from enum import Enum
@@ -120,11 +127,77 @@ class AutoApproveGateway:
         )
 
 
+_CLI_PROMPT_LOCK = threading.Lock()
+
+_OP_NAMES = {"R": "Read", "M": "Move", "A": "Add", "C": "Change", "D": "Delete"}
+
+
+class CLIApprovalGateway:
+    """Prompt the local operator for an approval decision on stdout / stdin.
+
+    Renders the ``ApprovalRequest`` to stderr and reads ``y`` / ``n`` (with an
+    optional trailing note) from stdin. Intended for interactive local runs:
+    a terminal-driven agent or a demo. Production deployments should route
+    approvals to their own workflow system by implementing ``ApprovalGateway``.
+
+    The prompt is wrapped in a process-wide lock so concurrent tool calls don't
+    interleave their prompts on the terminal. When no stdin is available (EOF),
+    the request is denied — failing closed, consistent with the SDK's default.
+    """
+
+    def __init__(self, approver_name: str = "local-operator") -> None:
+        self.approver_name = approver_name
+
+    def request(self, req: ApprovalRequest) -> ApprovalDecision:
+        with _CLI_PROMPT_LOCK:
+            self._render(req)
+            approved, note = self._read_response()
+
+        outcome = ApprovalOutcome.APPROVED if approved else ApprovalOutcome.DENIED
+        return ApprovalDecision(
+            request_id=req.request_id,
+            outcome=outcome,
+            approver=self.approver_name,
+            decided_at=datetime.now(timezone.utc),
+            note=note or None,
+        )
+
+    @staticmethod
+    def _render(req: ApprovalRequest) -> None:
+        bar = "─" * 72
+        print(f"\n{bar}", file=sys.stderr)
+        print(f"  APPROVAL REQUIRED  ({req.autonomy_level.value})", file=sys.stderr)
+        print(bar, file=sys.stderr)
+        print(f"  Request:   {req.request_id}", file=sys.stderr)
+        print(f"  Agent:     {req.agent_id}", file=sys.stderr)
+        print(f"  Profile:   {req.profile_id}", file=sys.stderr)
+        op = req.operation.value
+        print(f"  Operation: {op}  ({_OP_NAMES.get(op, op)})", file=sys.stderr)
+        print(f"  Target:    {req.target}", file=sys.stderr)
+        if req.classification:
+            print(f"  Data tier: {req.classification.value}", file=sys.stderr)
+        if req.justification:
+            print(f"  Reason:    {req.justification}", file=sys.stderr)
+        print(bar, file=sys.stderr)
+
+    @staticmethod
+    def _read_response() -> tuple[bool, str]:
+        try:
+            raw = input("  Approve? [y/N] (optional note after a space): ").strip()
+        except EOFError:
+            return False, "no stdin available"
+        if not raw:
+            return False, ""
+        first, _, rest = raw.partition(" ")
+        return first.lower() in {"y", "yes"}, rest.strip()
+
+
 __all__ = [
     "ApprovalDecision",
     "ApprovalGateway",
     "ApprovalOutcome",
     "ApprovalRequest",
     "AutoApproveGateway",
+    "CLIApprovalGateway",
     "RejectAllApprovalGateway",
 ]

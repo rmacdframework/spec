@@ -1,7 +1,9 @@
 # Governance Packs — Technical Design
 
-**Status:** Implemented in SDK 0.11.0 (`rmacd.packs`). Companion documents:
-[README](README.md), [roadmap](roadmap.md), [authoring guide](authoring-guide.md).
+**Status:** Implemented in SDK 0.11.0 (`rmacd.packs`); catalog extended to **22
+built-in packs** in 0.12.0 (added the cloud-identity packs `aws-iam`,
+`az-identity`, `gcp-iam`). Companion documents: [README](README.md),
+[roadmap](roadmap.md), [authoring guide](authoring-guide.md).
 
 ---
 
@@ -58,6 +60,15 @@ that proposes packs for human review.
   additive.
 
 ## 3. Architecture
+
+Packs are compiled into classifiers when the registry loads; at runtime the
+enforcer gates every call against the §12.5 floor, the agent profile, and the
+tool capability ceiling. Packs sit *upstream* of that gate — they only produce
+its `(operation, tier, target)` input — and the LLM is never on the runtime path:
+
+![RMACD runtime architecture — governance packs populate the registry that the PolicyEnforcer gates against, deterministically](../RMACD_Runtime_Architecture.drawio.png)
+
+The two-part flow in the abstract:
 
 ```
    ┌──────────── AUTHORING (build time, AI-assisted) ────────────┐

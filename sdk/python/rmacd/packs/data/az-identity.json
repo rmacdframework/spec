@@ -1,0 +1,48 @@
+{
+  "pack": "az-identity",
+  "version": "1.0.0",
+  "description": "RMACD classification for the Azure CLI focused on identity, access, and secrets (Entra ID via 'az ad', RBAC 'az role', managed identities, and Key Vault). Hardens the privileged-access surface the general 'az' pack treats generically: the identity surface is at least confidential, RBAC/Entra mutations and Key Vault secret/key/certificate access are restricted. Load this instead of 'az' for agents whose role touches identity or secrets.",
+  "default_operation": "C",
+  "provenance": {"authored_by": "rmacd", "llm_assisted": true, "review_status": "ai-drafted"},
+  "rules": [
+    {
+      "id": "az-general",
+      "when": {"tool": "az"},
+      "parse": {"arg": "command", "strip_wrappers": ["sudo", "env"], "verb_prefix_delimiters": ["-"]},
+      "verb_table": {
+        "list": "R", "show": "R", "get": "R", "export": "R", "check": "R",
+        "wait": "R", "download": "R", "preview": "R",
+        "create": "A", "add": "A", "import": "A", "deploy": "A", "upload": "A",
+        "clone": "A", "copy": "A",
+        "set": "C", "update": "C", "modify": "C", "configure": "C",
+        "enable": "C", "disable": "C", "start": "C", "stop": "C", "restart": "C",
+        "renew": "C", "rotate": "C", "regenerate": "C", "assign": "C", "reset": "C",
+        "delete": "D", "remove": "D", "purge": "D", "destroy": "D", "cancel": "D"
+      },
+      "default": "C",
+      "tier": {
+        "pattern_map": [
+          {"arg_regex": {"arg": "command", "pattern": "(prod|prd|restricted)"}, "tier": "confidential"}
+        ],
+        "default": "internal"
+      },
+      "target": "azure://{command}",
+      "capability": ["R", "M", "A", "C", "D"]
+    },
+    {
+      "id": "identity-surface",
+      "when": {"tool": "az", "arg_regex": {"arg": "command", "pattern": "^\\s*(role|ad|keyvault|identity|managed-identity|account)\\b"}},
+      "classify": {"tier": "confidential"}
+    },
+    {
+      "id": "identity-mutation",
+      "when": {"tool": "az", "arg_regex": {"arg": "command", "pattern": "^\\s*(role|ad|identity|managed-identity)\\b.*\\b(create|update|delete|set|assign|add|remove|reset|regenerate|renew|rotate)\\b"}},
+      "classify": {"tier": "restricted"}
+    },
+    {
+      "id": "keyvault-secret-access",
+      "when": {"tool": "az", "arg_regex": {"arg": "command", "pattern": "^\\s*keyvault\\s+(secret|key|certificate)\\b"}},
+      "classify": {"tier": "restricted"}
+    }
+  ]
+}

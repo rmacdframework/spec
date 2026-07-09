@@ -107,6 +107,7 @@ Governance Packs remove that tax.
 |--------|-------|
 | Shell | `shell` (reference; ports the existing `bash.py`) |
 | Cloud CLIs | `aws`, `gcloud`, `az`, `kubectl` |
+| Cloud IAM / identity | `aws-iam`, `az-identity`, `gcp-iam` |
 | Dev tools | `github`, `gitlab`, `sql`, `filesystem` |
 | SaaS / collab MCPs | `slack`, `google-drive`, `jira`, `confluence`, `postgres` |
 | Cloud-provider MCPs | AWS `awslabs/mcp` suite (incl. AWS API MCP), Azure MCP Server, Google Cloud MCP Toolbox for Databases + Cloud Run MCP |
@@ -117,6 +118,9 @@ plus the dominant enterprise productivity suite, out of the box.
 
 ## Document map
 
+- **[catalog.md](catalog.md)** — reference catalog of all 22 built-in packs:
+  the tools each governs, how operations and data tiers are derived, the target
+  template, and the capability ceiling. Generated from the pack data.
 - **[design.md](design.md)** — technical design: the pack format, the rule
   language, the runtime engine, SDK integration, the security model.
 - **[roadmap.md](roadmap.md)** — phased delivery plan, scope, and success

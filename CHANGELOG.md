@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### SDK 0.12.0 — Cloud IAM packs + CLI approval gateway
+
+Additive release on top of 0.11.0. No runtime or API breaks; determinism and the
+§12.5 floor are unchanged.
+
+#### Added
+
+- **3 cloud-identity built-in packs** (wheel data) — `aws-iam`, `az-identity`,
+  `gcp-iam` — bringing the built-in catalog to **22 packs**. These govern IAM /
+  directory / secrets surfaces and map their most-sensitive operations to the
+  `restricted` tier. (AI-drafted starting points; review + sign before
+  production trust.)
+- **`CLIApprovalGateway`** promoted into the SDK (`rmacd.approval`, exported from
+  `rmacd`) — a ready-to-use interactive stdin/stderr approval surface, so an
+  approval-gated agent is testable straight from `pip install` with no extra
+  glue. Joins the existing `RejectAllApprovalGateway` (default) and
+  `AutoApproveGateway`; fails closed on EOF. The agent examples now import it
+  from the SDK instead of carrying a local copy.
+
+#### Docs
+
+- Corrected the built-in pack count (19 → 22) across the README, SDK README,
+  implementation guide, governance-packs docs, spec v1.4 SDK-updates note, and
+  both architecture diagrams.
+
 ### SDK 0.11.0 — Governance Packs
 
 Onboarding an agent becomes *configuration, not code*: classification is now a

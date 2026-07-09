@@ -75,10 +75,9 @@ from claude_agent_sdk import (  # noqa: E402
     create_sdk_mcp_server,
 )
 
-from rmacd import PolicyEnforcer, ProfileLoader
+from rmacd import CLIApprovalGateway, PolicyEnforcer, ProfileLoader
 from rmacd.audit import JSONLAuditLogger
 
-from rmacd_demo.cli_gateway import CLIApprovalGateway
 from rmacd_demo.hook import make_pretool_hook
 from rmacd_demo.registry import build_registry
 from rmacd_demo.tools import ALL_TOOLS

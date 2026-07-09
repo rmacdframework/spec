@@ -98,7 +98,6 @@ exception handling) is identical — only the dispatch surface differs.
 ├── agent.py                   # Entry point: TOOLS list + dispatch_tool + run_agent loop
 ├── infra.py                   # Mock fleet (shared pattern with the Claude Agent SDK example)
 ├── classifier.py              # (tool_name, args) → (op, target, tier) — flat-layout variant
-├── cli_gateway.py             # CLI ApprovalGateway (same as the other example)
 ├── system_prompt.md           # Self-restriction prompt
 └── audit.jsonl                # Written on first run
 ```

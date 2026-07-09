@@ -1,0 +1,56 @@
+{
+  "pack": "aws-iam",
+  "version": "1.0.0",
+  "description": "RMACD classification for the AWS CLI focused on identity, access, and secrets (IAM, STS, SSO/Identity Center, Organizations, Secrets Manager, KMS). Hardens the privileged-access surface that the general 'aws' pack treats generically: the whole identity surface is at least confidential, privileged identity mutations and secret/credential access are restricted. Load this instead of 'aws' for agents whose role touches identity or secrets.",
+  "default_operation": "C",
+  "provenance": {"authored_by": "rmacd", "llm_assisted": true, "review_status": "ai-drafted"},
+  "rules": [
+    {
+      "id": "aws-general",
+      "when": {"tool": "aws"},
+      "parse": {"arg": "command", "strip_wrappers": ["sudo", "env"], "verb_prefix_delimiters": ["-"]},
+      "verb_table": {
+        "describe": "R", "get": "R", "list": "R", "ls": "R", "head": "R",
+        "lookup": "R", "search": "R", "view": "R", "show": "R", "scan": "R",
+        "query": "R", "select": "R", "estimate": "R", "wait": "R", "help": "R",
+        "generate": "R", "simulate": "R",
+        "mv": "M",
+        "cp": "A", "create": "A", "run": "A", "register": "A", "add": "A",
+        "allocate": "A", "request": "A", "import": "A", "upload": "A",
+        "provision": "A", "copy": "A", "publish": "A",
+        "sync": "C", "put": "C", "update": "C", "modify": "C", "set": "C",
+        "attach": "C", "detach": "C", "associate": "C", "disassociate": "C",
+        "enable": "C", "disable": "C", "start": "C", "stop": "C", "reboot": "C",
+        "tag": "C", "untag": "C", "configure": "C", "restore": "C", "reset": "C",
+        "rotate": "C", "assume": "C",
+        "delete": "D", "terminate": "D", "remove": "D", "deregister": "D",
+        "release": "D", "revoke": "D", "cancel": "D", "purge": "D", "rm": "D",
+        "destroy": "D"
+      },
+      "default": "C",
+      "tier": {
+        "pattern_map": [
+          {"arg_regex": {"arg": "command", "pattern": "(prod|prd|-pii|restricted)"}, "tier": "confidential"}
+        ],
+        "default": "internal"
+      },
+      "target": "aws://{command}",
+      "capability": ["R", "M", "A", "C", "D"]
+    },
+    {
+      "id": "identity-surface",
+      "when": {"tool": "aws", "arg_regex": {"arg": "command", "pattern": "^\\s*(iam|sts|sso|sso-admin|identitystore|organizations|account|secretsmanager|kms)\\b"}},
+      "classify": {"tier": "confidential"}
+    },
+    {
+      "id": "identity-mutation",
+      "when": {"tool": "aws", "arg_regex": {"arg": "command", "pattern": "^\\s*(iam|sso|sso-admin|identitystore|organizations)\\b.*\\b(create|update|delete|attach|detach|put|remove|add|deactivate|activate|reset|set|enable|disable|tag|untag)\\b"}},
+      "classify": {"tier": "restricted"}
+    },
+    {
+      "id": "credential-and-secret-access",
+      "when": {"tool": "aws", "arg_regex": {"arg": "command", "pattern": "\\b(get-secret-value|put-secret-value|create-secret|update-secret|delete-secret|restore-secret|get-session-token|assume-role|get-federation-token|create-access-key|update-access-key|create-login-profile|update-login-profile|reset-service-specific-credential|decrypt|encrypt|re-encrypt|generate-data-key|schedule-key-deletion)\\b"}},
+      "classify": {"tier": "restricted"}
+    }
+  ]
+}

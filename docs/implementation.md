@@ -181,8 +181,8 @@ enforcer = PolicyEnforcer(
 )
 ```
 
-- **19 built-in packs** load by name (cloud CLIs, dev tools, and MCP servers for
-  Slack/Drive/Jira/Confluence/Postgres/Microsoft 365 + AWS/Azure/GCP).
+- **22 built-in packs** load by name (cloud CLIs, cloud IAM/identity, dev tools,
+  and MCP servers for Slack/Drive/Jira/Confluence/Postgres/Microsoft 365 + AWS/Azure/GCP).
 - **Author your own** with the AI-compile workflow: `rmacd classify <tools.json>`
   → `rmacd pack review` → `rmacd pack sign` (Ed25519, `[sign]` extra) →
   `rmacd pack verify` / `rmacd pack diff` (drift). The LLM runs only at authoring

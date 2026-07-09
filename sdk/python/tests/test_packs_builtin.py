@@ -20,6 +20,7 @@ EXPECTED_PACKS = {
     "github", "gitlab", "sql", "filesystem",
     "jira", "confluence", "slack", "google-drive", "postgres",
     "boto3", "aws-api-mcp", "azure-mcp", "gcp-toolbox", "ms365",
+    "aws-iam", "az-identity", "gcp-iam",
 }
 
 
@@ -129,6 +130,30 @@ GOLDEN: list[tuple[str, str, dict, str, str | None]] = [
     ("ms365", "get_message", {"id": "m1"}, "R", "confidential"),
     ("ms365", "delete_event", {"id": "e1"}, "D", "confidential"),
     ("ms365", "send_mail", {"id": "x"}, "A", "confidential"),
+    # aws-iam (identity/secrets overlay on the aws CLI)
+    ("aws-iam", "aws", {"command": "ec2 describe-instances"}, "R", "internal"),
+    ("aws-iam", "aws", {"command": "iam list-users"}, "R", "confidential"),
+    ("aws-iam", "aws", {"command": "iam delete-user --user-name x"}, "D", "restricted"),
+    ("aws-iam", "aws", {"command": "iam attach-user-policy --user-name x --policy-arn a"},
+     "C", "restricted"),
+    ("aws-iam", "aws", {"command": "secretsmanager get-secret-value --secret-id db"},
+     "R", "restricted"),
+    # az-identity (Entra ID / RBAC / Key Vault overlay on the az CLI)
+    ("az-identity", "az", {"command": "vm list"}, "R", "internal"),
+    ("az-identity", "az", {"command": "role assignment create --role Owner --assignee a"},
+     "A", "restricted"),
+    ("az-identity", "az", {"command": "role definition delete --name x"}, "D", "restricted"),
+    ("az-identity", "az", {"command": "keyvault secret show --name x"}, "R", "restricted"),
+    ("az-identity", "az", {"command": "ad user list"}, "R", "confidential"),
+    # gcp-iam (Cloud IAM / Secret Manager / KMS overlay on the gcloud CLI)
+    ("gcp-iam", "gcloud", {"command": "compute instances list"}, "R", "internal"),
+    ("gcp-iam", "gcloud", {"command": "iam service-accounts list"}, "R", "confidential"),
+    ("gcp-iam", "gcloud",
+     {"command": "projects add-iam-policy-binding p --member=user:a --role=roles/owner"},
+     "A", "restricted"),
+    ("gcp-iam", "gcloud", {"command": "secrets versions access latest --secret=db"},
+     "C", "restricted"),
+    ("gcp-iam", "gcloud", {"command": "kms keys versions destroy v --key=k"}, "D", "restricted"),
 ]
 
 

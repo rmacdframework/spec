@@ -64,6 +64,7 @@ from rmacd.approval import (
     ApprovalOutcome,
     ApprovalRequest,
     AutoApproveGateway,
+    CLIApprovalGateway,
     RejectAllApprovalGateway,
 )
 from rmacd.audit import (
@@ -133,6 +134,7 @@ __all__ = [
     "ApprovalOutcome",
     "ApprovalRequest",
     "AutoApproveGateway",
+    "CLIApprovalGateway",
     "RejectAllApprovalGateway",
     # Audit
     "AuditExecution",

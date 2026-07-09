@@ -238,10 +238,10 @@ enforcer = PolicyEnforcer(
 enforcer.enforce_tool_call("kubectl", {"command": "delete pod web -n prod"})
 ```
 
-19 built-in packs ship with the SDK (`shell`, `aws`, `gcloud`, `az`, `kubectl`,
+22 built-in packs ship with the SDK (`shell`, `aws`, `gcloud`, `az`, `kubectl`,
 `github`, `gitlab`, `sql`, `filesystem`, `jira`, `confluence`, `slack`,
 `google-drive`, `postgres`, `boto3`, `aws-api-mcp`, `azure-mcp`, `gcp-toolbox`,
-`ms365`) and load by name. Runtime stays deterministic — packs only feed the
+`ms365`, `aws-iam`, `az-identity`, `gcp-iam`) and load by name. Runtime stays deterministic — packs only feed the
 evaluator; the §12.5 floor, profile, and capability ceiling still gate.
 
 Author, review, and sign a pack for a new server (the LLM runs only here, never

@@ -72,6 +72,7 @@ if str(SDK_PATH) not in sys.path:
     sys.path.insert(0, str(SDK_PATH))
 
 from rmacd import (  # noqa: E402
+    CLIApprovalGateway,
     PolicyEnforcer,
     ProfileLoader,
     RMACDApprovalDeniedError,
@@ -82,11 +83,11 @@ from rmacd import (  # noqa: E402
 )
 from rmacd.audit import JSONLAuditLogger  # noqa: E402
 
-# Mock infra, classifier, gateway — all live in this directory so the demo
-# is self-contained. Patterns mirror the Claude Agent SDK example.
+# Mock infra and classifier live in this directory so the demo is
+# self-contained. Patterns mirror the Claude Agent SDK example. The approval
+# gateway (CLIApprovalGateway) now ships in the SDK — imported above.
 from infra import infra, Server  # noqa: E402
 from classifier import classify_tool_call, UnknownToolError  # noqa: E402
-from cli_gateway import CLIApprovalGateway  # noqa: E402
 
 
 HERE = Path(__file__).resolve().parent

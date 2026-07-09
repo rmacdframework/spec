@@ -120,7 +120,6 @@ Given the demo profile (`rmacd-3d-devops-demo-v1`):
 │   ├── infra.py                  # In-memory mock fleet
 │   ├── classifier.py             # Tool call → (RMACD op, target, tier)
 │   ├── hook.py                   # PreToolUse hook → PolicyEnforcer
-│   ├── cli_gateway.py            # CLI ApprovalGateway implementation
 │   └── system_prompt.md          # Agent system prompt (self-restriction)
 ├── docs/
 │   └── walkthrough.md            # Spec-gap → code mapping
