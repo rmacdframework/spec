@@ -13,7 +13,7 @@
         </mxCell>
 
         <!-- Layer 1 -->
-        <mxCell id="n1" value="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#7EA6E0;strokeColor=#6C8EBF;fontSize=24;fontStyle=1;fontColor=#FFFFFF" vertex="1" parent="1">
+        <mxCell id="n1" value="1" style="text;html=1;align=center;verticalAlign=middle;fontSize=32;fontStyle=1;fontColor=#6C8EBF" vertex="1" parent="1">
           <mxGeometry x="60" y="116" width="64" height="96" as="geometry" />
         </mxCell>
         <mxCell id="l1" value="THE GOVERNANCE STANDARD&#10;The rulebook for what AI agents may do — our market position, and the shared language for security, compliance &amp; engineering teams." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=12;fontColor=#1A2B4A;align=left;verticalAlign=middle;spacingLeft=12;spacingRight=10" vertex="1" parent="1">
@@ -21,7 +21,7 @@
         </mxCell>
 
         <!-- Layer 2 -->
-        <mxCell id="n2" value="2" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#97D077;strokeColor=#82B366;fontSize=24;fontStyle=1;fontColor=#FFFFFF" vertex="1" parent="1">
+        <mxCell id="n2" value="2" style="text;html=1;align=center;verticalAlign=middle;fontSize=32;fontStyle=1;fontColor=#82B366" vertex="1" parent="1">
           <mxGeometry x="60" y="230" width="64" height="96" as="geometry" />
         </mxCell>
         <mxCell id="l2" value="REAL-TIME ENFORCEMENT&#10;Every action an agent attempts is allowed, blocked, or escalated to a human — with one safety guarantee that cannot be switched off. Risk, contained." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D5E8D4;strokeColor=#82B366;fontSize=12;fontColor=#1E3A1E;align=left;verticalAlign=middle;spacingLeft=12;spacingRight=10" vertex="1" parent="1">
@@ -29,7 +29,7 @@
         </mxCell>
 
         <!-- Layer 3 -->
-        <mxCell id="n3" value="3" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFD966;strokeColor=#D6B656;fontSize=24;fontStyle=1;fontColor=#FFFFFF" vertex="1" parent="1">
+        <mxCell id="n3" value="3" style="text;html=1;align=center;verticalAlign=middle;fontSize=32;fontStyle=1;fontColor=#C99A2E" vertex="1" parent="1">
           <mxGeometry x="60" y="344" width="64" height="96" as="geometry" />
         </mxCell>
         <mxCell id="l3" value="READY-MADE POLICY LIBRARY&#10;22 governance packs for the cloud, identity &amp; business tools enterprises already run. Onboarding becomes configuration, not custom code. Speed to adoption." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#D6B656;fontSize=12;fontColor=#4A3B0A;align=left;verticalAlign=middle;spacingLeft=12;spacingRight=10" vertex="1" parent="1">
@@ -37,7 +37,7 @@
         </mxCell>
 
         <!-- Layer 4 -->
-        <mxCell id="n4" value="4" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#B48EAD;strokeColor=#9673A6;fontSize=24;fontStyle=1;fontColor=#FFFFFF" vertex="1" parent="1">
+        <mxCell id="n4" value="4" style="text;html=1;align=center;verticalAlign=middle;fontSize=32;fontStyle=1;fontColor=#9673A6" vertex="1" parent="1">
           <mxGeometry x="60" y="458" width="64" height="96" as="geometry" />
         </mxCell>
         <mxCell id="l4" value="ACCOUNTABILITY &amp; DATA PROTECTION&#10;Human approvals, a tamper-evident record of every decision, and data-loss controls — the evidence that passes security, audit &amp; regulatory review." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E1D5E7;strokeColor=#9673A6;fontSize=12;fontColor=#3A2A40;align=left;verticalAlign=middle;spacingLeft=12;spacingRight=10" vertex="1" parent="1">
@@ -45,7 +45,7 @@
         </mxCell>
 
         <!-- Layer 5 -->
-        <mxCell id="n5" value="5" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFB570;strokeColor=#D79B00;fontSize=24;fontStyle=1;fontColor=#FFFFFF" vertex="1" parent="1">
+        <mxCell id="n5" value="5" style="text;html=1;align=center;verticalAlign=middle;fontSize=32;fontStyle=1;fontColor=#D79B00" vertex="1" parent="1">
           <mxGeometry x="60" y="572" width="64" height="96" as="geometry" />
         </mxCell>
         <mxCell id="l5" value="PROVEN REFERENCE AGENTS&#10;Working agents running end-to-end on real AI platforms — demonstrable today, not a roadmap promise. The whole stack, de-risked." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFE6CC;strokeColor=#D79B00;fontSize=12;fontColor=#4A2E0A;align=left;verticalAlign=middle;spacingLeft=12;spacingRight=10" vertex="1" parent="1">
