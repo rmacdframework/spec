@@ -444,15 +444,19 @@ The same agent should have different permission profiles across environments. Pr
 
 ## **9.3 Integration with Change Management**
 
-RMACD integrates naturally with existing ITIL change management processes. The combination of operation type and data classification determines the appropriate change category:
+RMACD integrates naturally with existing ITIL change management — termed **change enablement** in ITIL 4. ITIL 4 recognizes three change types: **Standard** (pre-authorized, low-risk, repeatable), **Normal** (risk-assessed, authorized by the appropriate change authority), and **Emergency** (expedited for urgent situations). The combination of RMACD operation and data classification determines which change type applies and the change authority required:
 
 | RMACD Operation | Public/Internal | Confidential | Restricted |
 |---|---|---|---|
-| Read | No RFC required | No RFC required | Standard Change |
-| Move | Standard Change | Normal Change | Major Change |
-| Add | Standard Change | Normal Change | Major Change |
-| Change | Normal Change | Major Change | Human Only |
-| Delete | Normal Change | Major Change | Human Only |
+| Read | No RFC required | No RFC required | Standard change |
+| Move | Standard change | Normal change | Normal change (CAB) |
+| Add | Standard change | Normal change | Normal change (CAB) |
+| Change | Normal change | Normal change (CAB) | Human authority only¹ |
+| Delete | Normal change | Normal change (CAB) | Human authority only¹ |
+
+¹ Change/Delete on Restricted is **prohibited for autonomous agents** by the §12.5 immutable safety floor — these are never issued as an automated change and always require a human change authority.
+
+Higher-risk cells escalate the **change authority** — from delegated or automated approval for low-risk normal changes up to the Change Advisory Board (CAB) for high-risk ones — consistent with ITIL 4's risk-based authorization model. RMACD's **emergency-escalation** controls correspond directly to ITIL's **Emergency change** type: a time-boxed, expedited path with heightened logging and mandatory post-hoc review.
 
 ## **9.4 Python Tools Registry**
 
