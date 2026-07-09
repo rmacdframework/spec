@@ -14,7 +14,7 @@ authors = [
 ]
 
 dependencies = [
-    "rmacd-framework>=0.4.0",
+    "rmacd-framework>=0.12.0",
     "claude-agent-sdk>=0.1.0",
 ]
 
