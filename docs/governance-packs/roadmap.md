@@ -8,12 +8,32 @@ Companion documents: [README](README.md), [design](design.md),
 This roadmap sequenced the work into seven phases. Each phase was independently
 reviewable and left the SDK in a shippable state; the ordering front-loaded the
 foundation and validated the declarative language against the hardest known case
-(`shell`) before investing in breadth. All phases are implemented and tested
-(see `rmacd.packs` and the `tests/test_packs_*.py` suites).
+(`shell`) before investing in breadth. All seven phases are implemented and
+tested (see `rmacd.packs` and the `tests/test_packs_*.py` suites).
+
+### Status at a glance
+
+| Phase | Scope | Status | Shipped in |
+|-------|-------|--------|------------|
+| 0 | Schema & models | ✅ Complete | 0.11.0 |
+| 1 | Declarative engine | ✅ Complete | 0.11.0 |
+| 2 | Loading, registration, serialization, resolvers | ✅ Complete | 0.11.0 |
+| 3 | Built-in packs | ✅ Complete | 0.11.0 (+3 IAM packs in 0.12.0) |
+| 4 | AI-compile authoring | ✅ Complete | 0.11.0 |
+| 5 | Signing & drift | ✅ Complete | 0.11.0 |
+| 6 | Docs, examples, adapters, release | ✅ Complete | 0.11.0 |
+| — | Post-0.11.0 follow-on (0.12.0) | ✅ Complete | 0.12.0 |
+| — | Normative spec · visual editor · control plane | ⏳ Deferred (not scheduled) | — |
+
+**No phase is pending** — the roadmap is fully delivered. The only outstanding
+items are the deliberately [out-of-scope](#out-of-scope-deliberately-deferred)
+future initiatives at the bottom.
 
 ---
 
 ## Phase 0 — Schema & models
+
+**Status:** ✅ Complete — shipped in 0.11.0.
 
 **Goal:** a validated, hashable pack representation.
 
@@ -26,6 +46,8 @@ foundation and validated the declarative language against the hardest known case
 hashing are stable and tested.
 
 ## Phase 1 — Declarative engine
+
+**Status:** ✅ Complete — shipped in 0.11.0.
 
 **Goal:** turn a pack rule into a working classifier.
 
@@ -41,6 +63,8 @@ driven entirely by a data pack.
 
 ## Phase 2 — Pack loading, registration, serialization, resolvers
 
+**Status:** ✅ Complete — shipped in 0.11.0.
+
 **Goal:** packs become usable end-to-end in the SDK.
 
 - `load_pack`, `load_packs`, `apply_pack(registry, pack)`.
@@ -54,6 +78,8 @@ driven entirely by a data pack.
 resolvers fire and are audited.
 
 ## Phase 3 — Built-in packs
+
+**Status:** ✅ Complete — shipped in 0.11.0; 3 cloud-IAM packs added in 0.12.0 (22 total).
 
 **Goal:** ship a catalog that covers the bulk of enterprise agent surface.
 Largest phase; sequenced shell-first for parity validation. Each pack ships as
@@ -78,6 +104,8 @@ ceiling, fail-closed default, mandatory human review at compile time.
 
 ## Phase 4 — AI-compile authoring
 
+**Status:** ✅ Complete — shipped in 0.11.0.
+
 **Goal:** drafting a pack for a new tool source is a reviewable workflow.
 
 - `compile_pack()` on `MCPRegistryBridge` / the LLM classifier — emits a proposal
@@ -91,6 +119,8 @@ provenance and correctly flagged low-confidence entries.
 
 ## Phase 5 — Signing & drift
 
+**Status:** ✅ Complete — shipped in 0.11.0.
+
 **Goal:** packs are trustworthy and maintainable over time.
 
 - `rmacd pack sign` / `pack verify` (ed25519 over `content_hash`).
@@ -100,6 +130,8 @@ provenance and correctly flagged low-confidence entries.
 **Exit criteria:** tampering and drift are both detected by tests.
 
 ## Phase 6 — Docs, examples, adapters, release
+
+**Status:** ✅ Complete — shipped in 0.11.0.
 
 **Goal:** the capability is documented, demonstrated, and released.
 
