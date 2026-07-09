@@ -21,6 +21,24 @@ RMACD answers the fundamental governance question: *"What can this agent do, to 
 
 ---
 
+## The Five Layers
+
+What we've built, from the standard up to running agents. Each layer links to its documentation.
+
+![RMACD — Five Layers of Enterprise AI-Agent Governance](docs/RMACD_Layers_Overview.drawio.png)
+
+*[Edit diagram (draw.io)](docs/RMACD_Layers_Overview.drawio) · Regenerate PNG with `python docs/render_drawio_to_png.py docs/RMACD_Layers_Overview.drawio`*
+
+| Layer | What it is | Documentation |
+|-------|-----------|---------------|
+| **1 · The Governance Standard** | The rulebook for what an agent may do, on which data, with what oversight — the shared language for security, compliance & engineering. | [Specification v1.4](docs/RMACD_Framework_v1.4.md) · [Conceptual model](docs/RMACD_Framework_Diagram.drawio.png) · [DC2D variant](docs/RMACD_Framework_v1.4.md#appendix-d-the-data-classification-two-dimensional-variant-dc2d) |
+| **2 · Real-Time Enforcement** | The engine that checks every agent action — allow, block, or escalate to a human — with the §12.5 safety floor that cannot be overridden. | [Python SDK](sdk/python/) · [Runtime patterns](docs/runtime-patterns.md) · [Framework adapters](docs/framework-adapters.md) |
+| **3 · Ready-Made Policy Library** | 22 built-in governance packs for the cloud, identity & business tools enterprises already run — onboarding becomes configuration, not code. | [Governance Packs](docs/governance-packs/) · [Pack catalog](docs/governance-packs/catalog.md) · [Authoring guide](docs/governance-packs/authoring-guide.md) |
+| **4 · Accountability & Data Protection** | Human approvals on risky actions, a tamper-evident audit trail of every decision, and redaction/egress controls for sensitive data. | [Implementation guide](docs/implementation.md) · [DC2D redaction + egress demo](examples/dc2d-customer-support/) · [Runtime patterns](docs/runtime-patterns.md#5-approval-wait-semantics-for-llm-agents) |
+| **5 · Proven Reference Agents** | Working, RMACD-governed agents running end-to-end on real AI platforms — demonstrable today, not a roadmap promise. | [Claude Agent SDK](examples/agent-integration-claude-sdk/) · [Anthropic SDK](examples/agent-integration-anthropic-sdk/) · [Packs quickstart](examples/governance-packs-quickstart/) |
+
+---
+
 ## Framework Diagram
 
 ### Conceptual model
