@@ -4,6 +4,12 @@ on:
   push:
     branches: [main]
   pull_request:
+  schedule:
+    # Weekly dependency CVE sweep (Mondays 06:00 UTC). Releases can be months
+    # apart, so the release-time audit alone leaves a window where a newly
+    # disclosed CVE in a declared dep goes unnoticed.
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -42,9 +48,34 @@ jobs:
         run: pip install bandit && bandit -r rmacd -ll
 
       # Note: dependency CVE audit (pip-audit on declared deps) runs in
-      # publish-sdk.yml at release time, where the env is clean and scoped to
-      # the project's runtime deps. Running it on PR CI would flag CVEs in the
-      # runner's base image / tooling, not in what we ship.
+      # publish-sdk.yml at release time, and in the scheduled `audit` job
+      # below. It stays off PR CI deliberately: run against the live env it
+      # flags CVEs in the runner's base image / tooling, not in what we ship.
 
       - name: Test (pytest + coverage gate)
         run: pytest tests/ --cov-fail-under=85
+
+  audit:
+    name: Dependency CVE audit
+    # Schedule/manual only — deliberately not on push or pull_request, so PR
+    # CI keeps its current signal. See the note in the `test` job above.
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: sdk/python
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v8.1.0
+
+      - name: Install dependencies
+        run: uv sync
+
+      - name: CVE audit
+        # Same invocation as publish-sdk.yml: audit declared runtime deps only,
+        # not the rmacd package itself, so the result is scoped to what ships.
+        run: |
+          uv export --format requirements-txt --no-dev --no-emit-project > /tmp/audit-reqs.txt
+          uv run --with pip-audit pip-audit -r /tmp/audit-reqs.txt --strict
