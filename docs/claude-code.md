@@ -189,7 +189,7 @@ that behaviour for interactive sessions.
 
 - `docs/framework-adapters.md` — governing agents you *build* (Claude Agent
   SDK, OpenAI, LangChain, ...), as opposed to the session you work in.
-- `integrations/claude-code/` — the plugin (skill, `/rmacd:init`,
+- `plugins/rmacd/` — the plugin (skill, `/rmacd:init`,
   `/rmacd:status`, hook wiring).
 - SDK sources: `sdk/python/rmacd/claude_code/` (`hook.py`, `mapping.py`,
   `session.py`, `status.py`).

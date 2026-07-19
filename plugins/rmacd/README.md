@@ -20,7 +20,7 @@ Restricted), and **autonomy** (autonomous through prohibited). The
 Or, for local development from a checkout of this repo:
 
 ```bash
-claude --plugin-dir integrations/claude-code
+claude --plugin-dir plugins/rmacd
 ```
 
 The plugin ships markdown and reference material only; all executable logic lives in

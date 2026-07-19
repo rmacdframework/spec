@@ -25,7 +25,7 @@ breaks; determinism and the §12.5 floor are unchanged.
   Configuration via `RMACD_PROFILE_PATH` / `.claude/rmacd-profile.json`,
   `RMACD_PACKS`, `RMACD_CLASSIFICATION_MAP`, `RMACD_DEFAULT_TIER`,
   `RMACD_UNKNOWN_TOOL`. See `docs/claude-code.md`.
-- **Claude Code plugin** (`integrations/claude-code/`, marketplace manifest at
+- **Claude Code plugin** (`plugins/rmacd/`, marketplace manifest at
   the repo root): the `rmacd-integrate` and `rmacd-bug-automation` skills,
   `/rmacd:init`, `/rmacd:status`, and `/rmacd:bug-setup` commands, and the
   PreToolUse hook wiring. Install:
