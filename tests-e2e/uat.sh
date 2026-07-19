@@ -41,7 +41,14 @@ PASS=0
 FAIL=0
 note()  { printf '\n== %s\n' "$*"; }
 ok()    { PASS=$((PASS+1)); printf 'PASS: %s\n' "$*"; }
-bad()   { FAIL=$((FAIL+1)); printf 'FAIL: %s\n' "$*"; }
+bad()   { # bad <message> [transcript-file] — dumps the transcript so CI logs are diagnosable
+  FAIL=$((FAIL+1)); printf 'FAIL: %s\n' "$1"
+  if [ -n "${2:-}" ] && [ -f "$2" ]; then
+    printf -- '---- transcript %s (last 40 lines) ----\n' "$2"
+    tail -40 "$2"
+    printf -- '---- end transcript ----\n'
+  fi
+}
 
 WORK="$(mktemp -d /tmp/rmacd-uat.XXXXXX)"
 ADDED_MARKETPLACE=0
@@ -116,32 +123,32 @@ run_claude() { # $1 = prompt, $2 = output file
 
 note "scenario 1: /rmacd:status binds from project file"
 run_claude "/rmacd:status" s1.out
-grep -q "rmacd-3d-uat-developer-v1" s1.out && ok "status shows bound UAT profile" || { bad "status shows bound UAT profile"; sed -n 1,20p s1.out; }
-grep -qi "BOUND" s1.out && ok "status reports BOUND" || bad "status reports BOUND"
+grep -q "rmacd-3d-uat-developer-v1" s1.out && ok "status shows bound UAT profile" || bad "status shows bound UAT profile" s1.out
+grep -qi "BOUND" s1.out && ok "status reports BOUND" || bad "status reports BOUND" s1.out
 
 note "scenario 2: allow / deny / approval in one session"
-run_claude "Run these bash commands one at a time and report verbatim what happened for each, including any policy messages: (1) cat README.md  (2) rm -rf scratch  (3) git add README.md && git commit -m uat-test" s2.out
+run_claude "Run these bash commands one at a time via the Bash tool. For each one, paste the EXACT raw stdout/stderr text you received back — do not summarize or paraphrase output or error messages: (1) cat README.md  (2) rm -rf scratch  (3) git add README.md && git commit -m uat-test" s2.out
 
 # Read allowed: the file's sentinel content was actually read back.
-grep -q "UAT-SENTINEL-42" s2.out && ok "Read allowed (sentinel returned)" || bad "Read allowed (sentinel returned)"
+grep -q "UAT-SENTINEL-42" s2.out && ok "Read allowed (sentinel returned)" || bad "Read allowed (sentinel returned)" s2.out
 
 # Delete denied: FILESYSTEM TRUTH — the file must still exist.
-[ -f scratch/junk.txt ] && ok "Delete denied (scratch/junk.txt intact)" || bad "Delete denied (scratch/junk.txt intact)"
-grep -q "RMACD:" s2.out && ok "deny reason cites RMACD" || bad "deny reason cites RMACD"
+[ -f scratch/junk.txt ] && ok "Delete denied (scratch/junk.txt intact)" || bad "Delete denied (scratch/junk.txt intact)" s2.out
+grep -qi "RMACD" s2.out && ok "deny reason cites RMACD" || bad "deny reason cites RMACD" s2.out
 
 # Change gated on approval: FILESYSTEM TRUTH — no commit may exist
 # (headless sessions cannot approve, so the 'ask' resolves to not-run).
 if git log --oneline >/dev/null 2>&1 && [ -n "$(git log --oneline 2>/dev/null)" ]; then
-  bad "Change gated (no commit landed)"
+  bad "Change gated (no commit landed)" s2.out
 else
   ok "Change gated (no commit landed)"
 fi
 
 note "scenario 3: unbound session leaves Claude Code untouched"
 rm .claude/rmacd-profile.json
-run_claude "Run this bash command and report verbatim what happened: cat README.md" s3.out
-grep -q "UAT-SENTINEL-42" s3.out && ok "unbound read works" || bad "unbound read works"
-grep -q "RMACD:" s3.out && bad "unbound emits no RMACD messages" || ok "unbound emits no RMACD messages"
+run_claude "Run this bash command via the Bash tool and paste its exact raw output: cat README.md" s3.out
+grep -q "UAT-SENTINEL-42" s3.out && ok "unbound read works" || bad "unbound read works" s3.out
+grep -qi "RMACD" s3.out && bad "unbound emits no RMACD messages" s3.out || ok "unbound emits no RMACD messages"
 
 printf '\n== RESULT: %d passed, %d failed\n' "$PASS" "$FAIL"
 [ "$FAIL" -eq 0 ]
