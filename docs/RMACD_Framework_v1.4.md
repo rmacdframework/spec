@@ -9,7 +9,7 @@ for Governing Autonomous AI Agents in Enterprise IT Operations
 *Extending ITIL's MACD Heritage to the Agentic AI Era*
 
 Version 1.4.0 | June 2026
-**Author: Kash Kashyap**
+**Author: Kash Kashyap** ([ORCID: 0009-0005-0127-6265](https://orcid.org/0009-0005-0127-6265))
 
 *Version 1.2 Update: Added Python Tools Registry reference implementation for automated tool governance.*
 *Version 1.2.1 Update: Corrected governance matrix defaults in SDK, fixed Appendix B profile schemas.*
