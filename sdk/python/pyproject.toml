@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "rmacd-framework"
-version = "0.12.0"
+version = "0.13.0"
 description = "RMACD Framework SDK - Policy evaluation for autonomous AI agents"
 readme = "README.md"
 license = "CC-BY-4.0"
@@ -36,6 +36,9 @@ dependencies = [
 llm = [
     "anthropic>=0.40",
 ]
+mcp = [
+    "mcp>=1.0",
+]
 sign = [
     "cryptography>=41",
 ]
@@ -52,6 +55,8 @@ dev = [
     "types-pyyaml>=6.0",
     # so the full test suite (signing) runs on a plain `.[dev]` install
     "cryptography>=41",
+    # so the full test suite (MCP server) runs on a plain `.[dev]` install
+    "mcp>=1.0",
 ]
 
 [project.urls]
@@ -95,6 +100,12 @@ ignore_missing_imports = true
 [[tool.mypy.overrides]]
 # Optional [sign] extra — imported lazily inside rmacd.packs.signing.
 module = "cryptography.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+# Optional [mcp] extra — imported lazily inside rmacd.mcp_server; the SDK
+# must type-check without it installed.
+module = "mcp.*"
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]

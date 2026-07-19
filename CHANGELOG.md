@@ -7,6 +7,71 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### SDK 0.13.0 — Claude Code governance, MCP server, 12 new packs, audit evidence
+
+The "first-class citizen for Claude Code" release. Additive; no runtime or API
+breaks; determinism and the §12.5 floor are unchanged.
+
+#### Added
+
+- **`rmacd.claude_code`** — session governance for Claude Code: a PreToolUse
+  hook (`python3 -m rmacd.claude_code.hook`) that enforces a bound profile on
+  the session's own Bash/Edit/Write/MCP tool calls (Bash via the bash
+  classifier, files via filesystem-pack semantics, MCP tools via the registry).
+  Unbound sessions pass through untouched; bound sessions fail closed;
+  approval-level autonomy maps to Claude Code's own permission prompt
+  (`permissionDecision: "ask"`). Deny reasons cite operation, tier, rule, and
+  profile. Plus a status renderer (`python3 -m rmacd.claude_code.status`).
+  Configuration via `RMACD_PROFILE_PATH` / `.claude/rmacd-profile.json`,
+  `RMACD_PACKS`, `RMACD_CLASSIFICATION_MAP`, `RMACD_DEFAULT_TIER`,
+  `RMACD_UNKNOWN_TOOL`. See `docs/claude-code.md`.
+- **Claude Code plugin** (`integrations/claude-code/`, marketplace manifest at
+  the repo root): the `rmacd-integrate` and `rmacd-bug-automation` skills,
+  `/rmacd:init`, `/rmacd:status`, and `/rmacd:bug-setup` commands, and the
+  PreToolUse hook wiring. Install:
+  `/plugin marketplace add rmacdframework/spec`.
+- **12 new built-in governance packs** (catalog: 22 → **34**). Developer
+  toolchain: `git`, `gh`, `docker`, `terraform`, `npm`, `pip-uv`, `make`.
+  Enterprise operations: `helm`, `vault`, `ssh-transfer`, `stripe`,
+  `servicenow`. Destructive, credential, publish, and CAB-approval operations
+  sit on the `restricted` tier as Change/Delete, so the §12.5 floor blocks them
+  for autonomous agents.
+- **Pack composition** (`rmacd.packs.composition`) — multiple packs can now
+  govern the same tool name (e.g. shell overlays from `git` + `docker` +
+  `terraform` together): ordered chain, most-specific claim wins, severity
+  breaks ties fail-closed, and each match carries its own pack's capability
+  ceiling. Previously last-applied pack won.
+- **MCP server** (`rmacd.mcp_server`, optional `[mcp]` extra; CLI
+  `rmacd mcp-serve [--profile]`) — read-only policy tools for any MCP client:
+  `rmacd_evaluate`, `rmacd_validate_profile`, `rmacd_matrix`,
+  `rmacd_list_packs`, `rmacd_pack_info`, `rmacd_classify_bash`. Pinned-profile
+  mode for enterprise deployments.
+- **Audit evidence** — `rmacd audit summarize <audit.jsonl>`
+  (text/json/markdown; time/agent/denial filters; operation×tier matrix;
+  §12.5-floor hits called out) backed by `rmacd.audit_report`, and
+  `docs/audit-evidence.md` (SIEM shipping recipes + SOC 2 / ISO 27001 /
+  GDPR mapping via §10).
+- **Profiles-as-code CI assets** — a composite GitHub Action
+  (`integrations/github-action/`) wrapping `rmacd validate` / `pack validate`
+  / `pack verify`, a `pre-commit` hook (`rmacd-validate`), and a dogfood job in
+  this repo's CI.
+- **Bug-report automation** — issue form + label-gated Claude triage/fix/review
+  workflows (`.github/workflows/claude-bug-triage.yml`, `claude-pr-review.yml`);
+  reusable templates ship in the plugin's `rmacd-bug-automation` skill.
+
+#### Docs
+
+- New: `docs/claude-code.md`, `docs/audit-evidence.md`; framework-adapters
+  gained "RMACD as an MCP server" and Claude Code cross-links;
+  implementation guide gained "Profiles as code"; governance-packs catalog
+  regenerated with two new families; pack counts swept 22 → 34 (including both
+  architecture diagrams and the layers overview).
+
+#### Tests
+
+- Suite grows 543 → **813** (packs golden rows, composition, Claude Code hook
+  subprocess tests, MCP server, audit report).
+
 ### SDK 0.12.0 — Cloud IAM packs + CLI approval gateway
 
 Additive release on top of 0.11.0. No runtime or API breaks; determinism and the
