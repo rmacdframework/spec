@@ -1,34 +1,20 @@
-name: Bug Report
-description: Report a bug in the RMACD Framework specification or tooling
+name: Bug report
+description: Report a bug in the RMACD specification, SDK, or tooling. Reports are auto-triaged by Claude.
 title: "[Bug]: "
-labels: ["bug", "triage"]
+labels: ["bug"]
 body:
   - type: markdown
     attributes:
       value: |
-        Thanks for taking the time to report a bug! Please fill out the sections below.
-
-  - type: dropdown
-    id: component
-    attributes:
-      label: Component
-      description: Which part of the RMACD Framework is affected?
-      options:
-        - Framework Specification
-        - JSON Schema (profile-2d)
-        - JSON Schema (profile-3d)
-        - Python SDK
-        - CLI Tool
-        - Documentation
-        - Example Profiles
-        - Other
-    validations:
-      required: true
+        Thanks for the report. Filing this form applies the `bug` label, which triggers an
+        automated read-only triage: Claude posts a root-cause analysis as a comment. A fix
+        PR is only ever attempted after a maintainer explicitly applies the `claude-fix`
+        label, and nothing merges without human review.
 
   - type: textarea
     id: description
     attributes:
-      label: Bug Description
+      label: Bug description
       description: A clear and concise description of what the bug is.
       placeholder: Describe the bug...
     validations:
@@ -37,7 +23,7 @@ body:
   - type: textarea
     id: expected
     attributes:
-      label: Expected Behavior
+      label: Expected behavior
       description: What did you expect to happen?
       placeholder: I expected...
     validations:
@@ -46,7 +32,7 @@ body:
   - type: textarea
     id: actual
     attributes:
-      label: Actual Behavior
+      label: Actual behavior
       description: What actually happened?
       placeholder: Instead, what happened was...
     validations:
@@ -55,35 +41,63 @@ body:
   - type: textarea
     id: reproduce
     attributes:
-      label: Steps to Reproduce
-      description: How can we reproduce this issue?
+      label: Steps to reproduce
+      description: Minimal steps (or a code snippet) that reproduce the issue.
       placeholder: |
         1. Create a profile with...
-        2. Run command...
+        2. Run...
         3. See error...
     validations:
       required: true
 
-  - type: textarea
-    id: context
+  - type: input
+    id: sdk-version
     attributes:
-      label: Additional Context
-      description: |
-        Add any other context about the problem here.
-        - Version of RMACD SDK (if applicable)
-        - Python version (if applicable)
-        - Operating system
-        - Relevant configuration or profile snippets
-      placeholder: Any additional information...
+      label: SDK version
+      description: Output of `rmacd --version` (write `n/a` for spec/docs-only issues).
+      placeholder: "e.g. 0.13.0"
     validations:
       required: false
 
-  - type: checkboxes
-    id: checklist
+  - type: dropdown
+    id: component
     attributes:
-      label: Checklist
+      label: Component
+      description: Which part of the RMACD Framework is affected?
       options:
-        - label: I have searched existing issues to ensure this bug hasn't already been reported
-          required: true
-        - label: I have read the RMACD Framework specification
-          required: false
+        - evaluator
+        - enforcer
+        - registry
+        - packs
+        - cli
+        - claude_code
+        - mcp_server
+        - audit
+        - schemas
+        - docs
+        - plugin
+        - other
+    validations:
+      required: true
+
+  - type: dropdown
+    id: profile-shape
+    attributes:
+      label: Profile shape
+      description: Which deployment shape does the affected profile use?
+      options:
+        - 3D
+        - 2D
+        - DC2D
+        - n/a
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs or output
+      description: Tracebacks, CLI output, audit-log lines. Redact anything sensitive.
+      render: shell
+    validations:
+      required: false

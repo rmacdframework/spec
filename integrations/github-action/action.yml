@@ -1,0 +1,125 @@
+name: "RMACD Validate"
+description: >-
+  Validate RMACD permission profiles (and optionally governance packs)
+  against the official JSON Schemas on every push and pull request.
+author: "rmacdframework"
+
+branding:
+  icon: "shield"
+  color: "blue"
+
+inputs:
+  profiles:
+    description: >-
+      Glob(s) of RMACD profile JSON files to validate. Bash globstar
+      patterns; multiple space-separated globs are allowed. The default
+      matches any *.json under a directory whose name starts with "rmacd"
+      (e.g. rmacd/profiles/observer-3d.json). Override to point at your
+      own layout, e.g. "policies/**/*.json".
+    required: false
+    default: "**/rmacd*/**/*.json"
+  packs:
+    description: >-
+      Optional glob(s) of governance pack files (.json or .yaml) to check
+      with "rmacd pack validate". Empty (the default) skips the pack step.
+    required: false
+    default: ""
+  require-signed-packs:
+    description: >-
+      When "true", additionally run "rmacd pack verify" on every matched
+      pack. Requires pack-public-key.
+    required: false
+    default: "false"
+  pack-public-key:
+    description: >-
+      Path (in the workspace) to the Ed25519 public key PEM used by
+      "rmacd pack verify". Required when require-signed-packs is "true".
+    required: false
+    default: ""
+  version:
+    description: >-
+      pip version specifier for the rmacd-framework SDK, appended verbatim
+      to the requirement (e.g. ">=0.13", "==0.13.0").
+    required: false
+    default: ">=0.13"
+
+runs:
+  using: "composite"
+  steps:
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.12"
+
+    - name: Install rmacd-framework
+      shell: bash
+      env:
+        RMACD_VERSION_SPEC: ${{ inputs.version }}
+        RMACD_PACKS_GLOB: ${{ inputs.packs }}
+        RMACD_REQUIRE_SIGNED: ${{ inputs.require-signed-packs }}
+      run: |
+        extras=""
+        # YAML packs need the [yaml] extra; signature checks need [sign].
+        if [ -n "$RMACD_PACKS_GLOB" ]; then
+          extras="yaml"
+        fi
+        if [ "$RMACD_REQUIRE_SIGNED" = "true" ]; then
+          extras="${extras:+$extras,}sign"
+        fi
+        req="rmacd-framework${extras:+[$extras]}${RMACD_VERSION_SPEC}"
+        echo "::group::pip install \"$req\""
+        python -m pip install --disable-pip-version-warning "$req"
+        echo "::endgroup::"
+
+    - name: Validate profiles
+      shell: bash
+      env:
+        RMACD_PROFILES_GLOB: ${{ inputs.profiles }}
+      run: |
+        shopt -s globstar nullglob
+        # Intentionally unquoted: expand the input glob(s) into an array.
+        matches=( $RMACD_PROFILES_GLOB )
+        if [ ${#matches[@]} -eq 0 ]; then
+          echo "::warning title=RMACD Validate::No profiles matched glob '$RMACD_PROFILES_GLOB' — nothing to validate."
+          exit 0
+        fi
+        echo "::group::rmacd validate — ${#matches[@]} profile(s) matching '$RMACD_PROFILES_GLOB'"
+        status=0
+        rmacd validate "${matches[@]}" || status=$?
+        echo "::endgroup::"
+        if [ "$status" -ne 0 ]; then
+          echo "::error title=RMACD Validate::One or more profiles failed schema validation (see the 'rmacd validate' group above)."
+        fi
+        exit "$status"
+
+    - name: Validate governance packs
+      if: ${{ inputs.packs != '' }}
+      shell: bash
+      env:
+        RMACD_PACKS_GLOB: ${{ inputs.packs }}
+        RMACD_REQUIRE_SIGNED: ${{ inputs.require-signed-packs }}
+        RMACD_PACK_PUBLIC_KEY: ${{ inputs.pack-public-key }}
+      run: |
+        shopt -s globstar nullglob
+        matches=( $RMACD_PACKS_GLOB )
+        if [ ${#matches[@]} -eq 0 ]; then
+          echo "::warning title=RMACD Validate::No packs matched glob '$RMACD_PACKS_GLOB' — nothing to validate."
+          exit 0
+        fi
+        if [ "$RMACD_REQUIRE_SIGNED" = "true" ] && [ -z "$RMACD_PACK_PUBLIC_KEY" ]; then
+          echo "::error title=RMACD Validate::require-signed-packs is true but pack-public-key was not provided."
+          exit 1
+        fi
+        status=0
+        for pack in "${matches[@]}"; do
+          echo "::group::rmacd pack validate $pack"
+          rmacd pack validate "$pack" || status=1
+          if [ "$RMACD_REQUIRE_SIGNED" = "true" ]; then
+            rmacd pack verify "$pack" --key "$RMACD_PACK_PUBLIC_KEY" || status=1
+          fi
+          echo "::endgroup::"
+        done
+        if [ "$status" -ne 0 ]; then
+          echo "::error title=RMACD Validate::One or more governance packs failed validation/verification (see the groups above)."
+        fi
+        exit "$status"

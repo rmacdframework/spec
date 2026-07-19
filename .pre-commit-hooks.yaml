@@ -1,0 +1,23 @@
+# pre-commit hooks provided by the RMACD spec repo.
+# Usage (consumer's .pre-commit-config.yaml):
+#
+#   repos:
+#     - repo: https://github.com/rmacdframework/spec
+#       rev: main  # pin a tag/SHA in real use
+#       hooks:
+#         - id: rmacd-validate
+#
+# See integrations/github-action/README.md for the CI counterpart.
+- id: rmacd-validate
+  name: RMACD profile validation
+  description: >-
+    Validate RMACD permission profiles against the official JSON Schemas
+    (2D / 3D / DC2D) using `rmacd validate`.
+  entry: rmacd validate
+  language: python
+  additional_dependencies: ["rmacd-framework>=0.13"]
+  # Matches JSON under a directory whose name starts with "rmacd"
+  # (the recommended rmacd/profiles/*.json layout) or files named
+  # *-2d.json / *-3d.json / *-dc2d.json. Override `files` in your
+  # .pre-commit-config.yaml if your profiles live elsewhere.
+  files: (^|/)rmacd[^/]*/.*\.json$|-(2d|3d|dc2d)\.json$
