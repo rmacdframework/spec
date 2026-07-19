@@ -1,0 +1,60 @@
+name: Canary E2E (live plugin + PyPI SDK)
+
+# Nightly end-to-end canary: install the SDK from PyPI and the plugin from
+# this repo's marketplace on a clean runner, then run real headless Claude
+# Code sessions asserting governance outcomes (tests-e2e/uat.sh --marketplace).
+#
+# This guards the surfaces the unit suite cannot: the published wheel, the
+# live marketplace install path, and drift in Claude Code itself (hook
+# contract, plugin cache, headless semantics) — Claude Code updates weekly.
+#
+# Requires the CLAUDE_CODE_OAUTH_TOKEN repo secret (claude setup-token;
+# Pro/Max). The same secret powers the claude-bug-triage workflows. Until the
+# secret is configured, the job exits early with a notice instead of failing.
+
+on:
+  schedule:
+    - cron: "17 6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  canary:
+    name: Live E2E canary
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+    steps:
+      - name: Check token
+        id: guard
+        run: |
+          if [ -z "$CLAUDE_CODE_OAUTH_TOKEN" ]; then
+            echo "::notice::CLAUDE_CODE_OAUTH_TOKEN secret not configured — skipping canary."
+            echo "has_token=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_token=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@v4
+        if: steps.guard.outputs.has_token == 'true'
+
+      - uses: actions/setup-python@v5
+        if: steps.guard.outputs.has_token == 'true'
+        with:
+          python-version: "3.12"
+
+      - name: Install Claude Code CLI
+        if: steps.guard.outputs.has_token == 'true'
+        run: npm install -g @anthropic-ai/claude-code
+
+      - name: Run E2E UAT (marketplace mode)
+        if: steps.guard.outputs.has_token == 'true'
+        run: ./tests-e2e/uat.sh --marketplace
+
+      - name: Upload transcripts on failure
+        if: failure() && steps.guard.outputs.has_token == 'true'
+        run: |
+          echo "Canary failed — re-run locally with: ./tests-e2e/uat.sh --marketplace --keep"
