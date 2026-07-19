@@ -76,6 +76,25 @@ jobs:
       - name: Validate example profiles
         run: rmacd validate schemas/examples/*.json
 
+  validate-plugin:
+    # Strict plugin + marketplace validation. --strict is required: the default
+    # validator reports unrecognized (e.g. misspelled) fields as warnings only,
+    # which would let a typo'd frontmatter field pass CI and silently break
+    # skill triggering for installed users.
+    name: Validate Claude Code plugin (strict)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Claude Code CLI
+        run: npm install -g @anthropic-ai/claude-code
+
+      - name: Validate plugin (strict)
+        run: claude plugin validate ./plugins/rmacd --strict
+
+      - name: Validate marketplace (strict)
+        run: claude plugin validate . --strict
+
   audit:
     name: Dependency CVE audit
     # Schedule/manual only — deliberately not on push or pull_request, so PR
