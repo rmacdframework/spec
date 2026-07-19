@@ -11,6 +11,7 @@
   "plugins": [
     {
       "name": "rmacd",
+      "displayName": "RMACD Governance",
       "source": "./plugins/rmacd",
       "description": "Integrate RMACD governance into your AI agent: scaffold policy profiles, register tools via governance packs, and enforce every tool call through the rmacd-framework SDK.",
       "version": "0.1.0",
@@ -29,7 +30,15 @@
         "security",
         "compliance"
       ],
-      "category": "security"
+      "category": "security",
+      "tags": [
+        "enterprise",
+        "session-governance",
+        "human-in-the-loop",
+        "data-classification",
+        "audit",
+        "itil"
+      ]
     }
   ]
 }
