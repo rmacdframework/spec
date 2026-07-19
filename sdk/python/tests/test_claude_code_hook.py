@@ -615,3 +615,79 @@ def test_status_broken_binding_reports_fail_closed(
     monkeypatch.setenv(session.ENV_PROFILE_PATH, str(tmp_path / "missing.json"))
     text = status.render_status(cwd=str(tmp_path))
     assert "FAILING CLOSED" in text
+
+
+# ---------------------------------------------------------------------------
+# introspection carve-out (0.13.1): the governance layer's own read surfaces
+# ---------------------------------------------------------------------------
+
+READONLY_PROFILE: dict[str, Any] = {
+    "profile_id": "rmacd-3d-readonly-v1",
+    "profile_name": "Read-only introspection test profile",
+    "model": "three-dimensional",
+    "version": "1.0",
+    "permissions": {
+        "public": ["R"],
+        "internal": ["R"],
+        "confidential": ["R"],
+        "restricted": ["R"],
+    },
+}
+
+
+@pytest.mark.parametrize(
+    "command,detail",
+    [
+        ("python3 -m rmacd.claude_code.status", "rmacd status renderer"),
+        ("python -m rmacd.claude_code status", "rmacd status renderer"),
+        ("rmacd matrix profile.json", "rmacd matrix"),
+        ("rmacd --version", "rmacd --version"),
+        ("rmacd validate profile.json", "rmacd validate"),
+        ("python3 -m rmacd.cli info profile.json", "rmacd info"),
+        ("rmacd pack verify -k key.pub pack.json", "rmacd pack verify"),
+        ("rmacd audit summarize audit.jsonl", "rmacd audit summarize"),
+    ],
+)
+def test_introspection_commands_classify_as_read(
+    tmp_path: Path, command: str, detail: str
+) -> None:
+    binding = make_binding(tmp_path, profile=READONLY_PROFILE)
+    call = mapping.map_tool_call("Bash", {"command": command}, binding)
+    assert call.operation is Operation.READ
+    assert call.target == "rmacd:introspection"
+    assert detail in call.rule
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        "rmacd matrix p.json && rm -rf /",  # compound: no carve-out
+        "rmacd matrix p.json; rm x",
+        "rmacd matrix $(cat f)",
+        "rmacd pack sign -k key pack.json",  # writes a signature
+        "rmacd classify --source tools.json",  # network/LLM
+        "rmacd mcp-serve",  # long-running server
+        "python3 -m rmacd.claude_code.hook",  # not a read surface
+        "python3 script.py",
+    ],
+)
+def test_non_introspection_commands_take_classifier_path(
+    tmp_path: Path, command: str
+) -> None:
+    binding = make_binding(tmp_path, profile=READONLY_PROFILE)
+    call = mapping.map_tool_call("Bash", {"command": command}, binding)
+    assert call.target != "rmacd:introspection"
+
+
+def test_status_command_allowed_under_readonly_profile(tmp_path: Path) -> None:
+    """The bug found in live E2E: /rmacd:status must not be denied by the
+    fail-closed bash default when a read-only profile is bound."""
+    path = tmp_path / "profile.json"
+    path.write_text(json.dumps(READONLY_PROFILE), encoding="utf-8")
+    proc = run_hook(
+        json.dumps(event("Bash", {"command": "python3 -m rmacd.claude_code.status"})),
+        tmp_path,
+        env_overrides={session.ENV_PROFILE_PATH: str(path)},
+    )
+    out = json.loads(proc.stdout)
+    assert out["hookSpecificOutput"]["permissionDecision"] == "allow"

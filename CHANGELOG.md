@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### SDK 0.13.1 — Session-governance fix: introspection carve-out
+
+Found by live end-to-end testing of the plugin: with a read-only profile bound,
+the fail-closed bash default (unrecognized binary → Change) denied
+`/rmacd:status` itself — a governed session could not inspect its own
+governance state.
+
+#### Fixed
+
+- `rmacd.claude_code` bash mapping now classifies the governance layer's own
+  deterministic read surfaces as Read (`rmacd:introspection`): the status
+  renderer (`python3 -m rmacd.claude_code.status`) and the read-only rmacd CLI
+  subcommands (`--version`, `--help`, `validate`, `info`, `matrix`, `evaluate`,
+  `pack validate|verify|diff|review`, `audit summarize`). The carve-out applies
+  only when the entire command is a single simple invocation — any shell
+  metacharacter (compound commands, substitution, redirection) falls through to
+  the normal classifier, and write/network/server surfaces (`pack sign`,
+  `classify`, `mcp-serve`) are excluded. 17 new tests (suite: 813 → 830).
+
 ### SDK 0.13.0 — Claude Code governance, MCP server, 12 new packs, audit evidence
 
 The "first-class citizen for Claude Code" release. Additive; no runtime or API

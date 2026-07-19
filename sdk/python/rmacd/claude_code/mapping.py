@@ -135,7 +135,77 @@ def _bash_path_candidates(command: str) -> list[str]:
     return [t for t in tokens if t and not t.startswith("-") and ("/" in t or "." in t or "~" in t)]
 
 
+# Shell metacharacters that disqualify the introspection carve-out below: a
+# compound/redirected/substituted command must always take the full classifier
+# path, otherwise `rmacd matrix p.json && rm -rf /` would ride the carve-out.
+_SHELL_OPERATOR_CHARS = frozenset("|&;<>`$(){}\n")
+
+# Read-only surfaces of the rmacd CLI itself. Deliberately excludes anything
+# that writes (`pack sign`), reaches the network/LLM (`classify`), or starts a
+# server (`mcp-serve`).
+_RMACD_READONLY_SUBCOMMANDS = frozenset(
+    {"--version", "--help", "validate", "info", "matrix", "evaluate"}
+)
+_RMACD_READONLY_GROUPS = frozenset(
+    {
+        ("pack", "validate"),
+        ("pack", "verify"),
+        ("pack", "diff"),
+        ("pack", "review"),
+        ("audit", "summarize"),
+    }
+)
+
+
+def _rmacd_introspection(command: str) -> str | None:
+    """Detail string when the whole command is a read-only RMACD introspection call.
+
+    The governance layer's own deterministic read surfaces — the session status
+    renderer and the read-only rmacd CLI subcommands — classify as Read so a
+    bound read-only session can always inspect its own governance state
+    (otherwise the fail-closed bash default denies `/rmacd:status` itself).
+    """
+    if any(ch in _SHELL_OPERATOR_CHARS for ch in command):
+        return None
+    try:
+        tokens = shlex.split(command, comments=True)
+    except ValueError:
+        return None
+    if not tokens:
+        return None
+    binary = tokens[0].rsplit("/", 1)[-1]
+    if binary in ("python", "python3") and len(tokens) >= 3 and tokens[1] == "-m":
+        module = tokens[2]
+        if module == "rmacd.claude_code.status" or (
+            module == "rmacd.claude_code" and tokens[3:4] == ["status"]
+        ):
+            return "rmacd status renderer"
+        if module == "rmacd.cli":
+            tokens = ["rmacd", *tokens[3:]]
+            binary = "rmacd"
+        else:
+            return None
+    if binary != "rmacd":
+        return None
+    args = tokens[1:]
+    if not args:
+        return None
+    if args[0] in _RMACD_READONLY_SUBCOMMANDS:
+        return f"rmacd {args[0]}"
+    if len(args) >= 2 and (args[0], args[1]) in _RMACD_READONLY_GROUPS:
+        return f"rmacd {args[0]} {args[1]}"
+    return None
+
+
 def _map_bash(command: str, binding: SessionBinding) -> MappedCall:
+    introspection = _rmacd_introspection(command)
+    if introspection is not None:
+        return MappedCall(
+            operation=Operation.READ,
+            tier=None,
+            target="rmacd:introspection",
+            rule=f"rmacd introspection: {introspection}",
+        )
     classification = classify_bash_command(command)
     tier: DataClassification | None = None
     matched_path: str | None = None
