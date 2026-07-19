@@ -1,8 +1,11 @@
 # Governance Packs — Technical Design
 
-**Status:** Implemented in SDK 0.11.0 (`rmacd.packs`); catalog extended to **22
-built-in packs** in 0.12.0 (added the cloud-identity packs `aws-iam`,
-`az-identity`, `gcp-iam`). Companion documents: [README](README.md),
+**Status:** Implemented in SDK 0.11.0 (`rmacd.packs`); catalog extended to 22
+built-in packs in 0.12.0 (added the cloud-identity packs `aws-iam`,
+`az-identity`, `gcp-iam`) and to **34 built-in packs** in 0.13.0 (developer
+toolchain and enterprise-operations families), which also added **pack
+composition** (`rmacd.packs.composition`) so multiple packs can govern the same
+tool name. Companion documents: [README](README.md),
 [roadmap](roadmap.md), [authoring guide](authoring-guide.md).
 
 ---

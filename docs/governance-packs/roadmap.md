@@ -1,7 +1,9 @@
 # Governance Packs — Delivery Roadmap
 
 **Status:** Delivered in `rmacd-framework` 0.11.0 (Phases 0–6); the catalog and
-approval surface were extended in 0.12.0 (see [Post-0.11.0](#post-0110-follow-on-work)).
+approval surface were extended in 0.12.0, and 0.13.0 brought the catalog to
+**34 packs** and added pack composition (see
+[Post-0.11.0](#post-0110-follow-on-work)).
 Companion documents: [README](README.md), [design](design.md),
 [authoring guide](authoring-guide.md).
 
@@ -23,6 +25,7 @@ tested (see `rmacd.packs` and the `tests/test_packs_*.py` suites).
 | 5 | Signing & drift | ✅ Complete | 0.11.0 |
 | 6 | Docs, examples, adapters, release | ✅ Complete | 0.11.0 |
 | — | Post-0.11.0 follow-on (0.12.0) | ✅ Complete | 0.12.0 |
+| — | Post-0.12.0 follow-on (0.13.0: 12 packs, composition) | ✅ Complete | 0.13.0 |
 | — | Normative spec · visual editor · control plane | ⏳ Deferred (not scheduled) | — |
 
 **No phase is pending** — the roadmap is fully delivered. The only outstanding
@@ -170,6 +173,23 @@ Incremental hardening delivered after the initial 0.11.0 cut. These are additive
 
 **Exit criteria:** identity packs pass their golden fixtures; the SDK ships a
 ready-to-use interactive approval gateway; 0.12.0 published.
+
+### 0.13.0 — Developer toolchain + enterprise operations packs, composition
+
+- **12 new built-in packs** — developer toolchain (`git`, `gh`, `docker`,
+  `terraform`, `npm`, `pip-uv`, `make`) and enterprise operations (`helm`,
+  `vault`, `ssh-transfer`, `stripe`, `servicenow`) — bringing the built-in
+  catalog to **34 packs**. Destructive, credential, publish, and CAB-approval
+  operations sit on the `restricted` tier as Change/Delete, so the §12.5 floor
+  blocks them for autonomous agents.
+- **Pack composition** (`rmacd.packs.composition`) — multiple packs can govern
+  the same tool name (e.g. `shell` + `git` + `docker` + `terraform` all
+  overlaying `bash`): ordered chain, most-specific claim wins, severity breaks
+  ties fail-closed, and each match carries its own pack's capability ceiling.
+  Previously the last-applied pack won.
+
+**Exit criteria:** golden rows for every new pack; composition test suite
+green; catalog regenerated; 0.13.0 published.
 
 ---
 

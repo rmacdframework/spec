@@ -101,7 +101,7 @@ Governance Packs remove that tax.
   file. Every decision — including live resolver lookups — is reconstructable
   from the pack version plus the audit record.
 
-## Pack catalog (planned)
+## Pack catalog
 
 | Family | Packs |
 |--------|-------|

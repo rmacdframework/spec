@@ -22,6 +22,33 @@ RMACD answers the fundamental governance question: *"What can this agent do, to 
 
 ---
 
+## Use with Claude Code
+
+RMACD ships as a [Claude Code](https://claude.com/claude-code) plugin — three steps from zero to a governed session:
+
+```
+claude plugin marketplace add rmacdframework/spec
+claude plugin install rmacd@rmacd-framework
+```
+
+then, inside a session:
+
+```
+/rmacd:init
+```
+
+Install the SDK into the Python environment your session's `python3` resolves to (the `[mcp]` extra is optional — it adds the `rmacd mcp-serve` policy server for MCP clients):
+
+```bash
+pip install "rmacd-framework[mcp]"
+```
+
+Beyond scaffolding governance for agents you build, the plugin governs the **Claude Code session itself**: a deterministic `PreToolUse` hook (`python3 -m rmacd.claude_code.hook`) classifies every Bash, file-edit, and MCP tool call into RMACD terms and evaluates it against a bound profile before the tool runs. With the read-only `observer-3d` profile bound, reads pass through untouched while a `rm -rf` is refused with a decision that cites the operation, tier, rule, and profile — `RMACD: Delete on internal target 'bash:rm' denied — Operation D not permitted for this profile. Rule: bash classifier: rm. Profile: rmacd-3d-observer-v1.` Unbound sessions are zero-friction; bound sessions fail closed, and approval-level autonomy maps to Claude Code's own permission prompt.
+
+See [docs/claude-code.md](docs/claude-code.md) for setup, enterprise managed-settings rollout, and configuration, and the [plugin README](plugins/rmacd/README.md) for what's inside (`/rmacd:init`, `/rmacd:status`, `/rmacd:bug-setup`, skills, hook).
+
+---
+
 ## The Five Layers
 
 What we've built, from the standard up to running agents. Each layer links to its documentation.
@@ -104,7 +131,9 @@ What we've built, from the standard up to running agents. Each layer links to it
 - [Claude Agent SDK integration example](examples/agent-integration-claude-sdk/) — Runnable RMACD-governed agent (PreToolUse hook)
 - [Raw Anthropic SDK integration example](examples/agent-integration-anthropic-sdk/) — Runnable RMACD-governed agent (manual tool-use loop)
 - [DC2D customer-support example](examples/dc2d-customer-support/) — Redaction + egress controls demo (DC2D variant)
-- [Framework adapters](docs/framework-adapters.md) — registry-backed `enforce_tool_call` for OpenAI Agents SDK, Microsoft Agent Framework, Claude Agent SDK, LangChain, AutoGen, CrewAI
+- [Framework adapters](docs/framework-adapters.md) — registry-backed `enforce_tool_call` for OpenAI Agents SDK, Microsoft Agent Framework, Claude Agent SDK, LangChain, AutoGen, CrewAI — plus RMACD as an MCP server
+- [Claude Code integration](docs/claude-code.md) — *New in SDK 0.13.0:* session governance (`rmacd.claude_code` PreToolUse hook), the `rmacd` plugin, and enterprise managed-settings rollout
+- [Audit evidence](docs/audit-evidence.md) — `rmacd audit summarize` reports, SIEM shipping recipes, SOC 2 / ISO 27001 / GDPR mapping
 - [Python Tools Registry](sdk/python/rmacd/registry/) — First-class tool→RMACD classifier + capability ceiling, consulted by `PolicyEnforcer.enforce_tool_call`; MCP auto-classification (`MCPRegistryBridge`) with optional Claude-powered classification (`LLMToolClassifier`, `pip install rmacd-framework[llm]`)
 - [Governance Packs](docs/governance-packs/) — *New in SDK 0.11.0 (`rmacd.packs`):* declarative, reusable, signable packs that map a tool surface to RMACD terms (operation/tier/target) so agents are governed off the shelf — `load_packs(["aws", "kubectl", "jira"])` — plus an AI-compile authoring workflow and 34 built-in packs ([overview](docs/governance-packs/README.md), [design](docs/governance-packs/design.md), [roadmap](docs/governance-packs/roadmap.md), [authoring guide](docs/governance-packs/authoring-guide.md))
 - [JSON Schema Templates](schemas/)
