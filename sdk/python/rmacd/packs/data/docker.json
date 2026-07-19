@@ -1,0 +1,96 @@
+{
+  "pack": "docker",
+  "version": "1.0.0",
+  "description": "RMACD classification for the Docker CLI (docker, docker compose), both as a direct tool and inside shell commands. Reads (ps/images/logs/inspect) stay internal; image builds and pulls are Add; container lifecycle (run/start/stop/restart) is Change; removals and prunes are Delete on confidential. Registry credential operations (login), image publishing (push), and sandbox-escape flags (--privileged, host namespaces, host-root bind mounts) land on the restricted tier, so the §12.5 floor prohibits them for autonomous agents.",
+  "default_operation": "C",
+  "provenance": {"authored_by": "rmacd", "llm_assisted": true, "review_status": "ai-drafted"},
+  "rules": [
+    {
+      "id": "docker-cli",
+      "when": {"tool": "docker"},
+      "parse": {"arg": "command", "strip_wrappers": ["sudo", "env"]},
+      "verb_table": {
+        "ps": "R", "images": "R", "logs": "R", "inspect": "R", "version": "R",
+        "info": "R", "history": "R", "top": "R", "port": "R", "stats": "R",
+        "events": "R", "diff": "R", "search": "R", "wait": "R", "help": "R",
+        "rename": "M",
+        "build": "A", "pull": "A", "tag": "A", "create": "A", "commit": "A",
+        "save": "A", "export": "A", "import": "A", "load": "A", "cp": "A",
+        "run": "C", "start": "C", "stop": "C", "restart": "C", "pause": "C",
+        "unpause": "C", "kill": "C", "exec": "C", "attach": "C", "update": "C",
+        "scale": "C", "up": "C",
+        "rm": "D", "rmi": "D", "prune": "D", "down": "D"
+      },
+      "default": "C",
+      "tier": {
+        "pattern_map": [
+          {"arg_regex": {"arg": "command", "pattern": "(secret|password|credential|token|/var/run/docker\\.sock)"}, "tier": "confidential"}
+        ],
+        "default": "internal"
+      },
+      "target": "docker://{command}",
+      "capability": ["R", "M", "A", "C", "D"]
+    },
+    {
+      "id": "docker-shell",
+      "when": {
+        "tool": ["bash", "sh", "shell", "zsh", "run_command", "execute_command"],
+        "argv_contains": {"arg": "command", "tokens": ["docker"]}
+      },
+      "parse": {"arg": "command", "strip_wrappers": ["sudo", "env"]},
+      "verb_table": {
+        "ps": "R", "images": "R", "logs": "R", "inspect": "R", "version": "R",
+        "info": "R", "history": "R", "top": "R", "port": "R", "stats": "R",
+        "events": "R", "diff": "R", "search": "R", "wait": "R", "help": "R",
+        "rename": "M",
+        "build": "A", "pull": "A", "tag": "A", "create": "A", "commit": "A",
+        "save": "A", "export": "A", "import": "A", "load": "A", "cp": "A",
+        "run": "C", "start": "C", "stop": "C", "restart": "C", "pause": "C",
+        "unpause": "C", "kill": "C", "exec": "C", "attach": "C", "update": "C",
+        "scale": "C", "up": "C",
+        "rm": "D", "rmi": "D", "prune": "D", "down": "D"
+      },
+      "default": "C",
+      "tier": {
+        "pattern_map": [
+          {"arg_regex": {"arg": "command", "pattern": "(secret|password|credential|token|/var/run/docker\\.sock)"}, "tier": "confidential"}
+        ],
+        "default": "internal"
+      },
+      "target": "docker://{command}",
+      "capability": ["R", "M", "A", "C", "D"]
+    },
+    {
+      "id": "docker-destroy",
+      "when": {
+        "tool": ["docker", "bash", "sh", "shell", "zsh", "run_command", "execute_command"],
+        "arg_regex": {"arg": "command", "pattern": "(^|\\s)(rm|rmi|prune)\\b"}
+      },
+      "classify": {"tier": "confidential"}
+    },
+    {
+      "id": "docker-login",
+      "when": {
+        "tool": ["docker", "bash", "sh", "shell", "zsh", "run_command", "execute_command"],
+        "arg_regex": {"arg": "command", "pattern": "(^|\\s)(login|logout)\\b"}
+      },
+      "classify": {"operation": "C", "tier": "restricted"}
+    },
+    {
+      "id": "docker-push",
+      "when": {
+        "tool": ["docker", "bash", "sh", "shell", "zsh", "run_command", "execute_command"],
+        "arg_regex": {"arg": "command", "pattern": "(^|\\s)push\\b"}
+      },
+      "classify": {"operation": "C", "tier": "restricted"}
+    },
+    {
+      "id": "docker-privileged",
+      "when": {
+        "tool": ["docker", "bash", "sh", "shell", "zsh", "run_command", "execute_command"],
+        "arg_regex": {"arg": "command", "pattern": "--privileged\\b|--cap-add\\b|--security-opt\\b|--pid[= ]host\\b|--userns[= ]host\\b|--ipc[= ]host\\b|--net(work)?[= ]host\\b|(-v|--volume)[= ]+/:|source=/,"}
+      },
+      "classify": {"operation": "C", "tier": "restricted"}
+    }
+  ]
+}

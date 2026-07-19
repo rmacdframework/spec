@@ -1,0 +1,136 @@
+{
+  "pack": "gh",
+  "version": "1.0.0",
+  "description": "RMACD classification for the GitHub CLI (gh), both as a direct tool and inside shell commands. A finer-grained successor to the coarse 'github' pack (load one or the other, not both): pr/issue/run reads stay internal; pr create/comment are Add; pr merge and release create are Change on confidential. Repo deletion, Actions secret/variable writes, SSH/GPG key management, and credential access (auth login/token) land on the restricted tier, so the §12.5 floor prohibits the mutations for autonomous agents.",
+  "default_operation": "C",
+  "provenance": {"authored_by": "rmacd", "llm_assisted": true, "review_status": "ai-drafted"},
+  "rules": [
+    {
+      "id": "gh-cli",
+      "when": {"tool": "gh"},
+      "parse": {"arg": "command", "strip_wrappers": ["sudo", "env"]},
+      "verb_table": {
+        "list": "R", "view": "R", "status": "R", "diff": "R", "checks": "R",
+        "browse": "R", "search": "R", "clone": "R", "checkout": "R",
+        "download": "R", "watch": "R", "token": "R", "help": "R", "version": "R",
+        "create": "A", "fork": "A", "comment": "A", "review": "A", "upload": "A",
+        "edit": "C", "merge": "C", "close": "C", "reopen": "C", "ready": "C",
+        "rename": "C", "lock": "C", "unlock": "C", "pin": "C", "unpin": "C",
+        "transfer": "C", "sync": "C", "push": "C", "rerun": "C", "approve": "C",
+        "enable": "C", "disable": "C", "set": "C", "set-default": "C",
+        "cancel": "C", "login": "C", "logout": "C", "refresh": "C", "api": "C",
+        "delete": "D", "remove": "D"
+      },
+      "default": "C",
+      "tier": {
+        "pattern_map": [
+          {"arg_regex": {"arg": "command", "pattern": "(secret|token|password|credential|ssh-key|gpg-key)"}, "tier": "confidential"}
+        ],
+        "default": "internal"
+      },
+      "target": "github://{command}",
+      "capability": ["R", "M", "A", "C", "D"]
+    },
+    {
+      "id": "gh-shell",
+      "when": {
+        "tool": ["bash", "sh", "shell", "zsh", "run_command", "execute_command"],
+        "argv_contains": {"arg": "command", "tokens": ["gh"]}
+      },
+      "parse": {"arg": "command", "strip_wrappers": ["sudo", "env"]},
+      "verb_table": {
+        "list": "R", "view": "R", "status": "R", "diff": "R", "checks": "R",
+        "browse": "R", "search": "R", "clone": "R", "checkout": "R",
+        "download": "R", "watch": "R", "token": "R", "help": "R", "version": "R",
+        "create": "A", "fork": "A", "comment": "A", "review": "A", "upload": "A",
+        "edit": "C", "merge": "C", "close": "C", "reopen": "C", "ready": "C",
+        "rename": "C", "lock": "C", "unlock": "C", "pin": "C", "unpin": "C",
+        "transfer": "C", "sync": "C", "push": "C", "rerun": "C", "approve": "C",
+        "enable": "C", "disable": "C", "set": "C", "set-default": "C",
+        "cancel": "C", "login": "C", "logout": "C", "refresh": "C", "api": "C",
+        "delete": "D", "remove": "D"
+      },
+      "default": "C",
+      "tier": {
+        "pattern_map": [
+          {"arg_regex": {"arg": "command", "pattern": "(secret|token|password|credential|ssh-key|gpg-key)"}, "tier": "confidential"}
+        ],
+        "default": "internal"
+      },
+      "target": "github://{command}",
+      "capability": ["R", "M", "A", "C", "D"]
+    },
+    {
+      "id": "gh-merge-release",
+      "when": {
+        "tool": ["gh", "bash", "sh", "shell", "zsh", "run_command", "execute_command"],
+        "arg_regex": {"arg": "command", "pattern": "(^|\\s)(pr\\s+merge|release\\s+(create|edit|upload))\\b"}
+      },
+      "classify": {"operation": "C", "tier": "confidential"}
+    },
+    {
+      "id": "gh-release-delete",
+      "when": {
+        "tool": ["gh", "bash", "sh", "shell", "zsh", "run_command", "execute_command"],
+        "arg_regex": {"arg": "command", "pattern": "(^|\\s)release\\s+(delete|delete-asset)\\b"}
+      },
+      "classify": {"operation": "D", "tier": "confidential"}
+    },
+    {
+      "id": "gh-repo-delete",
+      "when": {
+        "tool": ["gh", "bash", "sh", "shell", "zsh", "run_command", "execute_command"],
+        "arg_regex": {"arg": "command", "pattern": "(^|\\s)repo\\s+delete\\b"}
+      },
+      "classify": {"operation": "D", "tier": "restricted"}
+    },
+    {
+      "id": "gh-repo-admin",
+      "when": {
+        "tool": ["gh", "bash", "sh", "shell", "zsh", "run_command", "execute_command"],
+        "arg_regex": {"arg": "command", "pattern": "(^|\\s)repo\\s+(archive|unarchive|rename|transfer)\\b|(^|\\s)repo\\s+edit\\b[^|;&]*--visibility"}
+      },
+      "classify": {"operation": "C", "tier": "restricted"}
+    },
+    {
+      "id": "gh-secret-variable",
+      "when": {
+        "tool": ["gh", "bash", "sh", "shell", "zsh", "run_command", "execute_command"],
+        "arg_regex": {"arg": "command", "pattern": "(^|\\s)(secret|variable)\\s+(set|delete|remove|list)\\b"}
+      },
+      "classify": {"tier": "restricted"}
+    },
+    {
+      "id": "gh-auth-token",
+      "when": {
+        "tool": ["gh", "bash", "sh", "shell", "zsh", "run_command", "execute_command"],
+        "arg_regex": {"arg": "command", "pattern": "(^|\\s)auth\\s+token\\b"}
+      },
+      "classify": {"tier": "restricted"}
+    },
+    {
+      "id": "gh-auth-mutate",
+      "when": {
+        "tool": ["gh", "bash", "sh", "shell", "zsh", "run_command", "execute_command"],
+        "arg_regex": {"arg": "command", "pattern": "(^|\\s)auth\\s+(login|logout|refresh|setup-git)\\b"}
+      },
+      "classify": {"operation": "C", "tier": "restricted"}
+    },
+    {
+      "id": "gh-key-mutate",
+      "when": {
+        "tool": ["gh", "bash", "sh", "shell", "zsh", "run_command", "execute_command"],
+        "arg_regex": {"arg": "command", "pattern": "(^|\\s)(ssh-key|gpg-key)\\s+(add|delete)\\b"}
+      },
+      "classify": {"operation": "C", "tier": "restricted"}
+    },
+    {
+      "id": "gh-api-delete",
+      "when": {
+        "tool": ["gh", "bash", "sh", "shell", "zsh", "run_command", "execute_command"],
+        "arg_regex": {"arg": "command", "pattern": "(^|\\s)api\\b[^|;&]*(--method[= ]+DELETE|-X[= ]+DELETE)"}
+      },
+      "classify": {"operation": "D", "tier": "confidential"}
+    }
+  ]
+}

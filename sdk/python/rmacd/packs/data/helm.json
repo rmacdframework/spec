@@ -1,0 +1,104 @@
+{
+  "pack": "helm",
+  "version": "1.0.0",
+  "description": "RMACD classification for the Helm CLI (Kubernetes package manager), both as a direct tool and inside shell commands. Read-only chart and release inspection (list/status/get/history/search/show/template/lint) stays internal; repo add and chart pulls are Add on internal; install creates a release and is Add on confidential; upgrade and rollback mutate a running release and are Change on confidential. Uninstall deletes a release — Delete on restricted, so the §12.5 floor prohibits it autonomously. Registry login, chart push, and plugin management (plugins execute arbitrary code) land on the restricted tier.",
+  "default_operation": "C",
+  "provenance": {"authored_by": "rmacd", "llm_assisted": true, "review_status": "ai-drafted"},
+  "rules": [
+    {
+      "id": "helm-cli",
+      "when": {"tool": "helm"},
+      "parse": {"arg": "command", "strip_wrappers": ["sudo", "env"]},
+      "verb_table": {
+        "list": "R", "ls": "R", "status": "R", "get": "R", "history": "R",
+        "hist": "R", "search": "R", "show": "R", "inspect": "R", "template": "R",
+        "lint": "R", "verify": "R", "version": "R", "env": "R", "help": "R",
+        "completion": "R",
+        "install": "A", "create": "A", "package": "A", "pull": "A",
+        "fetch": "A", "add": "A",
+        "upgrade": "C", "rollback": "C", "update": "C", "push": "C",
+        "login": "C", "logout": "C",
+        "uninstall": "D", "delete": "D", "del": "D"
+      },
+      "default": "C",
+      "tier": "internal",
+      "target": "helm://{command}",
+      "capability": ["R", "M", "A", "C", "D"]
+    },
+    {
+      "id": "helm-shell",
+      "when": {
+        "tool": ["bash", "sh", "shell", "zsh", "run_command", "execute_command"],
+        "argv_contains": {"arg": "command", "tokens": ["helm"]}
+      },
+      "parse": {"arg": "command", "strip_wrappers": ["sudo", "env"]},
+      "verb_table": {
+        "list": "R", "ls": "R", "status": "R", "get": "R", "history": "R",
+        "hist": "R", "search": "R", "show": "R", "inspect": "R", "template": "R",
+        "lint": "R", "verify": "R", "version": "R", "env": "R", "help": "R",
+        "completion": "R",
+        "install": "A", "create": "A", "package": "A", "pull": "A",
+        "fetch": "A", "add": "A",
+        "upgrade": "C", "rollback": "C", "update": "C", "push": "C",
+        "login": "C", "logout": "C",
+        "uninstall": "D", "delete": "D", "del": "D"
+      },
+      "default": "C",
+      "tier": "internal",
+      "target": "helm://{command}",
+      "capability": ["R", "M", "A", "C", "D"]
+    },
+    {
+      "id": "helm-install",
+      "when": {"tool": "helm", "arg_regex": {"arg": "command", "pattern": "(^|\\s)install\\b"}},
+      "classify": {"operation": "A", "tier": "confidential"}
+    },
+    {
+      "id": "helm-shell-install",
+      "when": {
+        "tool": ["bash", "sh", "shell", "zsh", "run_command", "execute_command"],
+        "arg_regex": {"arg": "command", "pattern": "\\bhelm\\b[^|;&]*\\sinstall\\b"}
+      },
+      "classify": {"operation": "A", "tier": "confidential"}
+    },
+    {
+      "id": "helm-release-mutate",
+      "when": {"tool": "helm", "arg_regex": {"arg": "command", "pattern": "(^|\\s)(upgrade|rollback)\\b"}},
+      "classify": {"operation": "C", "tier": "confidential"}
+    },
+    {
+      "id": "helm-shell-release-mutate",
+      "when": {
+        "tool": ["bash", "sh", "shell", "zsh", "run_command", "execute_command"],
+        "arg_regex": {"arg": "command", "pattern": "\\bhelm\\b[^|;&]*\\s(upgrade|rollback)\\b"}
+      },
+      "classify": {"operation": "C", "tier": "confidential"}
+    },
+    {
+      "id": "helm-uninstall",
+      "when": {"tool": "helm", "arg_regex": {"arg": "command", "pattern": "(^|\\s)(uninstall|del(ete)?|un)(\\s|$)"}},
+      "classify": {"operation": "D", "tier": "restricted"}
+    },
+    {
+      "id": "helm-shell-uninstall",
+      "when": {
+        "tool": ["bash", "sh", "shell", "zsh", "run_command", "execute_command"],
+        "arg_regex": {"arg": "command", "pattern": "\\bhelm\\b[^|;&]*\\s(uninstall|del(ete)?|un)(\\s|$)"}
+      },
+      "classify": {"operation": "D", "tier": "restricted"}
+    },
+    {
+      "id": "helm-privileged",
+      "when": {"tool": "helm", "arg_regex": {"arg": "command", "pattern": "(^|\\s)(registry\\s+(login|logout)|plugin\\s+(install|uninstall|update)|push)\\b"}},
+      "classify": {"tier": "restricted"}
+    },
+    {
+      "id": "helm-shell-privileged",
+      "when": {
+        "tool": ["bash", "sh", "shell", "zsh", "run_command", "execute_command"],
+        "arg_regex": {"arg": "command", "pattern": "\\bhelm\\b[^|;&]*\\s(registry\\s+(login|logout)|plugin\\s+(install|uninstall|update)|push)\\b"}
+      },
+      "classify": {"tier": "restricted"}
+    }
+  ]
+}

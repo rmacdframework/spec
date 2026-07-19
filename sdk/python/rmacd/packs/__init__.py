@@ -24,6 +24,7 @@ License: CC BY 4.0
 """
 
 from rmacd.packs.compile import compile_pack, pack_drift, review_items
+from rmacd.packs.composition import ComposedToolDefinition, compose_pack_tool
 from rmacd.packs.engine import (
     ClassificationResult,
     DeclarativeClassifier,
@@ -112,6 +113,9 @@ __all__ = [
     "apply_pack",
     "exact_tool_names",
     "builtin_pack_names",
+    # multi-pack composition
+    "ComposedToolDefinition",
+    "compose_pack_tool",
     # AI-compile authoring
     "compile_pack",
     "review_items",

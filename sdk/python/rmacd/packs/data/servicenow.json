@@ -1,0 +1,62 @@
+{
+  "pack": "servicenow",
+  "version": "1.0.0",
+  "description": "RMACD classification for ServiceNow MCP/REST tool surfaces (ITSM, change management, CMDB). There is no canonical ServiceNow CLI, so this pack targets the common MCP/REST tool names, mirroring the 'jira'/'confluence' pack shape. Record queries and gets are Read on internal (generic table access consults the servicenow_table_tier resolver, fail-closed to confidential); incident/request creation and work notes are Add on internal; incident update/assign/resolve is Change on confidential. Change management is the control point: creating a change request is Add on confidential, but approving one or forcing its state transition is Change on restricted — CAB approval is a human act, and an agent approving its own change requests must never happen autonomously, so the §12.5 floor prohibits it. Record deletion and CMDB CI deletion are Delete on restricted.",
+  "default_operation": "C",
+  "provenance": {"authored_by": "rmacd", "llm_assisted": true, "review_status": "ai-drafted"},
+  "resolvers": [
+    {"name": "servicenow_table_tier", "description": "Resolve a ServiceNow table name to its data classification", "fail_closed_default": "confidential"}
+  ],
+  "rules": [
+    {
+      "id": "snow-record-read",
+      "when": {"tool": ["search_records", "get_record", "query_records", "list_records"]},
+      "classify": {"operation": "R", "tier": {"resolver": "servicenow_table_tier", "from": "table", "default": "internal"}, "target": "servicenow://{table}/{sys_id}"}
+    },
+    {
+      "id": "snow-read",
+      "when": {"tool": ["get_incident", "search_incidents", "list_incidents", "get_request", "list_requests", "get_user", "list_users", "get_change_request", "list_change_requests", "get_knowledge_article", "search_knowledge_base"]},
+      "classify": {"operation": "R", "tier": "internal", "target": "servicenow://{number}"}
+    },
+    {
+      "id": "snow-add",
+      "when": {"tool": ["create_incident", "create_request", "add_comment", "add_work_note", "create_knowledge_article"]},
+      "classify": {"operation": "A", "tier": "internal", "target": "servicenow://{number}"}
+    },
+    {
+      "id": "snow-record-add",
+      "when": {"tool": "create_record"},
+      "classify": {"operation": "A", "tier": {"resolver": "servicenow_table_tier", "from": "table", "default": "internal"}, "target": "servicenow://{table}"}
+    },
+    {
+      "id": "snow-record-change",
+      "when": {"tool": "update_record"},
+      "classify": {"operation": "C", "tier": {"resolver": "servicenow_table_tier", "from": "table", "default": "internal"}, "target": "servicenow://{table}/{sys_id}"}
+    },
+    {
+      "id": "snow-incident-change",
+      "when": {"tool": ["update_incident", "assign_incident", "resolve_incident", "close_incident", "update_request", "close_request"]},
+      "classify": {"operation": "C", "tier": "confidential", "target": "servicenow://incident/{number}"}
+    },
+    {
+      "id": "snow-change-add",
+      "when": {"tool": ["create_change_request", "add_change_task", "submit_change_for_approval"]},
+      "classify": {"operation": "A", "tier": "confidential", "target": "servicenow://change_request/{number}"}
+    },
+    {
+      "id": "snow-change-update",
+      "when": {"tool": ["update_change_request", "update_change_task", "schedule_change_request"]},
+      "classify": {"operation": "C", "tier": "confidential", "target": "servicenow://change_request/{number}"}
+    },
+    {
+      "id": "snow-change-approve",
+      "when": {"tool": ["approve_change", "reject_change", "approve_change_request", "reject_change_request", "transition_change_state"]},
+      "classify": {"operation": "C", "tier": "restricted", "target": "servicenow://change_request/{number}"}
+    },
+    {
+      "id": "snow-delete",
+      "when": {"tool": ["delete_record", "delete_incident", "delete_request", "delete_change_request", "delete_cmdb_ci", "delete_ci", "delete_knowledge_article"]},
+      "classify": {"operation": "D", "tier": "restricted", "target": "servicenow://{table}/{sys_id}"}
+    }
+  ]
+}

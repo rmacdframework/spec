@@ -394,6 +394,71 @@ def cmd_pack_diff(args: argparse.Namespace) -> int:
     return 1
 
 
+def cmd_audit_summarize(args: argparse.Namespace) -> int:
+    """Summarize an audit JSONL file into auditor-facing evidence."""
+    from rmacd import audit_report
+
+    since = until = None
+    if args.since:
+        since = audit_report.parse_timestamp(args.since)
+        if since is None:
+            print(f"ERROR: --since is not an ISO-8601 timestamp: {args.since}", file=sys.stderr)
+            return 1
+    if args.until:
+        until = audit_report.parse_timestamp(args.until)
+        if until is None:
+            print(f"ERROR: --until is not an ISO-8601 timestamp: {args.until}", file=sys.stderr)
+            return 1
+
+    try:
+        records, malformed = audit_report.load_records(args.log)
+    except OSError as e:
+        print(f"ERROR: cannot read {args.log}: {e}", file=sys.stderr)
+        return 1
+
+    records = audit_report.filter_records(
+        records,
+        since=since,
+        until=until,
+        agent=args.agent,
+        denials_only=args.denials_only,
+    )
+    summary = audit_report.summarize(
+        records,
+        source=str(args.log),
+        malformed=malformed,
+        filters={
+            "since": since.isoformat() if since else None,
+            "until": until.isoformat() if until else None,
+            "agent": args.agent,
+            "denials_only": args.denials_only,
+        },
+    )
+
+    renderers = {
+        "text": audit_report.render_text,
+        "json": audit_report.render_json,
+        "md": audit_report.render_markdown,
+    }
+    print(renderers[args.format](summary), end="")
+    return 0
+
+
+def cmd_mcp_serve(args: argparse.Namespace) -> int:
+    """Run the RMACD MCP server on stdio (requires the [mcp] extra)."""
+    from rmacd.mcp_server import serve
+
+    try:
+        serve(args.profile)
+    except ImportError as e:
+        print(f"ERROR: {e}", file=sys.stderr)
+        return 1
+    except ProfileLoadError as e:
+        print(f"ERROR: {e}", file=sys.stderr)
+        return 1
+    return 0
+
+
 def main() -> int:
     """Main entry point for the CLI."""
     parser = argparse.ArgumentParser(
@@ -498,6 +563,38 @@ def main() -> int:
     pack_diff.add_argument("pack", help="Pack file")
     pack_diff.add_argument("source", help="MCP tools/list JSON (or a JSON list of tools)")
 
+    # audit command group
+    audit_parser = subparsers.add_parser("audit", help="Audit-log evidence tools")
+    audit_sub = audit_parser.add_subparsers(dest="audit_command", help="Audit subcommands")
+
+    audit_summarize = audit_sub.add_parser(
+        "summarize", help="Summarize an audit JSONL file into an evidence report"
+    )
+    audit_summarize.add_argument("log", help="Audit log file (JSON Lines, Appendix C.6 records)")
+    audit_summarize.add_argument(
+        "--format", choices=["text", "json", "md"], default="text",
+        help="Output format (default: text)",
+    )
+    audit_summarize.add_argument("--since", help="Only records at or after this ISO timestamp")
+    audit_summarize.add_argument("--until", help="Only records at or before this ISO timestamp")
+    audit_summarize.add_argument("--agent", help="Only records for this agent_id")
+    audit_summarize.add_argument(
+        "--denials-only", action="store_true",
+        help="Only denied records (DENY and REJECTED)",
+    )
+
+    # mcp-serve command
+    mcp_serve_parser = subparsers.add_parser(
+        "mcp-serve", help="Run the RMACD MCP server on stdio (requires the [mcp] extra)"
+    )
+    mcp_serve_parser.add_argument(
+        "--profile",
+        help=(
+            "Pin the server to this profile file; it becomes authoritative and "
+            "per-call profile_path arguments are rejected"
+        ),
+    )
+
     args = parser.parse_args()
 
     if args.command is None:
@@ -517,12 +614,22 @@ def main() -> int:
             return 0
         return pack_commands[args.pack_command](args)
 
+    if args.command == "audit":
+        audit_commands = {
+            "summarize": cmd_audit_summarize,
+        }
+        if getattr(args, "audit_command", None) is None:
+            audit_parser.print_help()
+            return 0
+        return audit_commands[args.audit_command](args)
+
     commands = {
         "validate": cmd_validate,
         "evaluate": cmd_evaluate,
         "info": cmd_info,
         "matrix": cmd_matrix,
         "classify": cmd_classify,
+        "mcp-serve": cmd_mcp_serve,
     }
 
     return commands[args.command](args)

@@ -35,11 +35,16 @@ if str(SDK_PATH) not in sys.path:
 
 from rmacd import (  # noqa: E402
     AutoApproveGateway,
+    JSONLAuditLogger,
     PolicyEnforcer,
     ProfileLoader,
     RMACDEgressBlockedError,
 )
 
+# Every enforce() call writes an Appendix C.6 audit record here. The file is
+# gitignored; re-running the demo regenerates it from scratch. Summarize it
+# with: python -m rmacd.cli audit summarize audit.jsonl
+AUDIT_LOG_PATH = Path(__file__).resolve().parent / "audit.jsonl"
 
 PROFILE_PATH = (
     Path(__file__).resolve().parent.parent.parent
@@ -102,10 +107,12 @@ def main() -> None:
     # demo flow through to the redaction step. Deployments wire in a
     # gateway that involves a human (CLI prompt, Slack, ServiceNow,
     # webhook); the SDK ships CLIApprovalGateway as a ready-to-use option.
+    AUDIT_LOG_PATH.unlink(missing_ok=True)  # fresh, deterministic log per run
     enforcer = PolicyEnforcer(
         profile=profile,
         agent_id="support-agent-demo",
         approval_gateway=AutoApproveGateway(),
+        audit_logger=JSONLAuditLogger(AUDIT_LOG_PATH),
     )
 
     divider("Profile")
@@ -174,7 +181,8 @@ def main() -> None:
         print(f"    message:      {exc}")
 
     divider()
-    print("Done.")
+    print(f"Done. Audit records written to {AUDIT_LOG_PATH.name} — summarize with:")
+    print("  python -m rmacd.cli audit summarize audit.jsonl")
 
 
 if __name__ == "__main__":

@@ -1,0 +1,96 @@
+{
+  "pack": "vault",
+  "version": "1.0.0",
+  "description": "RMACD classification for the HashiCorp Vault CLI, both as a direct tool and inside shell commands. This pack is the §12.5 showcase: every Vault operation lands on at least the confidential tier, because everything Vault touches is a secret or the machinery that guards one. Reading a secret (kv get, read, unwrap) is Read on restricted — the read IS the exfiltration risk, so it is profile-gated rather than floor-blocked. Writing/patching secrets (kv put/patch) is Change on restricted and deleting/destroying them (kv delete/destroy, secrets disable) is Delete on restricted, so the §12.5 immutable floor makes them structurally impossible for autonomous agents. Policy writes, auth-method changes, token create/revoke, login, and operator commands (seal/unseal/rekey/raft) are likewise restricted-tier mutations. Benign surface (status, token lookup-self, list) stays Read on confidential.",
+  "default_operation": "C",
+  "provenance": {"authored_by": "rmacd", "llm_assisted": true, "review_status": "ai-drafted"},
+  "rules": [
+    {
+      "id": "vault-cli",
+      "when": {"tool": "vault"},
+      "parse": {"arg": "command", "strip_wrappers": ["sudo", "env"]},
+      "verb_table": {
+        "status": "R", "read": "R", "get": "R", "list": "R", "lookup": "R",
+        "unwrap": "R", "help": "R", "version": "R", "path-help": "R",
+        "write": "C", "put": "C", "patch": "C", "login": "C", "enable": "C",
+        "tune": "C", "rotate": "C", "renew": "C", "rekey": "C",
+        "delete": "D", "destroy": "D", "disable": "D", "revoke": "D"
+      },
+      "default": "C",
+      "tier": "confidential",
+      "target": "vault://{command}",
+      "capability": ["R", "M", "A", "C", "D"]
+    },
+    {
+      "id": "vault-shell",
+      "when": {
+        "tool": ["bash", "sh", "shell", "zsh", "run_command", "execute_command"],
+        "argv_contains": {"arg": "command", "tokens": ["vault"]}
+      },
+      "parse": {"arg": "command", "strip_wrappers": ["sudo", "env"]},
+      "verb_table": {
+        "status": "R", "read": "R", "get": "R", "list": "R", "lookup": "R",
+        "unwrap": "R", "help": "R", "version": "R", "path-help": "R",
+        "write": "C", "put": "C", "patch": "C", "login": "C", "enable": "C",
+        "tune": "C", "rotate": "C", "renew": "C", "rekey": "C",
+        "delete": "D", "destroy": "D", "disable": "D", "revoke": "D"
+      },
+      "default": "C",
+      "tier": "confidential",
+      "target": "vault://{command}",
+      "capability": ["R", "M", "A", "C", "D"]
+    },
+    {
+      "id": "vault-secret-read",
+      "when": {"tool": "vault", "arg_regex": {"arg": "command", "pattern": "(^|\\s)(kv\\s+get|read|unwrap)\\b"}},
+      "classify": {"tier": "restricted"}
+    },
+    {
+      "id": "vault-shell-secret-read",
+      "when": {
+        "tool": ["bash", "sh", "shell", "zsh", "run_command", "execute_command"],
+        "arg_regex": {"arg": "command", "pattern": "\\bvault\\b[^|;&]*\\s(kv\\s+get|read|unwrap)\\b"}
+      },
+      "classify": {"tier": "restricted"}
+    },
+    {
+      "id": "vault-secret-write",
+      "when": {"tool": "vault", "arg_regex": {"arg": "command", "pattern": "(^|\\s)kv\\s+(put|patch|rollback|undelete)\\b"}},
+      "classify": {"operation": "C", "tier": "restricted"}
+    },
+    {
+      "id": "vault-shell-secret-write",
+      "when": {
+        "tool": ["bash", "sh", "shell", "zsh", "run_command", "execute_command"],
+        "arg_regex": {"arg": "command", "pattern": "\\bvault\\b[^|;&]*\\skv\\s+(put|patch|rollback|undelete)\\b"}
+      },
+      "classify": {"operation": "C", "tier": "restricted"}
+    },
+    {
+      "id": "vault-secret-delete",
+      "when": {"tool": "vault", "arg_regex": {"arg": "command", "pattern": "(^|\\s)(delete|destroy)\\b"}},
+      "classify": {"operation": "D", "tier": "restricted"}
+    },
+    {
+      "id": "vault-shell-secret-delete",
+      "when": {
+        "tool": ["bash", "sh", "shell", "zsh", "run_command", "execute_command"],
+        "arg_regex": {"arg": "command", "pattern": "\\bvault\\b[^|;&]*\\s(delete|destroy)\\b"}
+      },
+      "classify": {"operation": "D", "tier": "restricted"}
+    },
+    {
+      "id": "vault-privileged",
+      "when": {"tool": "vault", "arg_regex": {"arg": "command", "pattern": "(^|\\s)(policy\\s+(write|delete)|auth\\s+(enable|disable|tune)|secrets\\s+(enable|disable|move|tune)|token\\s+(create|revoke|renew)|operator|lease\\s+revoke|audit\\s+(enable|disable)|plugin\\s+(register|deregister)|login|agent)\\b"}},
+      "classify": {"tier": "restricted"}
+    },
+    {
+      "id": "vault-shell-privileged",
+      "when": {
+        "tool": ["bash", "sh", "shell", "zsh", "run_command", "execute_command"],
+        "arg_regex": {"arg": "command", "pattern": "\\bvault\\b[^|;&]*\\s(policy\\s+(write|delete)|auth\\s+(enable|disable|tune)|secrets\\s+(enable|disable|move|tune)|token\\s+(create|revoke|renew)|operator|lease\\s+revoke|audit\\s+(enable|disable)|plugin\\s+(register|deregister)|login|agent)\\b"}
+      },
+      "classify": {"tier": "restricted"}
+    }
+  ]
+}

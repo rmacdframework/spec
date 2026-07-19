@@ -1,0 +1,65 @@
+{
+  "pack": "ssh-transfer",
+  "version": "1.0.0",
+  "description": "RMACD classification for remote shells and file transfer: ssh, scp, sftp, rsync, and the SSH credential tooling (ssh-keygen/ssh-copy-id/ssh-agent/ssh-add), both as direct tools and inside shell commands. This is the canonical Move pack: scp/sftp/rsync transfers relocate data across a host boundary and classify as Move on confidential — note the direction, an upload is potential egress, so DC2D deployments should pair this pack with egress controls. rsync --delete (and --remove-source-files) is Delete on confidential. A plain 'ssh host cmd' executes an opaque remote command this pack cannot parse — it fails closed to Change on confidential and the capability ceiling applies (mirror of the 'make' pack's opaque-execution posture); govern the remote side with its own agent profile where possible. Key generation, key installation, and agent operations are the credential surface: Change on restricted, so the §12.5 floor prohibits them autonomously.",
+  "default_operation": "C",
+  "provenance": {"authored_by": "rmacd", "llm_assisted": true, "review_status": "ai-drafted"},
+  "rules": [
+    {
+      "id": "transfer-cli",
+      "when": {"tool": ["scp", "sftp", "rsync"]},
+      "classify": {"operation": "M", "tier": "confidential", "target": "transfer://{command}"},
+      "capability": ["R", "M", "A", "C", "D"]
+    },
+    {
+      "id": "transfer-shell",
+      "when": {
+        "tool": ["bash", "sh", "shell", "zsh", "run_command", "execute_command"],
+        "arg_regex": {"arg": "command", "pattern": "(^|\\s)(scp|sftp|rsync)\\b"}
+      },
+      "classify": {"operation": "M", "tier": "confidential", "target": "transfer://{command}"},
+      "capability": ["R", "M", "A", "C", "D"]
+    },
+    {
+      "id": "rsync-delete-cli",
+      "when": {"tool": "rsync", "arg_regex": {"arg": "command", "pattern": "(^|\\s)--(del(ete)?(-[a-z]+)?|remove-source-files)(\\s|$)"}},
+      "classify": {"operation": "D", "tier": "confidential"}
+    },
+    {
+      "id": "rsync-delete-shell",
+      "when": {
+        "tool": ["bash", "sh", "shell", "zsh", "run_command", "execute_command"],
+        "arg_regex": {"arg": "command", "pattern": "\\brsync\\b[^|;&]*\\s--(del(ete)?(-[a-z]+)?|remove-source-files)(\\s|$)"}
+      },
+      "classify": {"operation": "D", "tier": "confidential"}
+    },
+    {
+      "id": "ssh-exec-cli",
+      "when": {"tool": "ssh"},
+      "classify": {"operation": "C", "tier": "confidential", "target": "ssh://{command}"},
+      "capability": ["R", "M", "A", "C", "D"]
+    },
+    {
+      "id": "ssh-exec-shell",
+      "when": {
+        "tool": ["bash", "sh", "shell", "zsh", "run_command", "execute_command"],
+        "arg_regex": {"arg": "command", "pattern": "(^|\\s)ssh(\\s|$)"}
+      },
+      "classify": {"operation": "C", "tier": "confidential", "target": "ssh://{command}"},
+      "capability": ["R", "M", "A", "C", "D"]
+    },
+    {
+      "id": "ssh-credential-cli",
+      "when": {"tool": ["ssh-keygen", "ssh-copy-id", "ssh-agent", "ssh-add"]},
+      "classify": {"operation": "C", "tier": "restricted", "target": "ssh://{command}"}
+    },
+    {
+      "id": "ssh-credential-shell",
+      "when": {
+        "tool": ["bash", "sh", "shell", "zsh", "run_command", "execute_command"],
+        "arg_regex": {"arg": "command", "pattern": "(^|\\s)ssh-(keygen|copy-id|agent|add)\\b"}
+      },
+      "classify": {"operation": "C", "tier": "restricted", "target": "ssh://{command}"}
+    }
+  ]
+}

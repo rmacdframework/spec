@@ -50,6 +50,17 @@ python demo.py
 
 No API keys required; the demo is deterministic and doesn't call an LLM.
 
+Each run also (re)writes `audit.jsonl` next to the script — one Appendix C.6
+record per enforced operation (the file is gitignored). Turn it into an
+evidence report with:
+
+```bash
+python -m rmacd.cli audit summarize audit.jsonl        # or --format md|json
+```
+
+See [`docs/audit-evidence.md`](../../docs/audit-evidence.md), which uses this
+demo's output as its worked example.
+
 ## Scope of this demo
 
 - **No LLM integration.** The Claude Agent SDK example
@@ -73,7 +84,8 @@ No API keys required; the demo is deterministic and doesn't call an LLM.
 ```
 .
 ├── README.md
-├── demo.py    # The whole thing — one self-contained script
+├── demo.py        # The whole thing — one self-contained script
+├── audit.jsonl    # Appendix C.6 audit records, rewritten on each run (gitignored)
 ```
 
 ## Profile used

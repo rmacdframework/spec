@@ -146,7 +146,7 @@ Three examples, each introducing something new: **Jira** (MCP-style + resolvers)
 **boto3** (SDK-style governing a whole SDK with one verb table), and **Azure MCP**
 (large namespaced server + cross-rule tier overlay).
 
-> **Reference packs to read next.** The 22 built-in packs are worked examples in
+> **Reference packs to read next.** The 34 built-in packs are worked examples in
 > their own right. For the CLI-style + `restricted`-tier pattern in particular,
 > read the three cloud-identity packs (`aws-iam`, `az-identity`, `gcp-iam`): each
 > overlays a cloud CLI and raises IAM / directory / secrets / KMS operations to

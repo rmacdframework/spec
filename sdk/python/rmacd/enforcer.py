@@ -351,8 +351,10 @@ class PolicyEnforcer:
 
         resolved = tool.resolve_call(args or {})
 
-        # Capability gate (defence in depth): the tool's own ceiling.
-        if not tool.permits(resolved.operation, resolved.tier):
+        # Capability gate (defence in depth): the tool's own ceiling. For a
+        # composed multi-pack tool the resolution carries the matching pack's
+        # ceiling, and that per-call ceiling (never a cross-pack union) gates.
+        if not tool.permits_call(resolved):
             tier_label = resolved.tier.value if resolved.tier else "any"
             cap_reason = (
                 f"Tool '{tool.tool_id}' capability does not permit "
@@ -408,7 +410,7 @@ class PolicyEnforcer:
                 f"Tool '{tool_name}' is not registered in the RMACD tools registry."
             )
         resolved = tool.resolve_call(args or {})
-        if not tool.permits(resolved.operation, resolved.tier):
+        if not tool.permits_call(resolved):
             tier_label = resolved.tier.value if resolved.tier else "any"
             return PolicyDecision(
                 allowed=False,

@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import Any
 
 # Repo-relative paths (this file lives in docs/governance-packs/).
 HERE = Path(__file__).resolve().parent
@@ -44,6 +45,18 @@ FAMILY = {
     "gitlab": "Dev tools",
     "sql": "Dev tools",
     "filesystem": "Dev tools",
+    "git": "Developer toolchain",
+    "gh": "Developer toolchain",
+    "docker": "Developer toolchain",
+    "terraform": "Developer toolchain",
+    "npm": "Developer toolchain",
+    "pip-uv": "Developer toolchain",
+    "make": "Developer toolchain",
+    "servicenow": "Enterprise operations",
+    "helm": "Enterprise operations",
+    "ssh-transfer": "Enterprise operations",
+    "stripe": "Enterprise operations",
+    "vault": "Enterprise operations",
     "slack": "SaaS / collaboration MCPs",
     "google-drive": "SaaS / collaboration MCPs",
     "jira": "SaaS / collaboration MCPs",
@@ -61,6 +74,49 @@ FAMILY = {
 
 # Optional one-paragraph preamble printed under a family heading.
 FAMILY_BLURB = {
+    "Developer toolchain": (
+        "The surfaces enterprise coding-agent sessions actually touch: "
+        "`load_packs([\"git\", \"gh\", \"docker\", \"terraform\", \"npm\", "
+        "\"pip-uv\", \"make\"])` is one line. Each pack governs its CLI both as "
+        "a direct tool name and inside shell commands (`bash`/`sh`/... with the "
+        "CLI's binary in the command line). Routine development flows normally "
+        "(reads are Read on `internal`, installs/commits are Add, builds and "
+        "lifecycle changes are Change), while destructive, credential, publish, "
+        "and IAM-adjacent operations — force pushes, `terraform apply`/state "
+        "surgery, registry publishing, `docker login`/`--privileged`, secret "
+        "and token management — land on the **restricted** tier, so the §12.5 "
+        "floor makes them structurally impossible to perform autonomously. "
+        "Packs that share a shell tool name (`bash`, `sh`, ...) **compose**: "
+        "`apply_pack` chains them in load order instead of replacing, and per "
+        "call the pack whose rules match governs — with *its own* capability "
+        "ceiling, never a union across packs — falling through on no-match to "
+        "the next pack and finally to any tool registered before the packs. A "
+        "pack's broad tool-name-only fallback rule (e.g. the shell pack's "
+        "coreutils table) never shadows another pack's specific claim, so "
+        "loading all seven toolchain packs plus `shell` over the same `bash` "
+        "tool just works."
+    ),
+    "Enterprise operations": (
+        "One pack per enterprise control domain: change management "
+        "(`servicenow` — ITSM/CAB via MCP tool names), Kubernetes deployment "
+        "(`helm`), regulated file transfer and remote execution "
+        "(`ssh-transfer` — the canonical **Move** pack; an upload is potential "
+        "egress, which DC2D deployments should pair with egress controls), "
+        "financial rails (`stripe` — payment data is never internal, and money "
+        "movement is restricted), and identity/secrets (`vault` — the §12.5 "
+        "showcase, where reading a secret is itself the exfiltration risk and "
+        "classifies as Read on `restricted`). Restricted-tier *reads* are "
+        "profile-gated (they need an explicit Read grant on `restricted`), "
+        "while restricted-tier Change/Delete rows are floor-blocked outright. "
+        "The CLI-shaped packs (`helm`, `ssh-transfer`, `stripe`, `vault`) "
+        "govern their binaries both as direct tools and inside shell commands; "
+        "as with the developer-toolchain family, packs sharing a shell tool "
+        "name (`bash`, `sh`, ...) **compose** in a single registry — per call, "
+        "the pack whose rules match governs with its own capability ceiling, "
+        "falling through to the next pack on no-match — so these packs can be "
+        "loaded alongside the developer-toolchain (and `shell`) packs on the "
+        "same `bash` tool without one overwriting another."
+    ),
     "Identity & access (focused)": (
         "Focused, security-hardened variants of the cloud CLI packs. Each is a "
         "drop-in standalone pack (load it *instead of* the general `aws` / `az` / "
@@ -83,6 +139,8 @@ FAMILY_ORDER = [
     "Cloud CLIs",
     "Identity & access (focused)",
     "Dev tools",
+    "Developer toolchain",
+    "Enterprise operations",
     "SaaS / collaboration MCPs",
     "Cloud-provider SDKs & MCPs",
     "Microsoft 365 MCP",
@@ -137,7 +195,7 @@ def describe_tier(tier: object) -> str:
     return "; ".join(parts) if parts else "—"
 
 
-def render_verb_rule(rule: dict) -> list[str]:
+def render_verb_rule(rule: dict[str, Any]) -> list[str]:
     """Render a CLI/verb-table style rule (parse + verb_table)."""
     lines: list[str] = []
     tools = tools_for_when(rule.get("when"))
@@ -201,7 +259,7 @@ def describe_when(when: object) -> str:
     return ", ".join(code(t) for t in tools) if tools else "any call"
 
 
-def render_classify_rules(rules: list[dict]) -> list[str]:
+def render_classify_rules(rules: list[dict[str, Any]]) -> list[str]:
     """Render MCP/per-tool style rules (when + classify) as a table."""
     lines = [
         "| Operation | Tools | Data tier | Target |",
@@ -220,7 +278,7 @@ def render_classify_rules(rules: list[dict]) -> list[str]:
     return lines
 
 
-def render_overlay_rules(rules: list[dict]) -> list[str]:
+def render_overlay_rules(rules: list[dict[str, Any]]) -> list[str]:
     """Render scoped tier-overlay rules (when + classify.tier, no operation).
 
     These don't assert an operation — they raise the data tier when their
@@ -241,7 +299,7 @@ def render_overlay_rules(rules: list[dict]) -> list[str]:
     return lines
 
 
-def render_pack(pack: dict) -> list[str]:
+def render_pack(pack: dict[str, Any]) -> list[str]:
     """Render the full section for one pack."""
     name = pack["pack"]
     lines: list[str] = []
@@ -296,14 +354,14 @@ def render_pack(pack: dict) -> list[str]:
     return lines
 
 
-def load_packs() -> list[dict]:
+def load_packs() -> list[dict[str, Any]]:
     packs = []
     for path in sorted(DATA_DIR.glob("*.json")):
         packs.append(json.loads(path.read_text()))
     return packs
 
 
-def render_catalog(packs: list[dict]) -> str:
+def render_catalog(packs: list[dict[str, Any]]) -> str:
     by_name = {p["pack"]: p for p in packs}
     lines: list[str] = []
 

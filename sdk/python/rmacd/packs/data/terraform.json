@@ -1,0 +1,346 @@
+{
+  "pack": "terraform",
+  "version": "1.0.0",
+  "description": "RMACD classification for the Terraform CLI (terraform; OpenTofu 'tofu' is matched as a drop-in alias), both as a direct tool and inside shell commands. Reads (fmt/validate/show/output) stay internal; plan and state reads are confidential because they can reveal state contents. init/import are Add. Infrastructure mutation is the danger surface: apply, destroy, state surgery (state rm/mv/push), workspace delete, force-unlock, and login all land on the restricted tier, so the \u00a712.5 floor prohibits them for autonomous agents \u2014 an agent can plan, but a human applies.",
+  "default_operation": "C",
+  "provenance": {
+    "authored_by": "rmacd",
+    "llm_assisted": true,
+    "review_status": "ai-drafted"
+  },
+  "rules": [
+    {
+      "id": "terraform-cli",
+      "when": {
+        "tool": [
+          "terraform",
+          "tofu"
+        ]
+      },
+      "parse": {
+        "arg": "command",
+        "strip_wrappers": [
+          "sudo",
+          "env"
+        ]
+      },
+      "verb_table": {
+        "fmt": "R",
+        "list": "R",
+        "validate": "R",
+        "show": "R",
+        "output": "R",
+        "graph": "R",
+        "providers": "R",
+        "version": "R",
+        "console": "R",
+        "test": "R",
+        "plan": "R",
+        "help": "R",
+        "init": "A",
+        "import": "A",
+        "get": "A",
+        "new": "A",
+        "apply": "C",
+        "refresh": "C",
+        "taint": "C",
+        "untaint": "C",
+        "select": "C",
+        "login": "C",
+        "logout": "C",
+        "destroy": "D",
+        "delete": "D"
+      },
+      "default": "C",
+      "tier": {
+        "pattern_map": [
+          {
+            "arg_regex": {
+              "arg": "command",
+              "pattern": "(^|\\s)plan\\b"
+            },
+            "tier": "confidential"
+          },
+          {
+            "arg_regex": {
+              "arg": "command",
+              "pattern": "(secret|password|credential|token|vault)"
+            },
+            "tier": "confidential"
+          }
+        ],
+        "default": "internal"
+      },
+      "target": "terraform://{command}",
+      "capability": [
+        "R",
+        "M",
+        "A",
+        "C",
+        "D"
+      ]
+    },
+    {
+      "id": "terraform-shell",
+      "when": {
+        "tool": [
+          "bash",
+          "sh",
+          "shell",
+          "zsh",
+          "run_command",
+          "execute_command"
+        ],
+        "arg_regex": {
+          "arg": "command",
+          "pattern": "(^|\\s)(terraform|tofu)\\s"
+        }
+      },
+      "parse": {
+        "arg": "command",
+        "strip_wrappers": [
+          "sudo",
+          "env"
+        ]
+      },
+      "verb_table": {
+        "fmt": "R",
+        "list": "R",
+        "validate": "R",
+        "show": "R",
+        "output": "R",
+        "graph": "R",
+        "providers": "R",
+        "version": "R",
+        "console": "R",
+        "test": "R",
+        "plan": "R",
+        "help": "R",
+        "init": "A",
+        "import": "A",
+        "get": "A",
+        "new": "A",
+        "apply": "C",
+        "refresh": "C",
+        "taint": "C",
+        "untaint": "C",
+        "select": "C",
+        "login": "C",
+        "logout": "C",
+        "destroy": "D",
+        "delete": "D"
+      },
+      "default": "C",
+      "tier": {
+        "pattern_map": [
+          {
+            "arg_regex": {
+              "arg": "command",
+              "pattern": "(^|\\s)plan\\b"
+            },
+            "tier": "confidential"
+          },
+          {
+            "arg_regex": {
+              "arg": "command",
+              "pattern": "(secret|password|credential|token|vault)"
+            },
+            "tier": "confidential"
+          }
+        ],
+        "default": "internal"
+      },
+      "target": "terraform://{command}",
+      "capability": [
+        "R",
+        "M",
+        "A",
+        "C",
+        "D"
+      ]
+    },
+    {
+      "id": "terraform-apply",
+      "when": {
+        "tool": [
+          "terraform",
+          "tofu",
+          "bash",
+          "sh",
+          "shell",
+          "zsh",
+          "run_command",
+          "execute_command"
+        ],
+        "arg_regex": {
+          "arg": "command",
+          "pattern": "(^|\\s)apply\\b"
+        }
+      },
+      "classify": {
+        "operation": "C",
+        "tier": "restricted"
+      }
+    },
+    {
+      "id": "terraform-destroy",
+      "when": {
+        "tool": [
+          "terraform",
+          "tofu",
+          "bash",
+          "sh",
+          "shell",
+          "zsh",
+          "run_command",
+          "execute_command"
+        ],
+        "arg_regex": {
+          "arg": "command",
+          "pattern": "(^|\\s)destroy\\b|(^|\\s)apply\\b[^|;&]*\\s-destroy\\b"
+        }
+      },
+      "classify": {
+        "operation": "D",
+        "tier": "restricted"
+      }
+    },
+    {
+      "id": "terraform-state-read",
+      "when": {
+        "tool": [
+          "terraform",
+          "tofu",
+          "bash",
+          "sh",
+          "shell",
+          "zsh",
+          "run_command",
+          "execute_command"
+        ],
+        "arg_regex": {
+          "arg": "command",
+          "pattern": "(^|\\s)state\\s+(list|show|pull)\\b"
+        }
+      },
+      "classify": {
+        "tier": "confidential"
+      }
+    },
+    {
+      "id": "terraform-state-mutate",
+      "when": {
+        "tool": [
+          "terraform",
+          "tofu",
+          "bash",
+          "sh",
+          "shell",
+          "zsh",
+          "run_command",
+          "execute_command"
+        ],
+        "arg_regex": {
+          "arg": "command",
+          "pattern": "(^|\\s)state\\s+(mv|push|replace-provider)\\b"
+        }
+      },
+      "classify": {
+        "operation": "C",
+        "tier": "restricted"
+      }
+    },
+    {
+      "id": "terraform-state-rm",
+      "when": {
+        "tool": [
+          "terraform",
+          "tofu",
+          "bash",
+          "sh",
+          "shell",
+          "zsh",
+          "run_command",
+          "execute_command"
+        ],
+        "arg_regex": {
+          "arg": "command",
+          "pattern": "(^|\\s)state\\s+rm\\b"
+        }
+      },
+      "classify": {
+        "operation": "D",
+        "tier": "restricted"
+      }
+    },
+    {
+      "id": "terraform-workspace-delete",
+      "when": {
+        "tool": [
+          "terraform",
+          "tofu",
+          "bash",
+          "sh",
+          "shell",
+          "zsh",
+          "run_command",
+          "execute_command"
+        ],
+        "arg_regex": {
+          "arg": "command",
+          "pattern": "(^|\\s)workspace\\s+delete\\b"
+        }
+      },
+      "classify": {
+        "operation": "D",
+        "tier": "restricted"
+      }
+    },
+    {
+      "id": "terraform-force-unlock",
+      "when": {
+        "tool": [
+          "terraform",
+          "tofu",
+          "bash",
+          "sh",
+          "shell",
+          "zsh",
+          "run_command",
+          "execute_command"
+        ],
+        "arg_regex": {
+          "arg": "command",
+          "pattern": "(^|\\s)force-unlock\\b"
+        }
+      },
+      "classify": {
+        "operation": "C",
+        "tier": "restricted"
+      }
+    },
+    {
+      "id": "terraform-login",
+      "when": {
+        "tool": [
+          "terraform",
+          "tofu",
+          "bash",
+          "sh",
+          "shell",
+          "zsh",
+          "run_command",
+          "execute_command"
+        ],
+        "arg_regex": {
+          "arg": "command",
+          "pattern": "(^|\\s)(login|logout)\\b"
+        }
+      },
+      "classify": {
+        "operation": "C",
+        "tier": "restricted"
+      }
+    }
+  ]
+}

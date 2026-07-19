@@ -51,7 +51,7 @@
         <mxCell id="pack" value="Governance Pack — signed data&#10;&#10;YAML / JSON · content_hash + Ed25519 signature&#10;rules: when (tool / args) → operation · data tier · target&#10;verb_table · pattern_map · resolver · capability ceiling" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D6E4F1;strokeColor=#3070b0;strokeWidth=2;fontSize=11;fontStyle=1;verticalAlign=top;spacingTop=8" vertex="1" parent="1">
           <mxGeometry x="360" y="300" width="470" height="130" as="geometry" />
         </mxCell>
-        <mxCell id="builtins" value="22 built-in packs&#10;&#10;shell · aws · gcloud · az · kubectl · github · gitlab&#10;sql · filesystem · jira · confluence · slack&#10;google-drive · postgres · boto3 · aws-api-mcp&#10;azure-mcp · gcp-toolbox · ms365&#10;aws-iam · az-identity · gcp-iam" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#E8E8E8;strokeColor=#666666;fontSize=10;dashed=1;verticalAlign=top;spacingTop=8" vertex="1" parent="1">
+        <mxCell id="builtins" value="34 built-in packs&#10;&#10;shell · aws · gcloud · az · kubectl · github · gitlab&#10;sql · filesystem · jira · confluence · slack&#10;google-drive · postgres · boto3 · aws-api-mcp&#10;azure-mcp · gcp-toolbox · ms365&#10;aws-iam · az-identity · gcp-iam&#10;git · gh · docker · terraform · npm · pip-uv · make&#10;helm · vault · ssh-transfer · stripe · servicenow" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#E8E8E8;strokeColor=#666666;fontSize=10;dashed=1;verticalAlign=top;spacingTop=8" vertex="1" parent="1">
           <mxGeometry x="900" y="300" width="360" height="150" as="geometry" />
         </mxCell>
 

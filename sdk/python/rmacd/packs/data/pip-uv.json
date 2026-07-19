@@ -1,0 +1,94 @@
+{
+  "pack": "pip-uv",
+  "version": "1.0.0",
+  "description": "RMACD classification for the Python packaging toolchain — pip/pip3, uv, and twine — both as direct tools and inside shell commands. Reads (pip list/show/download, uv lock/tree) stay internal; pip/uv install and uv sync/add are Add; uninstall/remove are Delete. Publishing to a package index (uv publish, twine upload) and credential material (index tokens, .pypirc, keyring writes) land on the restricted tier, so the §12.5 floor prohibits them for autonomous agents. Alternate-index flags raise the tier to confidential (supply-chain surface).",
+  "default_operation": "C",
+  "provenance": {"authored_by": "rmacd", "llm_assisted": true, "review_status": "ai-drafted"},
+  "rules": [
+    {
+      "id": "pip-uv-cli",
+      "when": {"tool": ["pip", "pip3", "uv", "twine"]},
+      "parse": {"arg": "command", "strip_wrappers": ["sudo", "env"]},
+      "verb_table": {
+        "list": "R", "show": "R", "download": "R", "freeze": "R", "check": "R",
+        "search": "R", "index": "R", "inspect": "R", "debug": "R", "help": "R",
+        "hash": "R", "cache": "R", "lock": "R", "tree": "R", "export": "R",
+        "version": "R", "config": "R", "dir": "R", "info": "R",
+        "install": "A", "wheel": "A", "add": "A", "sync": "A", "venv": "A",
+        "init": "A", "build": "A",
+        "run": "C", "pin": "C", "upgrade": "C", "update": "C",
+        "register": "C", "upload": "C",
+        "uninstall": "D", "remove": "D", "purge": "D", "prune": "D", "clean": "D"
+      },
+      "default": "C",
+      "tier": {
+        "pattern_map": [
+          {"arg_regex": {"arg": "command", "pattern": "(index-url|extra-index-url|trusted-host|find-links|keyring)"}, "tier": "confidential"}
+        ],
+        "default": "internal"
+      },
+      "target": "pip://{command}",
+      "capability": ["R", "M", "A", "C", "D"]
+    },
+    {
+      "id": "pip-uv-shell",
+      "when": {
+        "tool": ["bash", "sh", "shell", "zsh", "run_command", "execute_command"],
+        "arg_regex": {"arg": "command", "pattern": "(^|\\s)(pip3?|uv|twine)\\s"}
+      },
+      "parse": {"arg": "command", "strip_wrappers": ["sudo", "env"]},
+      "verb_table": {
+        "list": "R", "show": "R", "download": "R", "freeze": "R", "check": "R",
+        "search": "R", "index": "R", "inspect": "R", "debug": "R", "help": "R",
+        "hash": "R", "cache": "R", "lock": "R", "tree": "R", "export": "R",
+        "version": "R", "config": "R", "dir": "R", "info": "R",
+        "install": "A", "wheel": "A", "add": "A", "sync": "A", "venv": "A",
+        "init": "A", "build": "A",
+        "run": "C", "pin": "C", "upgrade": "C", "update": "C",
+        "register": "C", "upload": "C",
+        "uninstall": "D", "remove": "D", "purge": "D", "prune": "D", "clean": "D"
+      },
+      "default": "C",
+      "tier": {
+        "pattern_map": [
+          {"arg_regex": {"arg": "command", "pattern": "(index-url|extra-index-url|trusted-host|find-links|keyring)"}, "tier": "confidential"}
+        ],
+        "default": "internal"
+      },
+      "target": "pip://{command}",
+      "capability": ["R", "M", "A", "C", "D"]
+    },
+    {
+      "id": "pip-uv-publish",
+      "when": {
+        "tool": ["pip", "pip3", "uv", "twine", "bash", "sh", "shell", "zsh", "run_command", "execute_command"],
+        "arg_regex": {"arg": "command", "pattern": "(^|\\s)(publish|upload)\\b"}
+      },
+      "classify": {"operation": "C", "tier": "restricted"}
+    },
+    {
+      "id": "pip-uv-config-write",
+      "when": {
+        "tool": ["pip", "pip3", "uv", "twine", "bash", "sh", "shell", "zsh", "run_command", "execute_command"],
+        "arg_regex": {"arg": "command", "pattern": "(^|\\s)config\\s+(set|unset|edit)\\b"}
+      },
+      "classify": {"operation": "C", "tier": "confidential"}
+    },
+    {
+      "id": "pip-uv-credential",
+      "when": {
+        "tool": ["pip", "pip3", "uv", "twine", "bash", "sh", "shell", "zsh", "run_command", "execute_command"],
+        "arg_regex": {"arg": "command", "pattern": "(--password|--username|--token|pypirc|keyring\\s+set)"}
+      },
+      "classify": {"tier": "restricted"}
+    },
+    {
+      "id": "pip-system-packages",
+      "when": {
+        "tool": ["pip", "pip3", "uv", "bash", "sh", "shell", "zsh", "run_command", "execute_command"],
+        "arg_regex": {"arg": "command", "pattern": "--break-system-packages\\b"}
+      },
+      "classify": {"tier": "confidential"}
+    }
+  ]
+}

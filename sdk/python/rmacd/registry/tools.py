@@ -191,11 +191,22 @@ class ToolCapability:
 
 @dataclass
 class ResolvedCall:
-    """The RMACD classification of a concrete tool call."""
+    """The RMACD classification of a concrete tool call.
+
+    ``capability`` is an optional *per-call* ceiling: when a tool definition is
+    composed from several governance packs, the pack whose rules matched this
+    call contributes its own ceiling here, and the enforcer gates against it
+    instead of the tool's static ceiling (which for a composed tool is only a
+    summary). ``source`` records which pack (or fallback) classified the call,
+    for audit reconstructability. Both stay ``None`` for plain tools, keeping
+    single-tool behaviour unchanged.
+    """
 
     operation: Operation
     tier: DataClassification | None
     target: str
+    capability: ToolCapability | None = None
+    source: str | None = None
 
 
 @dataclass
@@ -279,6 +290,17 @@ class ToolDefinition:
             return True
         return self.capability.permits(operation, tier)
 
+    def permits_call(self, resolved: ResolvedCall) -> bool:
+        """Capability gate for a resolved call.
+
+        Uses the call's own ceiling when the resolution carried one (a composed
+        pack tool attaches the *matching* pack's ceiling — never a union across
+        packs); otherwise falls back to the tool's static ceiling.
+        """
+        if resolved.capability is not None:
+            return resolved.capability.permits(resolved.operation, resolved.tier)
+        return self.permits(resolved.operation, resolved.tier)
+
     def _render_target(self, args: dict[str, Any]) -> str:
         if self.target_template:
             try:
@@ -357,6 +379,10 @@ class ToolDefinition:
         # avoids a registry -> packs import cycle (packs depends on registry).
         classifier: ToolClassifier | None = None
         clf_spec = data.get("classifier")
+        if isinstance(clf_spec, dict) and clf_spec.get("kind") == "composed":
+            from rmacd.packs.composition import ComposedToolDefinition
+
+            return ComposedToolDefinition.from_tool_dict(data)
         if isinstance(clf_spec, dict) and clf_spec.get("kind") == "declarative":
             from rmacd.packs.engine import DeclarativeClassifier
 
@@ -403,8 +429,15 @@ class ToolsRegistry:
         self._version = "1.0.0"
         logger.info("Tools registry '%s' initialized", registry_id)
 
-    def register_tool(self, tool: ToolDefinition | dict[str, Any]) -> ToolDefinition:
-        """Register (or replace) a tool. Returns the registered ToolDefinition."""
+    def register_tool(
+        self, tool: ToolDefinition | dict[str, Any], *, expect_replace: bool = False
+    ) -> ToolDefinition:
+        """Register (or replace) a tool. Returns the registered ToolDefinition.
+
+        ``expect_replace=True`` downgrades the replacement warning to debug —
+        used by the pack loader, where re-registering a shared tool name as a
+        composed chain is the intended behaviour, not an accident.
+        """
         if isinstance(tool, dict):
             tool = ToolDefinition.from_dict(tool)
         elif not isinstance(tool, ToolDefinition):
@@ -415,7 +448,8 @@ class ToolsRegistry:
         # entry behind (which would corrupt get_tools_by_level / get_stats).
         existing = self._tools.get(tool.tool_id)
         if existing is not None:
-            logger.warning("Tool '%s' already registered, replacing", tool.tool_id)
+            log = logger.debug if expect_replace else logger.warning
+            log("Tool '%s' already registered, replacing", tool.tool_id)
             self._index_by_level[existing.rmacd_level].discard(tool.tool_id)
 
         self._tools[tool.tool_id] = tool

@@ -1,0 +1,88 @@
+{
+  "pack": "make",
+  "version": "1.0.0",
+  "description": "RMACD classification for GNU make (make/gmake), both as a direct tool and inside shell commands. Make recipes are opaque — an arbitrary target executes arbitrary commands that this pack cannot classify — so unrecognised targets fail closed to Change on internal and the capability ceiling applies; govern the underlying commands with the 'shell' pack where possible. Dry-run/query invocations (-n/--dry-run, -q, --help, --version) are Read; clean/distclean targets are Delete; install/uninstall touch system locations and are Change/Delete on confidential.",
+  "default_operation": "C",
+  "provenance": {"authored_by": "rmacd", "llm_assisted": true, "review_status": "ai-drafted"},
+  "rules": [
+    {
+      "id": "make-default",
+      "when": {"tool": ["make", "gmake"]},
+      "classify": {"tier": "internal", "target": "make://{command}"},
+      "capability": ["R", "M", "A", "C", "D"]
+    },
+    {
+      "id": "make-shell",
+      "when": {
+        "tool": ["bash", "sh", "shell", "zsh", "run_command", "execute_command"],
+        "arg_regex": {"arg": "command", "pattern": "(^|\\s)g?make(\\s|$)"}
+      },
+      "classify": {"tier": "internal", "target": "make://{command}"},
+      "capability": ["R", "M", "A", "C", "D"]
+    },
+    {
+      "id": "make-dry-run",
+      "when": {
+        "tool": ["make", "gmake"],
+        "arg_regex": {"arg": "command", "pattern": "(^|\\s)(-n|--dry-run|--just-print|--recon|-q|--question|-p|--print-data-base|-h|--help|-v|--version)(\\s|$)"}
+      },
+      "classify": {"operation": "R"}
+    },
+    {
+      "id": "make-shell-dry-run",
+      "when": {
+        "tool": ["bash", "sh", "shell", "zsh", "run_command", "execute_command"],
+        "arg_regex": {"arg": "command", "pattern": "^[^|;&]*\\bg?make\\b[^|;&]*\\s(-n|--dry-run|--just-print|--recon|-q|--question|--help|--version)[^|;&]*$"}
+      },
+      "classify": {"operation": "R"}
+    },
+    {
+      "id": "make-clean",
+      "when": {
+        "tool": ["make", "gmake"],
+        "arg_regex": {"arg": "command", "pattern": "(^|\\s)(dist|mostly|real|maintainer-)?clean(\\s|$)"}
+      },
+      "classify": {"operation": "D", "tier": "internal"}
+    },
+    {
+      "id": "make-shell-clean",
+      "when": {
+        "tool": ["bash", "sh", "shell", "zsh", "run_command", "execute_command"],
+        "arg_regex": {"arg": "command", "pattern": "\\bg?make\\b[^|;&]*\\s(dist|mostly|real|maintainer-)?clean(\\s|$)"}
+      },
+      "classify": {"operation": "D", "tier": "internal"}
+    },
+    {
+      "id": "make-install",
+      "when": {
+        "tool": ["make", "gmake"],
+        "arg_regex": {"arg": "command", "pattern": "(^|\\s)install(\\s|$)"}
+      },
+      "classify": {"operation": "C", "tier": "confidential"}
+    },
+    {
+      "id": "make-shell-install",
+      "when": {
+        "tool": ["bash", "sh", "shell", "zsh", "run_command", "execute_command"],
+        "arg_regex": {"arg": "command", "pattern": "\\bg?make\\b[^|;&]*\\sinstall(\\s|$)"}
+      },
+      "classify": {"operation": "C", "tier": "confidential"}
+    },
+    {
+      "id": "make-uninstall",
+      "when": {
+        "tool": ["make", "gmake"],
+        "arg_regex": {"arg": "command", "pattern": "(^|\\s)uninstall(\\s|$)"}
+      },
+      "classify": {"operation": "D", "tier": "confidential"}
+    },
+    {
+      "id": "make-shell-uninstall",
+      "when": {
+        "tool": ["bash", "sh", "shell", "zsh", "run_command", "execute_command"],
+        "arg_regex": {"arg": "command", "pattern": "\\bg?make\\b[^|;&]*\\suninstall(\\s|$)"}
+      },
+      "classify": {"operation": "D", "tier": "confidential"}
+    }
+  ]
+}

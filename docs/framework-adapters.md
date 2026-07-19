@@ -50,6 +50,7 @@ all of them — what changes is *where* the enforcement call lands.
 - [AutoGen (v0.4+)](#autogen-v04)
 - [CrewAI](#crewai)
 - [Generic dispatch-site pattern](#generic-dispatch-site-pattern)
+- [RMACD as an MCP server](#rmacd-as-an-mcp-server)
 
 ---
 
@@ -528,8 +529,61 @@ one).
 
 ---
 
+## RMACD as an MCP server
+
+Every adapter above runs the SDK in-process. When the agent is not Python —
+or you want policy queries available to any MCP client (Claude Code, Claude
+Desktop, a TypeScript agent) — run RMACD as a standard MCP server instead
+(SDK ≥ 0.13.0, `[mcp]` extra):
+
+```bash
+pip install 'rmacd-framework[mcp]'
+rmacd mcp-serve                          # clients pass profile_path per call
+rmacd mcp-serve --profile ops-3d.json    # enterprise mode: profile pinned
+```
+
+Client configuration (`.mcp.json` for Claude Code, or the equivalent
+`mcpServers` block in Claude Desktop):
+
+```json
+{"mcpServers": {"rmacd": {"command": "rmacd", "args": ["mcp-serve"]}}}
+```
+
+The server (name `rmacd`, stdio transport) exposes six **read-only** tools:
+
+| Tool | Purpose |
+|------|---------|
+| `rmacd_evaluate` | Policy decision for (operation, target, classification, environment) — same code path as `PolicyEnforcer.evaluate_only` |
+| `rmacd_validate_profile` | Schema-validate a profile file or JSON string → `{valid, errors[]}` |
+| `rmacd_matrix` | Effective autonomy matrix (same data as `rmacd matrix`) |
+| `rmacd_list_packs` | Built-in governance packs: names, versions, rule counts |
+| `rmacd_pack_info` | One pack's metadata, rule count, and signature status |
+| `rmacd_classify_bash` | Advisory RMACD classification of a shell command line |
+
+Design notes:
+
+- **Read-only by construction.** The server never mutates state, never runs
+  approval gateways, and never writes audit records — enforcement (approvals,
+  audit sinks) stays an in-process pattern per the adapters above. The §12.5
+  immutable floor applies to every decision it returns.
+- **Pinning is authoritative.** With `--profile`, per-call `profile_path`
+  arguments to the decision-bearing tools (`rmacd_evaluate`, `rmacd_matrix`)
+  are **rejected with a clear error** (not silently ignored), so a client can
+  neither swap profiles nor believe it did. `rmacd_validate_profile` still
+  lints arbitrary documents — validation confers no policy authority.
+- **Advisory classification.** `rmacd_classify_bash` is the deterministic
+  keyword heuristic from `rmacd.registry.bash`; like all classification it is
+  advisory input — the bound profile and the §12.5 floor decide.
+- Without the extra installed, `rmacd mcp-serve` prints the
+  `pip install 'rmacd-framework[mcp]'` hint and the rest of the SDK/CLI is
+  unaffected (the `mcp` dependency is imported lazily).
+
+---
+
 ## See also
 
+- Governing a **Claude Code session itself** (PreToolUse hook, `/rmacd:status`,
+  managed-settings rollout): `claude-code.md`
 - Full runnable references: `spec/examples/agent-integration-claude-sdk/`
   and `spec/examples/agent-integration-anthropic-sdk/`
 - DC2D runtime: `runtime-patterns.md` §8 and `spec/examples/dc2d-customer-support/`

@@ -1,0 +1,130 @@
+{
+  "pack": "npm",
+  "version": "1.0.0",
+  "description": "RMACD classification for the npm CLI (and npx), both as direct tools and inside shell commands. Reads (ls/view/outdated/audit) stay internal; install/ci are Add; update/link and script execution (run/exec — opaque, fail-closed to Change) are Change; uninstall is Delete. Registry-facing operations — publish/unpublish, token management, owner/access/deprecate, and login — land on the restricted tier, so the §12.5 floor prohibits them for autonomous agents. npx executes arbitrary packages and is classified Change fail-closed.",
+  "default_operation": "C",
+  "provenance": {"authored_by": "rmacd", "llm_assisted": true, "review_status": "ai-drafted"},
+  "rules": [
+    {
+      "id": "npm-cli",
+      "when": {"tool": "npm"},
+      "parse": {"arg": "command", "strip_wrappers": ["sudo", "env"]},
+      "verb_table": {
+        "ls": "R", "list": "R", "ll": "R", "view": "R", "info": "R", "show": "R",
+        "outdated": "R", "audit": "R", "search": "R", "explain": "R",
+        "doctor": "R", "ping": "R", "root": "R", "prefix": "R", "whoami": "R",
+        "help": "R", "docs": "R", "repo": "R", "fund": "R", "get": "R",
+        "install": "A", "i": "A", "ci": "A", "pack": "A", "init": "A",
+        "create": "A",
+        "update": "C", "upgrade": "C", "link": "C", "dedupe": "C",
+        "rebuild": "C", "run": "C", "run-script": "C", "start": "C",
+        "restart": "C", "stop": "C", "test": "C", "exec": "C", "version": "C",
+        "set": "C", "edit": "C", "fix": "C",
+        "uninstall": "D", "remove": "D", "rm": "D", "un": "D", "unlink": "D",
+        "prune": "D"
+      },
+      "default": "C",
+      "tier": {
+        "pattern_map": [
+          {"arg_regex": {"arg": "command", "pattern": "(_authToken|token|password|credential|secret)"}, "tier": "confidential"}
+        ],
+        "default": "internal"
+      },
+      "target": "npm://{command}",
+      "capability": ["R", "M", "A", "C", "D"]
+    },
+    {
+      "id": "npm-shell",
+      "when": {
+        "tool": ["bash", "sh", "shell", "zsh", "run_command", "execute_command"],
+        "argv_contains": {"arg": "command", "tokens": ["npm"]}
+      },
+      "parse": {"arg": "command", "strip_wrappers": ["sudo", "env"]},
+      "verb_table": {
+        "ls": "R", "list": "R", "ll": "R", "view": "R", "info": "R", "show": "R",
+        "outdated": "R", "audit": "R", "search": "R", "explain": "R",
+        "doctor": "R", "ping": "R", "root": "R", "prefix": "R", "whoami": "R",
+        "help": "R", "docs": "R", "repo": "R", "fund": "R", "get": "R",
+        "install": "A", "i": "A", "ci": "A", "pack": "A", "init": "A",
+        "create": "A",
+        "update": "C", "upgrade": "C", "link": "C", "dedupe": "C",
+        "rebuild": "C", "run": "C", "run-script": "C", "start": "C",
+        "restart": "C", "stop": "C", "test": "C", "exec": "C", "version": "C",
+        "set": "C", "edit": "C", "fix": "C",
+        "uninstall": "D", "remove": "D", "rm": "D", "un": "D", "unlink": "D",
+        "prune": "D"
+      },
+      "default": "C",
+      "tier": {
+        "pattern_map": [
+          {"arg_regex": {"arg": "command", "pattern": "(_authToken|token|password|credential|secret)"}, "tier": "confidential"}
+        ],
+        "default": "internal"
+      },
+      "target": "npm://{command}",
+      "capability": ["R", "M", "A", "C", "D"]
+    },
+    {
+      "id": "npx-exec",
+      "when": {"tool": "npx"},
+      "classify": {"operation": "C", "tier": "internal", "target": "npm://npx {command}"},
+      "capability": ["R", "M", "A", "C", "D"]
+    },
+    {
+      "id": "npx-shell",
+      "when": {
+        "tool": ["bash", "sh", "shell", "zsh", "run_command", "execute_command"],
+        "argv_contains": {"arg": "command", "tokens": ["npx"]}
+      },
+      "classify": {"operation": "C", "tier": "internal", "target": "npm://{command}"}
+    },
+    {
+      "id": "npm-publish",
+      "when": {
+        "tool": ["npm", "bash", "sh", "shell", "zsh", "run_command", "execute_command"],
+        "arg_regex": {"arg": "command", "pattern": "(^|\\s)publish\\b"}
+      },
+      "classify": {"operation": "C", "tier": "restricted"}
+    },
+    {
+      "id": "npm-unpublish",
+      "when": {
+        "tool": ["npm", "bash", "sh", "shell", "zsh", "run_command", "execute_command"],
+        "arg_regex": {"arg": "command", "pattern": "(^|\\s)unpublish\\b"}
+      },
+      "classify": {"operation": "D", "tier": "restricted"}
+    },
+    {
+      "id": "npm-registry-admin",
+      "when": {
+        "tool": ["npm", "bash", "sh", "shell", "zsh", "run_command", "execute_command"],
+        "arg_regex": {"arg": "command", "pattern": "(^|\\s)(owner|access|deprecate|undeprecate|hook|team)\\b"}
+      },
+      "classify": {"operation": "C", "tier": "restricted"}
+    },
+    {
+      "id": "npm-token",
+      "when": {
+        "tool": ["npm", "bash", "sh", "shell", "zsh", "run_command", "execute_command"],
+        "arg_regex": {"arg": "command", "pattern": "(^|\\s)token\\b"}
+      },
+      "classify": {"operation": "C", "tier": "restricted"}
+    },
+    {
+      "id": "npm-auth",
+      "when": {
+        "tool": ["npm", "bash", "sh", "shell", "zsh", "run_command", "execute_command"],
+        "arg_regex": {"arg": "command", "pattern": "(^|\\s)(login|logout|adduser)\\b"}
+      },
+      "classify": {"operation": "C", "tier": "restricted"}
+    },
+    {
+      "id": "npm-config-write",
+      "when": {
+        "tool": ["npm", "bash", "sh", "shell", "zsh", "run_command", "execute_command"],
+        "arg_regex": {"arg": "command", "pattern": "(^|\\s)config\\s+(set|delete|edit|fix)\\b|(^|\\s)set\\s+registry\\b"}
+      },
+      "classify": {"operation": "C", "tier": "confidential"}
+    }
+  ]
+}

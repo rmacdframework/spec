@@ -1,0 +1,447 @@
+{
+  "pack": "git",
+  "version": "1.0.0",
+  "description": "RMACD classification for the git CLI, both as a direct tool and inside shell commands. Reads (status/log/diff/show/fetch) stay internal; local mutations (add/commit/stash) are Add; history-integrating operations (merge/rebase/pull) are Change; push is Change on confidential. Destructive or history-rewriting operations (push --force, branch -D, reset --hard, clean -f, filter-branch/filter-repo) and credential access land on the restricted tier, so the \u00a712.5 floor prohibits them for autonomous agents.",
+  "default_operation": "C",
+  "provenance": {
+    "authored_by": "rmacd",
+    "llm_assisted": true,
+    "review_status": "ai-drafted"
+  },
+  "rules": [
+    {
+      "id": "git-cli",
+      "when": {
+        "tool": "git"
+      },
+      "parse": {
+        "arg": "command",
+        "strip_wrappers": [
+          "sudo",
+          "env"
+        ]
+      },
+      "verb_table": {
+        "status": "R",
+        "log": "R",
+        "diff": "R",
+        "show": "R",
+        "fetch": "R",
+        "clone": "R",
+        "ls-files": "R",
+        "ls-remote": "R",
+        "ls-tree": "R",
+        "blame": "R",
+        "describe": "R",
+        "reflog": "R",
+        "shortlog": "R",
+        "grep": "R",
+        "rev-parse": "R",
+        "rev-list": "R",
+        "show-ref": "R",
+        "cat-file": "R",
+        "branch": "R",
+        "tag": "R",
+        "remote": "R",
+        "help": "R",
+        "version": "R",
+        "var": "R",
+        "archive": "R",
+        "mv": "M",
+        "add": "A",
+        "commit": "A",
+        "stash": "A",
+        "init": "A",
+        "worktree": "A",
+        "notes": "A",
+        "format-patch": "A",
+        "bundle": "A",
+        "merge": "C",
+        "rebase": "C",
+        "pull": "C",
+        "checkout": "C",
+        "switch": "C",
+        "restore": "C",
+        "revert": "C",
+        "cherry-pick": "C",
+        "reset": "C",
+        "config": "C",
+        "am": "C",
+        "apply": "C",
+        "submodule": "C",
+        "gc": "C",
+        "bisect": "C",
+        "push": "C",
+        "clean": "D",
+        "rm": "D",
+        "prune": "D",
+        "drop": "D"
+      },
+      "default": "C",
+      "tier": {
+        "pattern_map": [
+          {
+            "arg_regex": {
+              "arg": "command",
+              "pattern": "(credential|askpass|\\.netrc|token|password)"
+            },
+            "tier": "confidential"
+          }
+        ],
+        "default": "internal"
+      },
+      "target": "git://{command}",
+      "capability": [
+        "R",
+        "M",
+        "A",
+        "C",
+        "D"
+      ]
+    },
+    {
+      "id": "git-shell",
+      "when": {
+        "tool": [
+          "bash",
+          "sh",
+          "shell",
+          "zsh",
+          "run_command",
+          "execute_command"
+        ],
+        "argv_contains": {
+          "arg": "command",
+          "tokens": [
+            "git"
+          ]
+        }
+      },
+      "parse": {
+        "arg": "command",
+        "strip_wrappers": [
+          "sudo",
+          "env"
+        ]
+      },
+      "verb_table": {
+        "status": "R",
+        "log": "R",
+        "diff": "R",
+        "show": "R",
+        "fetch": "R",
+        "clone": "R",
+        "ls-files": "R",
+        "ls-remote": "R",
+        "ls-tree": "R",
+        "blame": "R",
+        "describe": "R",
+        "reflog": "R",
+        "shortlog": "R",
+        "grep": "R",
+        "rev-parse": "R",
+        "rev-list": "R",
+        "show-ref": "R",
+        "cat-file": "R",
+        "branch": "R",
+        "tag": "R",
+        "remote": "R",
+        "help": "R",
+        "version": "R",
+        "var": "R",
+        "archive": "R",
+        "mv": "M",
+        "add": "A",
+        "commit": "A",
+        "stash": "A",
+        "init": "A",
+        "worktree": "A",
+        "notes": "A",
+        "format-patch": "A",
+        "bundle": "A",
+        "merge": "C",
+        "rebase": "C",
+        "pull": "C",
+        "checkout": "C",
+        "switch": "C",
+        "restore": "C",
+        "revert": "C",
+        "cherry-pick": "C",
+        "reset": "C",
+        "config": "C",
+        "am": "C",
+        "apply": "C",
+        "submodule": "C",
+        "gc": "C",
+        "bisect": "C",
+        "push": "C",
+        "clean": "D",
+        "rm": "D",
+        "prune": "D",
+        "drop": "D"
+      },
+      "default": "C",
+      "tier": {
+        "pattern_map": [
+          {
+            "arg_regex": {
+              "arg": "command",
+              "pattern": "(credential|askpass|\\.netrc|token|password)"
+            },
+            "tier": "confidential"
+          }
+        ],
+        "default": "internal"
+      },
+      "target": "git://{command}",
+      "capability": [
+        "R",
+        "M",
+        "A",
+        "C",
+        "D"
+      ]
+    },
+    {
+      "id": "git-push",
+      "when": {
+        "tool": [
+          "git",
+          "bash",
+          "sh",
+          "shell",
+          "zsh",
+          "run_command",
+          "execute_command"
+        ],
+        "arg_regex": {
+          "arg": "command",
+          "pattern": "(^|\\s)push(\\s|$)"
+        }
+      },
+      "classify": {
+        "operation": "C",
+        "tier": "confidential"
+      }
+    },
+    {
+      "id": "git-push-force",
+      "when": {
+        "tool": [
+          "git",
+          "bash",
+          "sh",
+          "shell",
+          "zsh",
+          "run_command",
+          "execute_command"
+        ],
+        "arg_regex": {
+          "arg": "command",
+          "pattern": "(^|\\s)push\\b[^|;&]*\\s(--force[-a-z]*|-f|--mirror)\\b"
+        }
+      },
+      "classify": {
+        "operation": "C",
+        "tier": "restricted"
+      }
+    },
+    {
+      "id": "git-push-delete",
+      "when": {
+        "tool": [
+          "git",
+          "bash",
+          "sh",
+          "shell",
+          "zsh",
+          "run_command",
+          "execute_command"
+        ],
+        "arg_regex": {
+          "arg": "command",
+          "pattern": "(^|\\s)push\\b[^|;&]*\\s(--delete|-d|--prune)\\b"
+        }
+      },
+      "classify": {
+        "operation": "D",
+        "tier": "restricted"
+      }
+    },
+    {
+      "id": "git-branch-delete",
+      "when": {
+        "tool": [
+          "git",
+          "bash",
+          "sh",
+          "shell",
+          "zsh",
+          "run_command",
+          "execute_command"
+        ],
+        "arg_regex": {
+          "arg": "command",
+          "pattern": "(^|\\s)branch\\b[^|;&]*\\s(-d|--delete)\\b"
+        }
+      },
+      "classify": {
+        "operation": "D",
+        "tier": "internal"
+      }
+    },
+    {
+      "id": "git-branch-force-delete",
+      "when": {
+        "tool": [
+          "git",
+          "bash",
+          "sh",
+          "shell",
+          "zsh",
+          "run_command",
+          "execute_command"
+        ],
+        "arg_regex": {
+          "arg": "command",
+          "pattern": "(^|\\s)branch\\b[^|;&]*(\\s-D\\b|\\s--delete\\s+--force|\\s--force\\s+--delete)"
+        }
+      },
+      "classify": {
+        "operation": "D",
+        "tier": "restricted"
+      }
+    },
+    {
+      "id": "git-reset-hard",
+      "when": {
+        "tool": [
+          "git",
+          "bash",
+          "sh",
+          "shell",
+          "zsh",
+          "run_command",
+          "execute_command"
+        ],
+        "arg_regex": {
+          "arg": "command",
+          "pattern": "(^|\\s)reset\\b[^|;&]*\\s--hard\\b"
+        }
+      },
+      "classify": {
+        "operation": "C",
+        "tier": "restricted"
+      }
+    },
+    {
+      "id": "git-clean-force",
+      "when": {
+        "tool": [
+          "git",
+          "bash",
+          "sh",
+          "shell",
+          "zsh",
+          "run_command",
+          "execute_command"
+        ],
+        "arg_regex": {
+          "arg": "command",
+          "pattern": "(^|\\s)clean\\b[^|;&]*\\s-[A-Za-z]*[fx]"
+        }
+      },
+      "classify": {
+        "operation": "D",
+        "tier": "restricted"
+      }
+    },
+    {
+      "id": "git-history-rewrite",
+      "when": {
+        "tool": [
+          "git",
+          "bash",
+          "sh",
+          "shell",
+          "zsh",
+          "run_command",
+          "execute_command"
+        ],
+        "arg_regex": {
+          "arg": "command",
+          "pattern": "(^|\\s)(filter-branch|filter-repo)\\b|(^|\\s)update-ref\\s+-d\\b|(^|\\s)reflog\\s+(expire|delete)\\b"
+        }
+      },
+      "classify": {
+        "operation": "C",
+        "tier": "restricted"
+      }
+    },
+    {
+      "id": "git-remote-mutate",
+      "when": {
+        "tool": [
+          "git",
+          "bash",
+          "sh",
+          "shell",
+          "zsh",
+          "run_command",
+          "execute_command"
+        ],
+        "arg_regex": {
+          "arg": "command",
+          "pattern": "(^|\\s)remote\\s+(add|set-url|remove|rm|rename|prune|set-head|set-branches)\\b"
+        }
+      },
+      "classify": {
+        "operation": "C",
+        "tier": "confidential"
+      }
+    },
+    {
+      "id": "git-credential",
+      "when": {
+        "tool": [
+          "git",
+          "bash",
+          "sh",
+          "shell",
+          "zsh",
+          "run_command",
+          "execute_command"
+        ],
+        "arg_regex": {
+          "arg": "command",
+          "pattern": "(^|\\s)credential(-store|-cache)?\\b|credential\\.helper"
+        }
+      },
+      "classify": {
+        "tier": "restricted"
+      }
+    },
+    {
+      "id": "git-config-global",
+      "when": {
+        "tool": [
+          "git",
+          "bash",
+          "sh",
+          "shell",
+          "zsh",
+          "run_command",
+          "execute_command"
+        ],
+        "arg_regex": {
+          "arg": "command",
+          "pattern": "(^|\\s)config\\b[^|;&]*\\s(--global|--system)\\b"
+        }
+      },
+      "classify": {
+        "operation": "C",
+        "tier": "confidential"
+      }
+    }
+  ]
+}

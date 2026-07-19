@@ -1,0 +1,112 @@
+{
+  "pack": "stripe",
+  "version": "1.0.0",
+  "description": "RMACD classification for the Stripe CLI, both as a direct tool and inside shell commands. Payment data is never internal: reads of live resources (customers, charges, invoices — list/get/retrieve) are Read on confidential, resource creation (customers, products, prices, invoices) is Add on confidential, and updates (subscriptions, webhook endpoints) are Change on confidential. Money movement — refunds, payouts, transfers, top-ups, reversals — is the financial rail: mutations there are Change on restricted so the §12.5 floor prohibits them autonomously, and even reads of that surface are restricted (profile-gated). Credential operations (login/logout/config, API keys) and connected-account mutations are restricted. Local test-mode tooling (listen, trigger, samples, fixtures) stays on internal.",
+  "default_operation": "C",
+  "provenance": {"authored_by": "rmacd", "llm_assisted": true, "review_status": "ai-drafted"},
+  "rules": [
+    {
+      "id": "stripe-cli",
+      "when": {"tool": "stripe"},
+      "parse": {"arg": "command", "strip_wrappers": ["sudo", "env"]},
+      "verb_table": {
+        "list": "R", "retrieve": "R", "get": "R", "search": "R", "status": "R",
+        "version": "R", "help": "R", "open": "R", "listen": "R", "logs": "R",
+        "tail": "R",
+        "create": "A", "add": "A", "trigger": "A",
+        "update": "C", "confirm": "C", "capture": "C", "attach": "C",
+        "detach": "C", "finalize": "C", "pay": "C", "send": "C",
+        "login": "C", "logout": "C", "config": "C",
+        "delete": "D", "cancel": "D", "void": "D", "close": "D"
+      },
+      "default": "C",
+      "tier": {
+        "pattern_map": [
+          {"arg_regex": {"arg": "command", "pattern": "(^|\\s)(listen|trigger|samples|fixtures)\\b"}, "tier": "internal"}
+        ],
+        "default": "confidential"
+      },
+      "target": "stripe://{command}",
+      "capability": ["R", "M", "A", "C", "D"]
+    },
+    {
+      "id": "stripe-shell",
+      "when": {
+        "tool": ["bash", "sh", "shell", "zsh", "run_command", "execute_command"],
+        "argv_contains": {"arg": "command", "tokens": ["stripe"]}
+      },
+      "parse": {"arg": "command", "strip_wrappers": ["sudo", "env"]},
+      "verb_table": {
+        "list": "R", "retrieve": "R", "get": "R", "search": "R", "status": "R",
+        "version": "R", "help": "R", "open": "R", "listen": "R", "logs": "R",
+        "tail": "R",
+        "create": "A", "add": "A", "trigger": "A",
+        "update": "C", "confirm": "C", "capture": "C", "attach": "C",
+        "detach": "C", "finalize": "C", "pay": "C", "send": "C",
+        "login": "C", "logout": "C", "config": "C",
+        "delete": "D", "cancel": "D", "void": "D", "close": "D"
+      },
+      "default": "C",
+      "tier": {
+        "pattern_map": [
+          {"arg_regex": {"arg": "command", "pattern": "(^|\\s)(listen|trigger|samples|fixtures)\\b"}, "tier": "internal"}
+        ],
+        "default": "confidential"
+      },
+      "target": "stripe://{command}",
+      "capability": ["R", "M", "A", "C", "D"]
+    },
+    {
+      "id": "stripe-money-surface",
+      "when": {"tool": "stripe", "arg_regex": {"arg": "command", "pattern": "(^|\\s)(refunds?|payouts?|transfers?|topups?|reversals?)\\b"}},
+      "classify": {"tier": "restricted"}
+    },
+    {
+      "id": "stripe-shell-money-surface",
+      "when": {
+        "tool": ["bash", "sh", "shell", "zsh", "run_command", "execute_command"],
+        "arg_regex": {"arg": "command", "pattern": "\\bstripe\\b[^|;&]*\\s(refunds?|payouts?|transfers?|topups?|reversals?)\\b"}
+      },
+      "classify": {"tier": "restricted"}
+    },
+    {
+      "id": "stripe-money-mutation",
+      "when": {"tool": "stripe", "arg_regex": {"arg": "command", "pattern": "(^|\\s)(refunds?|payouts?|transfers?|topups?|reversals?)\\s+(create|update|cancel|reverse|confirm)\\b"}},
+      "classify": {"operation": "C", "tier": "restricted"}
+    },
+    {
+      "id": "stripe-shell-money-mutation",
+      "when": {
+        "tool": ["bash", "sh", "shell", "zsh", "run_command", "execute_command"],
+        "arg_regex": {"arg": "command", "pattern": "\\bstripe\\b[^|;&]*\\s(refunds?|payouts?|transfers?|topups?|reversals?)\\s+(create|update|cancel|reverse|confirm)\\b"}
+      },
+      "classify": {"operation": "C", "tier": "restricted"}
+    },
+    {
+      "id": "stripe-credential",
+      "when": {"tool": "stripe", "arg_regex": {"arg": "command", "pattern": "(^|\\s)(login|logout|config)\\b|api.?key"}},
+      "classify": {"operation": "C", "tier": "restricted"}
+    },
+    {
+      "id": "stripe-shell-credential",
+      "when": {
+        "tool": ["bash", "sh", "shell", "zsh", "run_command", "execute_command"],
+        "arg_regex": {"arg": "command", "pattern": "\\bstripe\\b[^|;&]*(\\s(login|logout|config)\\b|api.?key)"}
+      },
+      "classify": {"operation": "C", "tier": "restricted"}
+    },
+    {
+      "id": "stripe-account-mutation",
+      "when": {"tool": "stripe", "arg_regex": {"arg": "command", "pattern": "(^|\\s)accounts?\\s+(create|update|delete|reject)\\b"}},
+      "classify": {"tier": "restricted"}
+    },
+    {
+      "id": "stripe-shell-account-mutation",
+      "when": {
+        "tool": ["bash", "sh", "shell", "zsh", "run_command", "execute_command"],
+        "arg_regex": {"arg": "command", "pattern": "\\bstripe\\b[^|;&]*\\saccounts?\\s+(create|update|delete|reject)\\b"}
+      },
+      "classify": {"tier": "restricted"}
+    }
+  ]
+}

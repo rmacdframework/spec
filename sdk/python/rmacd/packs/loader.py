@@ -29,6 +29,7 @@ from pathlib import Path
 from typing import Any
 
 from rmacd.models import DataClassification, Operation
+from rmacd.packs.composition import compose_pack_tool
 from rmacd.packs.engine import DeclarativeClassifier, ResolverFn, capability_for
 from rmacd.packs.models import GovernancePack
 from rmacd.packs.validation import validate_pack_dict
@@ -167,6 +168,16 @@ def apply_pack(
 
     By default the exact tool names named in the pack are registered; pass
     ``tool_names`` (e.g. an MCP ``tools/list``) to govern a glob/regex pack.
+
+    **Composition**: when a tool name is already registered by a *different*
+    pack (several packs overlaying the same shell tool, e.g. ``git`` + ``docker``
+    on ``bash``), the packs are composed into an ordered chain rather than
+    replaced — per call, the pack whose rules match governs (with *its own*
+    capability ceiling), falling through on no-match; a pre-pack user
+    registration is preserved as the chain's final fallback. Re-applying the
+    same pack replaces its own entry (idempotent reload). See
+    :mod:`rmacd.packs.composition` for the exact winner-selection rules. Direct
+    ``registry.register_tool`` calls keep plain replace semantics.
     """
     names = list(tool_names) if tool_names is not None else exact_tool_names(pack)
 
@@ -218,7 +229,13 @@ def apply_pack(
             tags={"pack", pack.pack},
             metadata={"pack": pack.pack, "pack_version": pack.version},
         )
-        registry.register_tool(tool)
+        existing = registry.get_tool(name)
+        if existing is not None:
+            # Compose instead of clobber: chain packs that share a tool name,
+            # replace in place on a same-pack reload, keep a pre-pack user
+            # registration as the chain's fallback.
+            tool = compose_pack_tool(existing, tool)
+        registry.register_tool(tool, expect_replace=existing is not None)
         registered.append(tool)
     return registered
 

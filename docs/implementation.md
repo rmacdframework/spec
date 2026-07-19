@@ -47,6 +47,66 @@ Start with the provided templates:
 
 Customize as needed for your agent types.
 
+### Profiles as code
+
+Treat profiles like any other reviewed, versioned artifact — not
+configuration edited by hand in a console.
+
+**Repository layout.** Keep profiles as JSON in the agent's repository,
+one file per profile:
+
+```
+rmacd/
+  profiles/
+    observer-3d.json
+    devops-3d.json
+    support-dc2d.json
+```
+
+**PR review.** A permission change is a governance change: it arrives as a
+profile diff in a pull request, reviewed by the profile owner (and, for
+autonomy or classification changes, whoever your governance process names —
+e.g. change management or security). The JSON diff shows exactly which
+cell of the matrix moved.
+
+**CI validation.** Gate every push/PR with the
+[RMACD Validate action](../integrations/github-action/README.md):
+
+```yaml
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: rmacdframework/spec/integrations/github-action@main
+        with:
+          profiles: "rmacd/profiles/*.json"
+```
+
+For local feedback before CI, the same check is available as a
+[pre-commit](https://pre-commit.com) hook (`id: rmacd-validate`) — see the
+action README for the `.pre-commit-config.yaml` snippet.
+
+**Inject at agent startup.** The profile the repo reviews is the profile
+the agent runs: load it at startup and inject it into the agent's system
+prompt with `build_system_prompt` (from `rmacd.prompts`) so the model knows
+its own boundaries, while `PolicyEnforcer` bound to the same profile
+enforces them deterministically:
+
+```python
+from rmacd import PolicyEnforcer, ProfileLoader
+from rmacd.prompts import build_system_prompt
+
+profile = ProfileLoader().load_file("rmacd/profiles/devops-3d.json")
+system_prompt = base_prompt + "\n\n" + build_system_prompt(profile)
+enforcer = PolicyEnforcer(profile, agent_id="devops-agent")
+```
+
+**Visual path.** For authoring or reviewing profiles outside the editor,
+the website's Generator and Validator at
+[rmacd-framework.org](https://rmacd-framework.org) build and check the same
+JSON — generate visually, then commit the file through the PR flow above.
+
 ## Step 3: Configure Policy Enforcement
 
 Integrate RMACD with your agent runtime:
@@ -181,7 +241,9 @@ enforcer = PolicyEnforcer(
 )
 ```
 
-- **22 built-in packs** load by name (cloud CLIs, cloud IAM/identity, dev tools,
+- **34 built-in packs** load by name (cloud CLIs, cloud IAM/identity, the developer
+  toolchain — git/gh/docker/terraform/npm/pip-uv/make — enterprise operations —
+  servicenow/helm/ssh-transfer/stripe/vault — dev tools,
   and MCP servers for Slack/Drive/Jira/Confluence/Postgres/Microsoft 365 + AWS/Azure/GCP).
 - **Author your own** with the AI-compile workflow: `rmacd classify <tools.json>`
   → `rmacd pack review` → `rmacd pack sign` (Ed25519, `[sign]` extra) →

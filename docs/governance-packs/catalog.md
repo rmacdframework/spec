@@ -1,6 +1,6 @@
 # Governance Pack Catalog
 
-> The built-in governance packs that ship with `rmacd-framework` (22 packs). Each maps a tool call to RMACD terms **(operation, data tier, target)** as data — no hand-written classifier. Load one by name with `load_pack("aws")` or several with `load_packs(["aws", "kubectl", "github"])`.
+> The built-in governance packs that ship with `rmacd-framework` (34 packs). Each maps a tool call to RMACD terms **(operation, data tier, target)** as data — no hand-written classifier. Load one by name with `load_pack("aws")` or several with `load_packs(["aws", "kubectl", "github"])`.
 
 > [!IMPORTANT]
 > Built-in packs are **AI-drafted starting points** (`review_status: ai-drafted`). Review and sign them before relying on them in production — see the [authoring guide](authoring-guide.md) and the [overview](README.md). Runtime classification is always deterministic: the §12.5 floor, agent profile, and tool capability ceiling remain the authoritative gates, and the LLM never runs at enforcement time.
@@ -17,20 +17,32 @@
 | [`azure-mcp`](#azure-mcp) | Cloud-provider SDKs & MCPs | 11 | 6 | Azure MCP Server (40+ services, namespaced azmcp_<service>_<verb> tools) plus… |
 | [`boto3`](#boto3) | Cloud-provider SDKs & MCPs | 3 | 1 | a generic boto3 invoker — aws_call(service, operation, params). One verb-pref… |
 | [`confluence`](#confluence) | SaaS / collaboration MCPs | 13 | 5 | Confluence MCP server (Atlassian). Free-text wiki pages frequently hold sensi… |
+| [`docker`](#docker) | Developer toolchain | 7 | 6 | Docker CLI (docker, docker compose), both as a direct tool and inside shell c… |
 | [`filesystem`](#filesystem) | Dev tools | 17 | 6 | a filesystem MCP server (read/write/move/delete file tools) |
 | [`gcloud`](#gcloud) | Cloud CLIs | 1 | 1 | Google Cloud CLI (gcloud) |
 | [`gcp-iam`](#gcp-iam) | Identity & access (focused) | 1 | 4 | Google Cloud CLI focused on identity, access, and secrets (Cloud IAM, service… |
 | [`gcp-toolbox`](#gcp-toolbox) | Cloud-provider SDKs & MCPs | 10 | 2 | Google Cloud MCP Toolbox for Databases (googleapis/mcp-toolbox): read-only me… |
+| [`gh`](#gh) | Developer toolchain | 7 | 11 | GitHub CLI (gh), both as a direct tool and inside shell commands. A finer-gra… |
+| [`git`](#git) | Developer toolchain | 7 | 13 | git CLI, both as a direct tool and inside shell commands. Reads (status/log/d… |
 | [`github`](#github) | Dev tools | 1 | 1 | GitHub CLI (gh) |
 | [`gitlab`](#gitlab) | Dev tools | 1 | 1 | GitLab CLI (glab) |
 | [`google-drive`](#google-drive) | SaaS / collaboration MCPs | 15 | 5 | a Google Drive MCP server. Documents frequently hold sensitive data — pair wi… |
+| [`helm`](#helm) | Enterprise operations | 7 | 10 | Helm CLI (Kubernetes package manager), both as a direct tool and inside shell… |
 | [`jira`](#jira) | SaaS / collaboration MCPs | 17 | 5 | Jira MCP server (Atlassian). Ships with confluence |
 | [`kubectl`](#kubectl) | Cloud CLIs | 1 | 1 | kubectl CLI tool |
+| [`make`](#make) | Developer toolchain | 8 | 10 | GNU make (make/gmake), both as a direct tool and inside shell commands. Make… |
 | [`ms365`](#ms365) | Microsoft 365 MCP | 32 | 5 | a Microsoft 365 / Graph MCP server (Outlook, Teams, SharePoint, OneDrive, Cal… |
+| [`npm`](#npm) | Developer toolchain | 8 | 10 | npm CLI (and npx), both as direct tools and inside shell commands. Reads (ls/… |
+| [`pip-uv`](#pip-uv) | Developer toolchain | 10 | 6 | Python packaging toolchain — pip/pip3, uv, and twine — both as direct tools a… |
 | [`postgres`](#postgres) | SaaS / collaboration MCPs | 10 | 2 | a Postgres MCP server: read-only metadata tools plus a passthrough SQL query… |
+| [`servicenow`](#servicenow) | Enterprise operations | 46 | 10 | ServiceNow MCP/REST tool surfaces (ITSM, change management, CMDB). There is n… |
 | [`shell`](#shell) | Shell | 6 | 1 | shell/bash command tools. The hand-tuned rmacd.registry.bash engine remains t… |
 | [`slack`](#slack) | SaaS / collaboration MCPs | 16 | 5 | a Slack MCP server |
 | [`sql`](#sql) | Dev tools | 6 | 1 | a generic SQL execution tool — a passthrough whose risk is in the statement (… |
+| [`ssh-transfer`](#ssh-transfer) | Enterprise operations | 14 | 8 | remote shells and file transfer: ssh, scp, sftp, rsync, and the SSH credentia… |
+| [`stripe`](#stripe) | Enterprise operations | 7 | 10 | Stripe CLI, both as a direct tool and inside shell commands. Payment data is… |
+| [`terraform`](#terraform) | Developer toolchain | 8 | 10 | Terraform CLI (terraform; OpenTofu 'tofu' is matched as a drop-in alias), bot… |
+| [`vault`](#vault) | Enterprise operations | 7 | 10 | HashiCorp Vault CLI, both as a direct tool and inside shell commands. This pa… |
 
 ## Shell
 
@@ -319,6 +331,539 @@ Focused, security-hardened variants of the cloud CLI packs. Each is a drop-in st
 **Data tier:** `restricted` when `query` matches `(?i)(password|ssn|credit[_ ]?card|card_number|secret|token|patients?|medical)`; `confidential` when `query` matches `(?i)(users?|customers?|accounts?|payment|email|address|salary|payroll)`; otherwise `internal`  
 **Target template:** `sql://{query}`  
 **Capability ceiling:** `R`, `M`, `A`, `C`, `D`  
+
+## Developer toolchain
+
+The surfaces enterprise coding-agent sessions actually touch: `load_packs(["git", "gh", "docker", "terraform", "npm", "pip-uv", "make"])` is one line. Each pack governs its CLI both as a direct tool name and inside shell commands (`bash`/`sh`/... with the CLI's binary in the command line). Routine development flows normally (reads are Read on `internal`, installs/commits are Add, builds and lifecycle changes are Change), while destructive, credential, publish, and IAM-adjacent operations — force pushes, `terraform apply`/state surgery, registry publishing, `docker login`/`--privileged`, secret and token management — land on the **restricted** tier, so the §12.5 floor makes them structurally impossible to perform autonomously. Packs that share a shell tool name (`bash`, `sh`, ...) **compose**: `apply_pack` chains them in load order instead of replacing, and per call the pack whose rules match governs — with *its own* capability ceiling, never a union across packs — falling through on no-match to the next pack and finally to any tool registered before the packs. A pack's broad tool-name-only fallback rule (e.g. the shell pack's coreutils table) never shadows another pack's specific claim, so loading all seven toolchain packs plus `shell` over the same `bash` tool just works.
+
+### `docker`
+
+> RMACD classification for the Docker CLI (docker, docker compose), both as a direct tool and inside shell commands. Reads (ps/images/logs/inspect) stay internal; image builds and pulls are Add; container lifecycle (run/start/stop/restart) is Change; removals and prunes are Delete on confidential. Registry credential operations (login), image publishing (push), and sandbox-escape flags (--privileged, host namespaces, host-root bind mounts) land on the restricted tier, so the §12.5 floor prohibits them for autonomous agents.
+
+**Version** 1.0.0 · **Family** Developer toolchain · **Default operation** C · **Review status** ai-drafted · **LLM-assisted** yes
+
+**Matches tools:** `docker`  
+**Parses argument:** `command` (strips wrappers: `sudo`, `env`)  
+
+| Operation | Verbs |
+|-----------|-------|
+| **R** Read | `ps`, `images`, `logs`, `inspect`, `version`, `info`, `history`, `top`, `port`, `stats`, `events`, `diff`, `search`, `wait`, `help` |
+| **M** Move | `rename` |
+| **A** Add | `build`, `pull`, `tag`, `create`, `commit`, `save`, `export`, `import`, `load`, `cp` |
+| **C** Change | `run`, `start`, `stop`, `restart`, `pause`, `unpause`, `kill`, `exec`, `attach`, `update`, `scale`, `up` |
+| **D** Delete | `rm`, `rmi`, `prune`, `down` |
+| *(unrecognised verb)* | defaults to **C** Change |
+
+**Data tier:** `confidential` when `command` matches `(secret|password|credential|token|/var/run/docker\.sock)`; otherwise `internal`  
+**Target template:** `docker://{command}`  
+**Capability ceiling:** `R`, `M`, `A`, `C`, `D`  
+
+**Matches tools:** `bash`, `sh`, `shell`, `zsh`, `run_command`, `execute_command`  
+**Parses argument:** `command` (strips wrappers: `sudo`, `env`)  
+
+| Operation | Verbs |
+|-----------|-------|
+| **R** Read | `ps`, `images`, `logs`, `inspect`, `version`, `info`, `history`, `top`, `port`, `stats`, `events`, `diff`, `search`, `wait`, `help` |
+| **M** Move | `rename` |
+| **A** Add | `build`, `pull`, `tag`, `create`, `commit`, `save`, `export`, `import`, `load`, `cp` |
+| **C** Change | `run`, `start`, `stop`, `restart`, `pause`, `unpause`, `kill`, `exec`, `attach`, `update`, `scale`, `up` |
+| **D** Delete | `rm`, `rmi`, `prune`, `down` |
+| *(unrecognised verb)* | defaults to **C** Change |
+
+**Data tier:** `confidential` when `command` matches `(secret|password|credential|token|/var/run/docker\.sock)`; otherwise `internal`  
+**Target template:** `docker://{command}`  
+**Capability ceiling:** `R`, `M`, `A`, `C`, `D`  
+
+| Operation | Tools | Data tier | Target |
+|-----------|-------|-----------|--------|
+| **C** Change | `docker`, `bash`, `sh`, `shell`, `zsh`, `run_command`, `execute_command` | `restricted` | — |
+| **C** Change | `docker`, `bash`, `sh`, `shell`, `zsh`, `run_command`, `execute_command` | `restricted` | — |
+| **C** Change | `docker`, `bash`, `sh`, `shell`, `zsh`, `run_command`, `execute_command` | `restricted` | — |
+
+**Tier overlays** (raise the data tier when the command matches; operation comes from the base rule):
+
+| Applies when | Raises tier to |
+|--------------|----------------|
+| `command` matches `(^|\s)(rm|rmi|prune)\b` | `confidential` |
+
+### `gh`
+
+> RMACD classification for the GitHub CLI (gh), both as a direct tool and inside shell commands. A finer-grained successor to the coarse 'github' pack (load one or the other, not both): pr/issue/run reads stay internal; pr create/comment are Add; pr merge and release create are Change on confidential. Repo deletion, Actions secret/variable writes, SSH/GPG key management, and credential access (auth login/token) land on the restricted tier, so the §12.5 floor prohibits the mutations for autonomous agents.
+
+**Version** 1.0.0 · **Family** Developer toolchain · **Default operation** C · **Review status** ai-drafted · **LLM-assisted** yes
+
+**Matches tools:** `gh`  
+**Parses argument:** `command` (strips wrappers: `sudo`, `env`)  
+
+| Operation | Verbs |
+|-----------|-------|
+| **R** Read | `list`, `view`, `status`, `diff`, `checks`, `browse`, `search`, `clone`, `checkout`, `download`, `watch`, `token`, `help`, `version` |
+| **A** Add | `create`, `fork`, `comment`, `review`, `upload` |
+| **C** Change | `edit`, `merge`, `close`, `reopen`, `ready`, `rename`, `lock`, `unlock`, `pin`, `unpin`, `transfer`, `sync`, `push`, `rerun`, `approve`, `enable`, `disable`, `set`, `set-default`, `cancel`, `login`, `logout`, `refresh`, `api` |
+| **D** Delete | `delete`, `remove` |
+| *(unrecognised verb)* | defaults to **C** Change |
+
+**Data tier:** `confidential` when `command` matches `(secret|token|password|credential|ssh-key|gpg-key)`; otherwise `internal`  
+**Target template:** `github://{command}`  
+**Capability ceiling:** `R`, `M`, `A`, `C`, `D`  
+
+**Matches tools:** `bash`, `sh`, `shell`, `zsh`, `run_command`, `execute_command`  
+**Parses argument:** `command` (strips wrappers: `sudo`, `env`)  
+
+| Operation | Verbs |
+|-----------|-------|
+| **R** Read | `list`, `view`, `status`, `diff`, `checks`, `browse`, `search`, `clone`, `checkout`, `download`, `watch`, `token`, `help`, `version` |
+| **A** Add | `create`, `fork`, `comment`, `review`, `upload` |
+| **C** Change | `edit`, `merge`, `close`, `reopen`, `ready`, `rename`, `lock`, `unlock`, `pin`, `unpin`, `transfer`, `sync`, `push`, `rerun`, `approve`, `enable`, `disable`, `set`, `set-default`, `cancel`, `login`, `logout`, `refresh`, `api` |
+| **D** Delete | `delete`, `remove` |
+| *(unrecognised verb)* | defaults to **C** Change |
+
+**Data tier:** `confidential` when `command` matches `(secret|token|password|credential|ssh-key|gpg-key)`; otherwise `internal`  
+**Target template:** `github://{command}`  
+**Capability ceiling:** `R`, `M`, `A`, `C`, `D`  
+
+| Operation | Tools | Data tier | Target |
+|-----------|-------|-----------|--------|
+| **C** Change | `gh`, `bash`, `sh`, `shell`, `zsh`, `run_command`, `execute_command` | `confidential` | — |
+| **D** Delete | `gh`, `bash`, `sh`, `shell`, `zsh`, `run_command`, `execute_command` | `confidential` | — |
+| **D** Delete | `gh`, `bash`, `sh`, `shell`, `zsh`, `run_command`, `execute_command` | `restricted` | — |
+| **C** Change | `gh`, `bash`, `sh`, `shell`, `zsh`, `run_command`, `execute_command` | `restricted` | — |
+| **C** Change | `gh`, `bash`, `sh`, `shell`, `zsh`, `run_command`, `execute_command` | `restricted` | — |
+| **C** Change | `gh`, `bash`, `sh`, `shell`, `zsh`, `run_command`, `execute_command` | `restricted` | — |
+| **D** Delete | `gh`, `bash`, `sh`, `shell`, `zsh`, `run_command`, `execute_command` | `confidential` | — |
+
+**Tier overlays** (raise the data tier when the command matches; operation comes from the base rule):
+
+| Applies when | Raises tier to |
+|--------------|----------------|
+| `command` matches `(^|\s)(secret|variable)\s+(set|delete|remove|list)\b` | `restricted` |
+| `command` matches `(^|\s)auth\s+token\b` | `restricted` |
+
+### `git`
+
+> RMACD classification for the git CLI, both as a direct tool and inside shell commands. Reads (status/log/diff/show/fetch) stay internal; local mutations (add/commit/stash) are Add; history-integrating operations (merge/rebase/pull) are Change; push is Change on confidential. Destructive or history-rewriting operations (push --force, branch -D, reset --hard, clean -f, filter-branch/filter-repo) and credential access land on the restricted tier, so the §12.5 floor prohibits them for autonomous agents.
+
+**Version** 1.0.0 · **Family** Developer toolchain · **Default operation** C · **Review status** ai-drafted · **LLM-assisted** yes
+
+**Matches tools:** `git`  
+**Parses argument:** `command` (strips wrappers: `sudo`, `env`)  
+
+| Operation | Verbs |
+|-----------|-------|
+| **R** Read | `status`, `log`, `diff`, `show`, `fetch`, `clone`, `ls-files`, `ls-remote`, `ls-tree`, `blame`, `describe`, `reflog`, `shortlog`, `grep`, `rev-parse`, `rev-list`, `show-ref`, `cat-file`, `branch`, `tag`, `remote`, `help`, `version`, `var`, `archive` |
+| **M** Move | `mv` |
+| **A** Add | `add`, `commit`, `stash`, `init`, `worktree`, `notes`, `format-patch`, `bundle` |
+| **C** Change | `merge`, `rebase`, `pull`, `checkout`, `switch`, `restore`, `revert`, `cherry-pick`, `reset`, `config`, `am`, `apply`, `submodule`, `gc`, `bisect`, `push` |
+| **D** Delete | `clean`, `rm`, `prune`, `drop` |
+| *(unrecognised verb)* | defaults to **C** Change |
+
+**Data tier:** `confidential` when `command` matches `(credential|askpass|\.netrc|token|password)`; otherwise `internal`  
+**Target template:** `git://{command}`  
+**Capability ceiling:** `R`, `M`, `A`, `C`, `D`  
+
+**Matches tools:** `bash`, `sh`, `shell`, `zsh`, `run_command`, `execute_command`  
+**Parses argument:** `command` (strips wrappers: `sudo`, `env`)  
+
+| Operation | Verbs |
+|-----------|-------|
+| **R** Read | `status`, `log`, `diff`, `show`, `fetch`, `clone`, `ls-files`, `ls-remote`, `ls-tree`, `blame`, `describe`, `reflog`, `shortlog`, `grep`, `rev-parse`, `rev-list`, `show-ref`, `cat-file`, `branch`, `tag`, `remote`, `help`, `version`, `var`, `archive` |
+| **M** Move | `mv` |
+| **A** Add | `add`, `commit`, `stash`, `init`, `worktree`, `notes`, `format-patch`, `bundle` |
+| **C** Change | `merge`, `rebase`, `pull`, `checkout`, `switch`, `restore`, `revert`, `cherry-pick`, `reset`, `config`, `am`, `apply`, `submodule`, `gc`, `bisect`, `push` |
+| **D** Delete | `clean`, `rm`, `prune`, `drop` |
+| *(unrecognised verb)* | defaults to **C** Change |
+
+**Data tier:** `confidential` when `command` matches `(credential|askpass|\.netrc|token|password)`; otherwise `internal`  
+**Target template:** `git://{command}`  
+**Capability ceiling:** `R`, `M`, `A`, `C`, `D`  
+
+| Operation | Tools | Data tier | Target |
+|-----------|-------|-----------|--------|
+| **C** Change | `git`, `bash`, `sh`, `shell`, `zsh`, `run_command`, `execute_command` | `confidential` | — |
+| **C** Change | `git`, `bash`, `sh`, `shell`, `zsh`, `run_command`, `execute_command` | `restricted` | — |
+| **D** Delete | `git`, `bash`, `sh`, `shell`, `zsh`, `run_command`, `execute_command` | `restricted` | — |
+| **D** Delete | `git`, `bash`, `sh`, `shell`, `zsh`, `run_command`, `execute_command` | `internal` | — |
+| **D** Delete | `git`, `bash`, `sh`, `shell`, `zsh`, `run_command`, `execute_command` | `restricted` | — |
+| **C** Change | `git`, `bash`, `sh`, `shell`, `zsh`, `run_command`, `execute_command` | `restricted` | — |
+| **D** Delete | `git`, `bash`, `sh`, `shell`, `zsh`, `run_command`, `execute_command` | `restricted` | — |
+| **C** Change | `git`, `bash`, `sh`, `shell`, `zsh`, `run_command`, `execute_command` | `restricted` | — |
+| **C** Change | `git`, `bash`, `sh`, `shell`, `zsh`, `run_command`, `execute_command` | `confidential` | — |
+| **C** Change | `git`, `bash`, `sh`, `shell`, `zsh`, `run_command`, `execute_command` | `confidential` | — |
+
+**Tier overlays** (raise the data tier when the command matches; operation comes from the base rule):
+
+| Applies when | Raises tier to |
+|--------------|----------------|
+| `command` matches `(^|\s)credential(-store|-cache)?\b|credential\.helper` | `restricted` |
+
+### `make`
+
+> RMACD classification for GNU make (make/gmake), both as a direct tool and inside shell commands. Make recipes are opaque — an arbitrary target executes arbitrary commands that this pack cannot classify — so unrecognised targets fail closed to Change on internal and the capability ceiling applies; govern the underlying commands with the 'shell' pack where possible. Dry-run/query invocations (-n/--dry-run, -q, --help, --version) are Read; clean/distclean targets are Delete; install/uninstall touch system locations and are Change/Delete on confidential.
+
+**Version** 1.0.0 · **Family** Developer toolchain · **Default operation** C · **Review status** ai-drafted · **LLM-assisted** yes
+
+| Operation | Tools | Data tier | Target |
+|-----------|-------|-----------|--------|
+| **R** Read | `make`, `gmake` | — | — |
+| **R** Read | `bash`, `sh`, `shell`, `zsh`, `run_command`, `execute_command` | — | — |
+| **D** Delete | `make`, `gmake` | `internal` | — |
+| **D** Delete | `bash`, `sh`, `shell`, `zsh`, `run_command`, `execute_command` | `internal` | — |
+| **C** Change | `make`, `gmake` | `confidential` | — |
+| **C** Change | `bash`, `sh`, `shell`, `zsh`, `run_command`, `execute_command` | `confidential` | — |
+| **D** Delete | `make`, `gmake` | `confidential` | — |
+| **D** Delete | `bash`, `sh`, `shell`, `zsh`, `run_command`, `execute_command` | `confidential` | — |
+
+**Tier overlays** (raise the data tier when the command matches; operation comes from the base rule):
+
+| Applies when | Raises tier to |
+|--------------|----------------|
+| `make`, `gmake` | `internal` |
+| `command` matches `(^|\s)g?make(\s|$)` | `internal` |
+
+### `npm`
+
+> RMACD classification for the npm CLI (and npx), both as direct tools and inside shell commands. Reads (ls/view/outdated/audit) stay internal; install/ci are Add; update/link and script execution (run/exec — opaque, fail-closed to Change) are Change; uninstall is Delete. Registry-facing operations — publish/unpublish, token management, owner/access/deprecate, and login — land on the restricted tier, so the §12.5 floor prohibits them for autonomous agents. npx executes arbitrary packages and is classified Change fail-closed.
+
+**Version** 1.0.0 · **Family** Developer toolchain · **Default operation** C · **Review status** ai-drafted · **LLM-assisted** yes
+
+**Matches tools:** `npm`  
+**Parses argument:** `command` (strips wrappers: `sudo`, `env`)  
+
+| Operation | Verbs |
+|-----------|-------|
+| **R** Read | `ls`, `list`, `ll`, `view`, `info`, `show`, `outdated`, `audit`, `search`, `explain`, `doctor`, `ping`, `root`, `prefix`, `whoami`, `help`, `docs`, `repo`, `fund`, `get` |
+| **A** Add | `install`, `i`, `ci`, `pack`, `init`, `create` |
+| **C** Change | `update`, `upgrade`, `link`, `dedupe`, `rebuild`, `run`, `run-script`, `start`, `restart`, `stop`, `test`, `exec`, `version`, `set`, `edit`, `fix` |
+| **D** Delete | `uninstall`, `remove`, `rm`, `un`, `unlink`, `prune` |
+| *(unrecognised verb)* | defaults to **C** Change |
+
+**Data tier:** `confidential` when `command` matches `(_authToken|token|password|credential|secret)`; otherwise `internal`  
+**Target template:** `npm://{command}`  
+**Capability ceiling:** `R`, `M`, `A`, `C`, `D`  
+
+**Matches tools:** `bash`, `sh`, `shell`, `zsh`, `run_command`, `execute_command`  
+**Parses argument:** `command` (strips wrappers: `sudo`, `env`)  
+
+| Operation | Verbs |
+|-----------|-------|
+| **R** Read | `ls`, `list`, `ll`, `view`, `info`, `show`, `outdated`, `audit`, `search`, `explain`, `doctor`, `ping`, `root`, `prefix`, `whoami`, `help`, `docs`, `repo`, `fund`, `get` |
+| **A** Add | `install`, `i`, `ci`, `pack`, `init`, `create` |
+| **C** Change | `update`, `upgrade`, `link`, `dedupe`, `rebuild`, `run`, `run-script`, `start`, `restart`, `stop`, `test`, `exec`, `version`, `set`, `edit`, `fix` |
+| **D** Delete | `uninstall`, `remove`, `rm`, `un`, `unlink`, `prune` |
+| *(unrecognised verb)* | defaults to **C** Change |
+
+**Data tier:** `confidential` when `command` matches `(_authToken|token|password|credential|secret)`; otherwise `internal`  
+**Target template:** `npm://{command}`  
+**Capability ceiling:** `R`, `M`, `A`, `C`, `D`  
+
+| Operation | Tools | Data tier | Target |
+|-----------|-------|-----------|--------|
+| **C** Change | `npx` | `internal` | `npm://npx {command}` |
+| **C** Change | `bash`, `sh`, `shell`, `zsh`, `run_command`, `execute_command` | `internal` | `npm://{command}` |
+| **C** Change | `npm`, `bash`, `sh`, `shell`, `zsh`, `run_command`, `execute_command` | `restricted` | — |
+| **D** Delete | `npm`, `bash`, `sh`, `shell`, `zsh`, `run_command`, `execute_command` | `restricted` | — |
+| **C** Change | `npm`, `bash`, `sh`, `shell`, `zsh`, `run_command`, `execute_command` | `restricted` | — |
+| **C** Change | `npm`, `bash`, `sh`, `shell`, `zsh`, `run_command`, `execute_command` | `restricted` | — |
+| **C** Change | `npm`, `bash`, `sh`, `shell`, `zsh`, `run_command`, `execute_command` | `restricted` | — |
+| **C** Change | `npm`, `bash`, `sh`, `shell`, `zsh`, `run_command`, `execute_command` | `confidential` | — |
+
+### `pip-uv`
+
+> RMACD classification for the Python packaging toolchain — pip/pip3, uv, and twine — both as direct tools and inside shell commands. Reads (pip list/show/download, uv lock/tree) stay internal; pip/uv install and uv sync/add are Add; uninstall/remove are Delete. Publishing to a package index (uv publish, twine upload) and credential material (index tokens, .pypirc, keyring writes) land on the restricted tier, so the §12.5 floor prohibits them for autonomous agents. Alternate-index flags raise the tier to confidential (supply-chain surface).
+
+**Version** 1.0.0 · **Family** Developer toolchain · **Default operation** C · **Review status** ai-drafted · **LLM-assisted** yes
+
+**Matches tools:** `pip`, `pip3`, `uv`, `twine`  
+**Parses argument:** `command` (strips wrappers: `sudo`, `env`)  
+
+| Operation | Verbs |
+|-----------|-------|
+| **R** Read | `list`, `show`, `download`, `freeze`, `check`, `search`, `index`, `inspect`, `debug`, `help`, `hash`, `cache`, `lock`, `tree`, `export`, `version`, `config`, `dir`, `info` |
+| **A** Add | `install`, `wheel`, `add`, `sync`, `venv`, `init`, `build` |
+| **C** Change | `run`, `pin`, `upgrade`, `update`, `register`, `upload` |
+| **D** Delete | `uninstall`, `remove`, `purge`, `prune`, `clean` |
+| *(unrecognised verb)* | defaults to **C** Change |
+
+**Data tier:** `confidential` when `command` matches `(index-url|extra-index-url|trusted-host|find-links|keyring)`; otherwise `internal`  
+**Target template:** `pip://{command}`  
+**Capability ceiling:** `R`, `M`, `A`, `C`, `D`  
+
+**Matches tools:** `bash`, `sh`, `shell`, `zsh`, `run_command`, `execute_command`  
+**Parses argument:** `command` (strips wrappers: `sudo`, `env`)  
+
+| Operation | Verbs |
+|-----------|-------|
+| **R** Read | `list`, `show`, `download`, `freeze`, `check`, `search`, `index`, `inspect`, `debug`, `help`, `hash`, `cache`, `lock`, `tree`, `export`, `version`, `config`, `dir`, `info` |
+| **A** Add | `install`, `wheel`, `add`, `sync`, `venv`, `init`, `build` |
+| **C** Change | `run`, `pin`, `upgrade`, `update`, `register`, `upload` |
+| **D** Delete | `uninstall`, `remove`, `purge`, `prune`, `clean` |
+| *(unrecognised verb)* | defaults to **C** Change |
+
+**Data tier:** `confidential` when `command` matches `(index-url|extra-index-url|trusted-host|find-links|keyring)`; otherwise `internal`  
+**Target template:** `pip://{command}`  
+**Capability ceiling:** `R`, `M`, `A`, `C`, `D`  
+
+| Operation | Tools | Data tier | Target |
+|-----------|-------|-----------|--------|
+| **C** Change | `pip`, `pip3`, `uv`, `twine`, `bash`, `sh`, `shell`, `zsh`, `run_command`, `execute_command` | `restricted` | — |
+| **C** Change | `pip`, `pip3`, `uv`, `twine`, `bash`, `sh`, `shell`, `zsh`, `run_command`, `execute_command` | `confidential` | — |
+
+**Tier overlays** (raise the data tier when the command matches; operation comes from the base rule):
+
+| Applies when | Raises tier to |
+|--------------|----------------|
+| `command` matches `(--password|--username|--token|pypirc|keyring\s+set)` | `restricted` |
+| `command` matches `--break-system-packages\b` | `confidential` |
+
+### `terraform`
+
+> RMACD classification for the Terraform CLI (terraform; OpenTofu 'tofu' is matched as a drop-in alias), both as a direct tool and inside shell commands. Reads (fmt/validate/show/output) stay internal; plan and state reads are confidential because they can reveal state contents. init/import are Add. Infrastructure mutation is the danger surface: apply, destroy, state surgery (state rm/mv/push), workspace delete, force-unlock, and login all land on the restricted tier, so the §12.5 floor prohibits them for autonomous agents — an agent can plan, but a human applies.
+
+**Version** 1.0.0 · **Family** Developer toolchain · **Default operation** C · **Review status** ai-drafted · **LLM-assisted** yes
+
+**Matches tools:** `terraform`, `tofu`  
+**Parses argument:** `command` (strips wrappers: `sudo`, `env`)  
+
+| Operation | Verbs |
+|-----------|-------|
+| **R** Read | `fmt`, `list`, `validate`, `show`, `output`, `graph`, `providers`, `version`, `console`, `test`, `plan`, `help` |
+| **A** Add | `init`, `import`, `get`, `new` |
+| **C** Change | `apply`, `refresh`, `taint`, `untaint`, `select`, `login`, `logout` |
+| **D** Delete | `destroy`, `delete` |
+| *(unrecognised verb)* | defaults to **C** Change |
+
+**Data tier:** `confidential` when `command` matches `(^|\s)plan\b`; `confidential` when `command` matches `(secret|password|credential|token|vault)`; otherwise `internal`  
+**Target template:** `terraform://{command}`  
+**Capability ceiling:** `R`, `M`, `A`, `C`, `D`  
+
+**Matches tools:** `bash`, `sh`, `shell`, `zsh`, `run_command`, `execute_command`  
+**Parses argument:** `command` (strips wrappers: `sudo`, `env`)  
+
+| Operation | Verbs |
+|-----------|-------|
+| **R** Read | `fmt`, `list`, `validate`, `show`, `output`, `graph`, `providers`, `version`, `console`, `test`, `plan`, `help` |
+| **A** Add | `init`, `import`, `get`, `new` |
+| **C** Change | `apply`, `refresh`, `taint`, `untaint`, `select`, `login`, `logout` |
+| **D** Delete | `destroy`, `delete` |
+| *(unrecognised verb)* | defaults to **C** Change |
+
+**Data tier:** `confidential` when `command` matches `(^|\s)plan\b`; `confidential` when `command` matches `(secret|password|credential|token|vault)`; otherwise `internal`  
+**Target template:** `terraform://{command}`  
+**Capability ceiling:** `R`, `M`, `A`, `C`, `D`  
+
+| Operation | Tools | Data tier | Target |
+|-----------|-------|-----------|--------|
+| **C** Change | `terraform`, `tofu`, `bash`, `sh`, `shell`, `zsh`, `run_command`, `execute_command` | `restricted` | — |
+| **D** Delete | `terraform`, `tofu`, `bash`, `sh`, `shell`, `zsh`, `run_command`, `execute_command` | `restricted` | — |
+| **C** Change | `terraform`, `tofu`, `bash`, `sh`, `shell`, `zsh`, `run_command`, `execute_command` | `restricted` | — |
+| **D** Delete | `terraform`, `tofu`, `bash`, `sh`, `shell`, `zsh`, `run_command`, `execute_command` | `restricted` | — |
+| **D** Delete | `terraform`, `tofu`, `bash`, `sh`, `shell`, `zsh`, `run_command`, `execute_command` | `restricted` | — |
+| **C** Change | `terraform`, `tofu`, `bash`, `sh`, `shell`, `zsh`, `run_command`, `execute_command` | `restricted` | — |
+| **C** Change | `terraform`, `tofu`, `bash`, `sh`, `shell`, `zsh`, `run_command`, `execute_command` | `restricted` | — |
+
+**Tier overlays** (raise the data tier when the command matches; operation comes from the base rule):
+
+| Applies when | Raises tier to |
+|--------------|----------------|
+| `command` matches `(^|\s)state\s+(list|show|pull)\b` | `confidential` |
+
+## Enterprise operations
+
+One pack per enterprise control domain: change management (`servicenow` — ITSM/CAB via MCP tool names), Kubernetes deployment (`helm`), regulated file transfer and remote execution (`ssh-transfer` — the canonical **Move** pack; an upload is potential egress, which DC2D deployments should pair with egress controls), financial rails (`stripe` — payment data is never internal, and money movement is restricted), and identity/secrets (`vault` — the §12.5 showcase, where reading a secret is itself the exfiltration risk and classifies as Read on `restricted`). Restricted-tier *reads* are profile-gated (they need an explicit Read grant on `restricted`), while restricted-tier Change/Delete rows are floor-blocked outright. The CLI-shaped packs (`helm`, `ssh-transfer`, `stripe`, `vault`) govern their binaries both as direct tools and inside shell commands; as with the developer-toolchain family, packs sharing a shell tool name (`bash`, `sh`, ...) **compose** in a single registry — per call, the pack whose rules match governs with its own capability ceiling, falling through to the next pack on no-match — so these packs can be loaded alongside the developer-toolchain (and `shell`) packs on the same `bash` tool without one overwriting another.
+
+### `helm`
+
+> RMACD classification for the Helm CLI (Kubernetes package manager), both as a direct tool and inside shell commands. Read-only chart and release inspection (list/status/get/history/search/show/template/lint) stays internal; repo add and chart pulls are Add on internal; install creates a release and is Add on confidential; upgrade and rollback mutate a running release and are Change on confidential. Uninstall deletes a release — Delete on restricted, so the §12.5 floor prohibits it autonomously. Registry login, chart push, and plugin management (plugins execute arbitrary code) land on the restricted tier.
+
+**Version** 1.0.0 · **Family** Enterprise operations · **Default operation** C · **Review status** ai-drafted · **LLM-assisted** yes
+
+**Matches tools:** `helm`  
+**Parses argument:** `command` (strips wrappers: `sudo`, `env`)  
+
+| Operation | Verbs |
+|-----------|-------|
+| **R** Read | `list`, `ls`, `status`, `get`, `history`, `hist`, `search`, `show`, `inspect`, `template`, `lint`, `verify`, `version`, `env`, `help`, `completion` |
+| **A** Add | `install`, `create`, `package`, `pull`, `fetch`, `add` |
+| **C** Change | `upgrade`, `rollback`, `update`, `push`, `login`, `logout` |
+| **D** Delete | `uninstall`, `delete`, `del` |
+| *(unrecognised verb)* | defaults to **C** Change |
+
+**Data tier:** `internal`  
+**Target template:** `helm://{command}`  
+**Capability ceiling:** `R`, `M`, `A`, `C`, `D`  
+
+**Matches tools:** `bash`, `sh`, `shell`, `zsh`, `run_command`, `execute_command`  
+**Parses argument:** `command` (strips wrappers: `sudo`, `env`)  
+
+| Operation | Verbs |
+|-----------|-------|
+| **R** Read | `list`, `ls`, `status`, `get`, `history`, `hist`, `search`, `show`, `inspect`, `template`, `lint`, `verify`, `version`, `env`, `help`, `completion` |
+| **A** Add | `install`, `create`, `package`, `pull`, `fetch`, `add` |
+| **C** Change | `upgrade`, `rollback`, `update`, `push`, `login`, `logout` |
+| **D** Delete | `uninstall`, `delete`, `del` |
+| *(unrecognised verb)* | defaults to **C** Change |
+
+**Data tier:** `internal`  
+**Target template:** `helm://{command}`  
+**Capability ceiling:** `R`, `M`, `A`, `C`, `D`  
+
+| Operation | Tools | Data tier | Target |
+|-----------|-------|-----------|--------|
+| **A** Add | `helm` | `confidential` | — |
+| **A** Add | `bash`, `sh`, `shell`, `zsh`, `run_command`, `execute_command` | `confidential` | — |
+| **C** Change | `helm` | `confidential` | — |
+| **C** Change | `bash`, `sh`, `shell`, `zsh`, `run_command`, `execute_command` | `confidential` | — |
+| **D** Delete | `helm` | `restricted` | — |
+| **D** Delete | `bash`, `sh`, `shell`, `zsh`, `run_command`, `execute_command` | `restricted` | — |
+
+**Tier overlays** (raise the data tier when the command matches; operation comes from the base rule):
+
+| Applies when | Raises tier to |
+|--------------|----------------|
+| `command` matches `(^|\s)(registry\s+(login|logout)|plugin\s+(install|uninstall|update)|push)\b` | `restricted` |
+| `command` matches `\bhelm\b[^|;&]*\s(registry\s+(login|logout)|plugin\s+(install|uninstall|update)|push)\b` | `restricted` |
+
+### `servicenow`
+
+> RMACD classification for ServiceNow MCP/REST tool surfaces (ITSM, change management, CMDB). There is no canonical ServiceNow CLI, so this pack targets the common MCP/REST tool names, mirroring the 'jira'/'confluence' pack shape. Record queries and gets are Read on internal (generic table access consults the servicenow_table_tier resolver, fail-closed to confidential); incident/request creation and work notes are Add on internal; incident update/assign/resolve is Change on confidential. Change management is the control point: creating a change request is Add on confidential, but approving one or forcing its state transition is Change on restricted — CAB approval is a human act, and an agent approving its own change requests must never happen autonomously, so the §12.5 floor prohibits it. Record deletion and CMDB CI deletion are Delete on restricted.
+
+**Version** 1.0.0 · **Family** Enterprise operations · **Default operation** C · **Review status** ai-drafted · **LLM-assisted** yes
+
+**Resolvers** (live tier lookups, fail-closed):
+
+- `servicenow_table_tier` — Resolve a ServiceNow table name to its data classification (fail-closed default: `confidential`)
+
+| Operation | Tools | Data tier | Target |
+|-----------|-------|-----------|--------|
+| **R** Read | `search_records`, `get_record`, `query_records`, `list_records` | resolver `servicenow_table_tier` from `table`; otherwise `internal` | `servicenow://{table}/{sys_id}` |
+| **R** Read | `get_incident`, `search_incidents`, `list_incidents`, `get_request`, `list_requests`, `get_user`, `list_users`, `get_change_request`, `list_change_requests`, `get_knowledge_article`, `search_knowledge_base` | `internal` | `servicenow://{number}` |
+| **A** Add | `create_incident`, `create_request`, `add_comment`, `add_work_note`, `create_knowledge_article` | `internal` | `servicenow://{number}` |
+| **A** Add | `create_record` | resolver `servicenow_table_tier` from `table`; otherwise `internal` | `servicenow://{table}` |
+| **C** Change | `update_record` | resolver `servicenow_table_tier` from `table`; otherwise `internal` | `servicenow://{table}/{sys_id}` |
+| **C** Change | `update_incident`, `assign_incident`, `resolve_incident`, `close_incident`, `update_request`, `close_request` | `confidential` | `servicenow://incident/{number}` |
+| **A** Add | `create_change_request`, `add_change_task`, `submit_change_for_approval` | `confidential` | `servicenow://change_request/{number}` |
+| **C** Change | `update_change_request`, `update_change_task`, `schedule_change_request` | `confidential` | `servicenow://change_request/{number}` |
+| **C** Change | `approve_change`, `reject_change`, `approve_change_request`, `reject_change_request`, `transition_change_state` | `restricted` | `servicenow://change_request/{number}` |
+| **D** Delete | `delete_record`, `delete_incident`, `delete_request`, `delete_change_request`, `delete_cmdb_ci`, `delete_ci`, `delete_knowledge_article` | `restricted` | `servicenow://{table}/{sys_id}` |
+
+### `ssh-transfer`
+
+> RMACD classification for remote shells and file transfer: ssh, scp, sftp, rsync, and the SSH credential tooling (ssh-keygen/ssh-copy-id/ssh-agent/ssh-add), both as direct tools and inside shell commands. This is the canonical Move pack: scp/sftp/rsync transfers relocate data across a host boundary and classify as Move on confidential — note the direction, an upload is potential egress, so DC2D deployments should pair this pack with egress controls. rsync --delete (and --remove-source-files) is Delete on confidential. A plain 'ssh host cmd' executes an opaque remote command this pack cannot parse — it fails closed to Change on confidential and the capability ceiling applies (mirror of the 'make' pack's opaque-execution posture); govern the remote side with its own agent profile where possible. Key generation, key installation, and agent operations are the credential surface: Change on restricted, so the §12.5 floor prohibits them autonomously.
+
+**Version** 1.0.0 · **Family** Enterprise operations · **Default operation** C · **Review status** ai-drafted · **LLM-assisted** yes
+
+| Operation | Tools | Data tier | Target |
+|-----------|-------|-----------|--------|
+| **M** Move | `scp`, `sftp`, `rsync` | `confidential` | `transfer://{command}` |
+| **M** Move | `bash`, `sh`, `shell`, `zsh`, `run_command`, `execute_command` | `confidential` | `transfer://{command}` |
+| **D** Delete | `rsync` | `confidential` | — |
+| **D** Delete | `bash`, `sh`, `shell`, `zsh`, `run_command`, `execute_command` | `confidential` | — |
+| **C** Change | `ssh` | `confidential` | `ssh://{command}` |
+| **C** Change | `bash`, `sh`, `shell`, `zsh`, `run_command`, `execute_command` | `confidential` | `ssh://{command}` |
+| **C** Change | `ssh-keygen`, `ssh-copy-id`, `ssh-agent`, `ssh-add` | `restricted` | `ssh://{command}` |
+| **C** Change | `bash`, `sh`, `shell`, `zsh`, `run_command`, `execute_command` | `restricted` | `ssh://{command}` |
+
+### `stripe`
+
+> RMACD classification for the Stripe CLI, both as a direct tool and inside shell commands. Payment data is never internal: reads of live resources (customers, charges, invoices — list/get/retrieve) are Read on confidential, resource creation (customers, products, prices, invoices) is Add on confidential, and updates (subscriptions, webhook endpoints) are Change on confidential. Money movement — refunds, payouts, transfers, top-ups, reversals — is the financial rail: mutations there are Change on restricted so the §12.5 floor prohibits them autonomously, and even reads of that surface are restricted (profile-gated). Credential operations (login/logout/config, API keys) and connected-account mutations are restricted. Local test-mode tooling (listen, trigger, samples, fixtures) stays on internal.
+
+**Version** 1.0.0 · **Family** Enterprise operations · **Default operation** C · **Review status** ai-drafted · **LLM-assisted** yes
+
+**Matches tools:** `stripe`  
+**Parses argument:** `command` (strips wrappers: `sudo`, `env`)  
+
+| Operation | Verbs |
+|-----------|-------|
+| **R** Read | `list`, `retrieve`, `get`, `search`, `status`, `version`, `help`, `open`, `listen`, `logs`, `tail` |
+| **A** Add | `create`, `add`, `trigger` |
+| **C** Change | `update`, `confirm`, `capture`, `attach`, `detach`, `finalize`, `pay`, `send`, `login`, `logout`, `config` |
+| **D** Delete | `delete`, `cancel`, `void`, `close` |
+| *(unrecognised verb)* | defaults to **C** Change |
+
+**Data tier:** `internal` when `command` matches `(^|\s)(listen|trigger|samples|fixtures)\b`; otherwise `confidential`  
+**Target template:** `stripe://{command}`  
+**Capability ceiling:** `R`, `M`, `A`, `C`, `D`  
+
+**Matches tools:** `bash`, `sh`, `shell`, `zsh`, `run_command`, `execute_command`  
+**Parses argument:** `command` (strips wrappers: `sudo`, `env`)  
+
+| Operation | Verbs |
+|-----------|-------|
+| **R** Read | `list`, `retrieve`, `get`, `search`, `status`, `version`, `help`, `open`, `listen`, `logs`, `tail` |
+| **A** Add | `create`, `add`, `trigger` |
+| **C** Change | `update`, `confirm`, `capture`, `attach`, `detach`, `finalize`, `pay`, `send`, `login`, `logout`, `config` |
+| **D** Delete | `delete`, `cancel`, `void`, `close` |
+| *(unrecognised verb)* | defaults to **C** Change |
+
+**Data tier:** `internal` when `command` matches `(^|\s)(listen|trigger|samples|fixtures)\b`; otherwise `confidential`  
+**Target template:** `stripe://{command}`  
+**Capability ceiling:** `R`, `M`, `A`, `C`, `D`  
+
+| Operation | Tools | Data tier | Target |
+|-----------|-------|-----------|--------|
+| **C** Change | `stripe` | `restricted` | — |
+| **C** Change | `bash`, `sh`, `shell`, `zsh`, `run_command`, `execute_command` | `restricted` | — |
+| **C** Change | `stripe` | `restricted` | — |
+| **C** Change | `bash`, `sh`, `shell`, `zsh`, `run_command`, `execute_command` | `restricted` | — |
+
+**Tier overlays** (raise the data tier when the command matches; operation comes from the base rule):
+
+| Applies when | Raises tier to |
+|--------------|----------------|
+| `command` matches `(^|\s)(refunds?|payouts?|transfers?|topups?|reversals?)\b` | `restricted` |
+| `command` matches `\bstripe\b[^|;&]*\s(refunds?|payouts?|transfers?|topups?|reversals?)\b` | `restricted` |
+| `command` matches `(^|\s)accounts?\s+(create|update|delete|reject)\b` | `restricted` |
+| `command` matches `\bstripe\b[^|;&]*\saccounts?\s+(create|update|delete|reject)\b` | `restricted` |
+
+### `vault`
+
+> RMACD classification for the HashiCorp Vault CLI, both as a direct tool and inside shell commands. This pack is the §12.5 showcase: every Vault operation lands on at least the confidential tier, because everything Vault touches is a secret or the machinery that guards one. Reading a secret (kv get, read, unwrap) is Read on restricted — the read IS the exfiltration risk, so it is profile-gated rather than floor-blocked. Writing/patching secrets (kv put/patch) is Change on restricted and deleting/destroying them (kv delete/destroy, secrets disable) is Delete on restricted, so the §12.5 immutable floor makes them structurally impossible for autonomous agents. Policy writes, auth-method changes, token create/revoke, login, and operator commands (seal/unseal/rekey/raft) are likewise restricted-tier mutations. Benign surface (status, token lookup-self, list) stays Read on confidential.
+
+**Version** 1.0.0 · **Family** Enterprise operations · **Default operation** C · **Review status** ai-drafted · **LLM-assisted** yes
+
+**Matches tools:** `vault`  
+**Parses argument:** `command` (strips wrappers: `sudo`, `env`)  
+
+| Operation | Verbs |
+|-----------|-------|
+| **R** Read | `status`, `read`, `get`, `list`, `lookup`, `unwrap`, `help`, `version`, `path-help` |
+| **C** Change | `write`, `put`, `patch`, `login`, `enable`, `tune`, `rotate`, `renew`, `rekey` |
+| **D** Delete | `delete`, `destroy`, `disable`, `revoke` |
+| *(unrecognised verb)* | defaults to **C** Change |
+
+**Data tier:** `confidential`  
+**Target template:** `vault://{command}`  
+**Capability ceiling:** `R`, `M`, `A`, `C`, `D`  
+
+**Matches tools:** `bash`, `sh`, `shell`, `zsh`, `run_command`, `execute_command`  
+**Parses argument:** `command` (strips wrappers: `sudo`, `env`)  
+
+| Operation | Verbs |
+|-----------|-------|
+| **R** Read | `status`, `read`, `get`, `list`, `lookup`, `unwrap`, `help`, `version`, `path-help` |
+| **C** Change | `write`, `put`, `patch`, `login`, `enable`, `tune`, `rotate`, `renew`, `rekey` |
+| **D** Delete | `delete`, `destroy`, `disable`, `revoke` |
+| *(unrecognised verb)* | defaults to **C** Change |
+
+**Data tier:** `confidential`  
+**Target template:** `vault://{command}`  
+**Capability ceiling:** `R`, `M`, `A`, `C`, `D`  
+
+| Operation | Tools | Data tier | Target |
+|-----------|-------|-----------|--------|
+| **C** Change | `vault` | `restricted` | — |
+| **C** Change | `bash`, `sh`, `shell`, `zsh`, `run_command`, `execute_command` | `restricted` | — |
+| **D** Delete | `vault` | `restricted` | — |
+| **D** Delete | `bash`, `sh`, `shell`, `zsh`, `run_command`, `execute_command` | `restricted` | — |
+
+**Tier overlays** (raise the data tier when the command matches; operation comes from the base rule):
+
+| Applies when | Raises tier to |
+|--------------|----------------|
+| `command` matches `(^|\s)(kv\s+get|read|unwrap)\b` | `restricted` |
+| `command` matches `\bvault\b[^|;&]*\s(kv\s+get|read|unwrap)\b` | `restricted` |
+| `command` matches `(^|\s)(policy\s+(write|delete)|auth\s+(enable|disable|tune)|secrets\s+(enable|disable|move|tune)|token\s+(create|revoke|renew)|operator|lease\s+revoke|audit\s+(enable|disable)|plugin\s+(register|deregister)|login|agent)\b` | `restricted` |
+| `command` matches `\bvault\b[^|;&]*\s(policy\s+(write|delete)|auth\s+(enable|disable|tune)|secrets\s+(enable|disable|move|tune)|token\s+(create|revoke|renew)|operator|lease\s+revoke|audit\s+(enable|disable)|plugin\s+(register|deregister)|login|agent)\b` | `restricted` |
 
 ## SaaS / collaboration MCPs
 
