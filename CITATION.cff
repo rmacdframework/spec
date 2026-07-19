@@ -9,6 +9,7 @@ authors:
     email: "kash@rmacd-framework.org"
     orcid: "https://orcid.org/0009-0005-0127-6265"
 version: "1.4.0"
+doi: "10.5281/zenodo.21438139"
 date-released: "2026-06-09"
 url: "https://rmacd-framework.org"
 repository-code: "https://github.com/rmacdframework/spec"

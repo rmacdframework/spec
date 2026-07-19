@@ -2,6 +2,7 @@
 
 **ITIL for the Agentic Era**
 
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.21438139.svg)](https://doi.org/10.5281/zenodo.21438139)
 [![License: CC BY 4.0](https://img.shields.io/badge/License-CC_BY_4.0-lightgrey.svg)](https://creativecommons.org/licenses/by/4.0/)
 [![Spec version](https://img.shields.io/badge/spec-1.4.0-blue.svg)](https://github.com/rmacdframework/spec/releases)
 [![PyPI](https://img.shields.io/pypi/v/rmacd-framework.svg)](https://pypi.org/project/rmacd-framework/)
@@ -160,6 +161,7 @@ If you use the RMACD Framework in your work, please cite:
   year         = {2026},
   month        = jun,
   version      = {1.4.0},
+  doi          = {10.5281/zenodo.21438139},
   url          = {https://rmacd-framework.org},
   howpublished = {\url{https://github.com/rmacdframework/spec}},
   license      = {CC-BY-4.0},
