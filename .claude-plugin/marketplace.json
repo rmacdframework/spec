@@ -1,0 +1,35 @@
+{
+  "name": "rmacd-framework",
+  "owner": {
+    "name": "RMACD Framework",
+    "url": "https://rmacd-framework.org"
+  },
+  "metadata": {
+    "description": "Governance for autonomous AI agents: RMACD operational permissions, data classification, and autonomy controls.",
+    "version": "0.1.0"
+  },
+  "plugins": [
+    {
+      "name": "rmacd",
+      "source": "./integrations/claude-code",
+      "description": "Integrate RMACD governance into your AI agent: scaffold policy profiles, register tools via governance packs, and enforce every tool call through the rmacd-framework SDK.",
+      "version": "0.1.0",
+      "author": {
+        "name": "RMACD Framework",
+        "url": "https://rmacd-framework.org"
+      },
+      "homepage": "https://rmacd-framework.org",
+      "repository": "https://github.com/rmacdframework/spec",
+      "license": "CC-BY-4.0",
+      "keywords": [
+        "governance",
+        "ai-agents",
+        "policy-enforcement",
+        "rmacd",
+        "security",
+        "compliance"
+      ],
+      "category": "security"
+    }
+  ]
+}

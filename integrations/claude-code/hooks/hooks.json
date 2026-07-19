@@ -1,0 +1,17 @@
+{
+  "description": "RMACD session governance: every tool call is evaluated against the bound RMACD profile via the rmacd-framework SDK (pip install \"rmacd-framework>=0.13\"). Unbound sessions pass through untouched with a one-time notice; bound sessions fail closed on errors. See /rmacd:status and docs/claude-code.md in the spec repo.",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 -m rmacd.claude_code.hook",
+            "timeout": 30
+          }
+        ]
+      }
+    ]
+  }
+}
