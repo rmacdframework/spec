@@ -16,6 +16,7 @@ import pytest
 
 from rmacd import (
     PolicyEnforcer,
+    RMACDPolicyError,
     RMACDProhibitedError,
     RMACDToolCapabilityError,
 )
@@ -311,6 +312,50 @@ def test_ordinary_calls_still_flow_through_composed_bash() -> None:
     assert decision.allowed is True
     assert decision.operation == Op.CHANGE
     assert decision.data_classification == DC.CONFIDENTIAL
+
+
+# --- (f) severity floor: a specific pack must not downgrade a co-located,
+#         more-dangerous binary recognized by a base pack. (Code review C3.) ---
+@pytest.mark.parametrize(
+    "command",
+    [
+        "git log; shred /etc/secret",
+        "git diff; rm -rf /etc",
+        "git status & rm -rf /etc",  # bare-& tail (also exercises C2)
+    ],
+)
+def test_specificity_does_not_downgrade_a_more_dangerous_co_located_binary(
+    command: str,
+) -> None:
+    bash = load_packs(["shell", "git"]).get_tool("bash")
+    assert isinstance(bash, ComposedToolDefinition)
+    resolved = bash.resolve_call({"command": command})
+    assert resolved.operation == Op.DELETE, f"{command!r} downgraded to {resolved.operation}"
+
+
+def test_severity_floor_denies_downgraded_delete_end_to_end() -> None:
+    # Read-only profile: Delete is granted nowhere, so the un-downgraded
+    # command must be DENIED through the full enforcer.
+    profile = Profile3D(
+        profile_id="rmacd-3d-readonly-comp-v1",
+        profile_name="read-only",
+        model="three-dimensional",
+        version="1.0",
+        permissions={
+            DC.PUBLIC: [Op.READ],
+            DC.INTERNAL: [Op.READ],
+            DC.CONFIDENTIAL: [Op.READ],
+            DC.RESTRICTED: [Op.READ],
+        },
+    )
+    enforcer = PolicyEnforcer(
+        profile=profile,
+        agent_id="ro",
+        registry=load_packs(["shell", "git"]),
+        approval_gateway=AutoApproveGateway(),
+    )
+    with pytest.raises(RMACDPolicyError):
+        enforcer.enforce_tool_call("bash", {"command": "git log; shred /etc/secret"})
 
 
 # --- serialization round-trip ---------------------------------------------------

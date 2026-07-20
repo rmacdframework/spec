@@ -474,6 +474,33 @@ class TestPolicyEvaluatorDC2D:
             )
             assert decision.operation.value == op
 
+    def test_immutable_floor_applies_on_dc2d_path(self) -> None:
+        """§12.5 floor: Add/Change/Delete on Restricted is prohibited for ANY
+        agent, including under a DC2D profile that grants the restricted tier.
+        Regression for the DC2D floor-bypass (code review C1, 2026-07-19)."""
+        profile = ProfileDC2D(
+            profile_id="rmacd-dc2d-open-restricted-v1",
+            profile_name="Open Restricted (should still be floored)",
+            model="data-classification-2d",
+            version="1.0",
+            data_access=DataAccess(
+                public=TierPolicy(allowed=True, autonomy=AutonomyLevel.AUTONOMOUS),
+                internal=TierPolicy(allowed=True, autonomy=AutonomyLevel.AUTONOMOUS),
+                confidential=TierPolicy(allowed=True, autonomy=AutonomyLevel.AUTONOMOUS),
+                restricted=TierPolicy(allowed=True, autonomy=AutonomyLevel.AUTONOMOUS),
+            ),
+        )
+        evaluator = PolicyEvaluator(profile)
+        # Read on restricted is NOT floored — the profile grants it.
+        read = evaluator.evaluate("R", "restricted")
+        assert read.allowed is True
+        # Add/Change/Delete on restricted are floored regardless of tier policy.
+        for op in ("A", "C", "D"):
+            decision = evaluator.evaluate(op, "restricted")
+            assert decision.allowed is False, f"{op} on restricted must be floored under DC2D"
+            assert decision.autonomy_level == AutonomyLevel.PROHIBITED
+            assert "12.5" in (decision.blocked_reason or "")
+
     def test_emergency_escalates_tier(self) -> None:
         """Emergency escalation grants access to a previously denied tier."""
         profile = ProfileDC2D(

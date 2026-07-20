@@ -56,7 +56,10 @@ _TIER_RANK: dict[str, int] = {"public": 0, "internal": 1, "confidential": 2, "re
 # the validator also flags risky patterns at authoring time).
 _MAX_REGEX_INPUT = 8192
 
-_SEGMENT_SEP = re.compile(r"\|\||&&|\||;|\n")
+# See the bash classifier's _SPLIT_RE: `(?<!>)&(?![&>])` treats a bare `&`
+# (background operator) as a separator while sparing `&&`, `&>`, and `2>&1`.
+# (Code review C2, 2026-07-19.)
+_SEGMENT_SEP = re.compile(r"\|\||&&|(?<!>)&(?![&>])|\||;|\n")
 _SUBSHELL = re.compile(r"\$\(([^()]*)\)")
 _BACKTICK = re.compile(r"`([^`]*)`")
 _TEMPLATE_TOKEN = re.compile(r"\{([^{}]+)\}")

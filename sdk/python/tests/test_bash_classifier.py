@@ -338,6 +338,23 @@ class TestComposition:
         assert op("ls && rm -rf /tmp/x") == Op.DELETE
         assert op("cat f ; chmod 600 g") == Op.CHANGE
 
+    def test_background_ampersand_is_a_separator(self):
+        # `&` backgrounds the first command and runs the next — a full
+        # separator. The destructive tail must not be hidden. (Code review C2.)
+        assert op("ls & rm -rf /tmp/x") == Op.DELETE
+        assert op("echo hi & userdel bob") == Op.DELETE
+        assert op("true & mkfs.ext4 /dev/sda1") == Op.DELETE  # mkfs destroys a fs
+
+    def test_ampersand_does_not_break_redirects(self):
+        # `&>`, `>&`, and `2>&1` are redirect / fd-duplication forms — the
+        # bare-& separator must NOT split them. (`&&` correctly IS a separator.)
+        from rmacd.registry.bash import _SPLIT_RE
+
+        for cmd in ("cmd &> /tmp/log", "grep x f 2>&1", "cat a >& b"):
+            assert len(_SPLIT_RE.split(cmd)) == 1, f"{cmd!r} must not split on &"
+        # Logical-AND still splits (MAX-combined) and reveals no destructive tail.
+        assert op("ls && echo done") == Op.READ
+
     def test_redirect_is_a_write(self):
         assert op("echo hi > /etc/hosts") == Op.CHANGE
         assert op("cat a >> b") == Op.CHANGE

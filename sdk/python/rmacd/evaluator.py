@@ -249,6 +249,29 @@ class PolicyEvaluator:
         assert isinstance(self.profile, ProfileDC2D)
         constraints_applied: list[str] = []
 
+        # RMACD §12.5 immutable floor applies to EVERY deployment shape, before
+        # any tier policy, emergency escalation, or autonomy computation. DC2D
+        # treats the operation as metadata for the *autonomy* decision, but the
+        # floor is a hard, framework-level prohibition: when a concrete
+        # Add/Change/Delete on Restricted is presented — e.g. a registry-resolved
+        # operation via enforce_tool_call — it can never be granted, regardless
+        # of the profile's per-tier policy. (Code review C1, 2026-07-19.)
+        if (data_classification, operation) in IMMUTABLE_PROHIBITIONS:
+            return PolicyDecision(
+                allowed=False,
+                operation=operation,
+                data_classification=data_classification,
+                autonomy_level=AutonomyLevel.PROHIBITED,
+                requires_approval=False,
+                requires_notification=False,
+                blocked_reason=(
+                    f"{operation.value} on {data_classification.value} is prohibited by "
+                    "the RMACD §12.5 immutable floor and cannot be granted by any profile"
+                ),
+                constraints_applied=["immutable_prohibition"],
+                emergency_mode=context.emergency_active,
+            )
+
         tier_policy = self.profile.data_access.for_tier(data_classification)
         allowed = tier_policy.allowed
         autonomy = tier_policy.autonomy

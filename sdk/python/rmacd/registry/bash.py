@@ -339,7 +339,12 @@ _REDIRECT_RE = re.compile(r"(?:\d*|&)>>?")
 # Command substitution ($(...) / `...`) and process substitution (<(...) / >(...))
 # — all run an inner command that must be classified.
 _SUBSHELL_RE = re.compile(r"\$\(([^()]*)\)|`([^`]*)`|[<>]\(([^()]*)\)")
-_SPLIT_RE = re.compile(r"\|\||&&|[|;\n]")
+# Segment separators. The `(?<!>)&(?![&>])` alternative treats a bare `&`
+# (background/job-control operator) as a full command separator, while the
+# lookbehind/lookahead exclude `&&` (logical AND), `&>` (stdout+stderr
+# redirect), and `>&` / `2>&1` (fd duplication). Without it, `ls & rm -rf /`
+# would classify only as the leading command. (Code review C2, 2026-07-19.)
+_SPLIT_RE = re.compile(r"\|\||&&|(?<!>)&(?![&>])|[|;\n]")
 
 
 @dataclass

@@ -63,7 +63,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from rmacd.models import Operation
-from rmacd.packs.engine import ClassificationResult, DeclarativeClassifier
+from rmacd.packs.engine import _SEGMENT_SEP, ClassificationResult, DeclarativeClassifier
 from rmacd.packs.models import GovernancePack, Rule
 from rmacd.registry.tools import (
     _OP_ORDER,
@@ -145,6 +145,12 @@ class _Claim:
         )
 
 
+def _resolved_severity(resolved: ResolvedCall) -> tuple[int, int]:
+    """A resolved call's (operation, tier) severity — the cross-segment MAX key (C3)."""
+    tier_rank = _TIER_ORDER[resolved.tier] if resolved.tier is not None else -1
+    return (_OP_ORDER[resolved.operation], tier_rank)
+
+
 @dataclass
 class ComposedToolDefinition(ToolDefinition):
     """An ordered chain of pack-backed definitions sharing one tool name.
@@ -164,6 +170,25 @@ class ComposedToolDefinition(ToolDefinition):
 
     def resolve_call(self, args: dict[str, Any] | None = None) -> ResolvedCall:
         args = args or {}
+        # A shell ``command`` may chain several binaries (``git log; shred x``,
+        # ``ls & rm -rf /``). Resolve each segment independently and take the
+        # MOST SEVERE result: specificity-first ownership is preserved *within*
+        # a segment (so one pack's loose verb overlay can't cross-match a
+        # different binary and over-block), while a dangerous co-located command
+        # can never be hidden by a more-specific but less-severe sibling.
+        # (Code review C3, 2026-07-19.)
+        command = args.get("command")
+        if isinstance(command, str):
+            segments = [seg for seg in (s.strip() for s in _SEGMENT_SEP.split(command)) if seg]
+            if len(segments) > 1:
+                resolved = [
+                    self._resolve_single({**args, "command": seg}) for seg in segments
+                ]
+                return max(resolved, key=_resolved_severity)
+        return self._resolve_single(args)
+
+    def _resolve_single(self, args: dict[str, Any]) -> ResolvedCall:
+        """Resolve one (non-compound) call through the chain, specificity-first."""
         claims: list[_Claim] = []
         for position, entry in enumerate(self.entries):
             classifier = _entry_classifier(entry)
