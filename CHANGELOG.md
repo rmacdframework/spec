@@ -89,6 +89,11 @@ is a behaviour change, hence the minor bump rather than a patch.
 
 #### Fixed — packaging and documentation
 
+- **The `[mcp]` extra is capped at `mcp>=1.0,<2`.** `mcp` 2.0.0 removed
+  `mcp.server.fastmcp`, which `rmacd.mcp_server` is built on, so
+  `pip install "rmacd-framework[mcp]"` was resolving to a version where
+  `rmacd mcp-serve` raised `ModuleNotFoundError` on startup. The cap comes off
+  when the server is ported to the 2.x API.
 - **The wheel now ships `py.typed`** (PEP 561). It was absent from every
   release despite `Typing :: Typed` in the classifiers, so consumers' mypy and
   pyright silently treated all of `rmacd` as `Any`. A new test asserts the

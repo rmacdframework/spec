@@ -37,7 +37,9 @@ llm = [
     "anthropic>=0.40",
 ]
 mcp = [
-    "mcp>=1.0",
+    # rmacd.mcp_server targets the 1.x FastMCP API; mcp 2.0.0 removed
+    # `mcp.server.fastmcp`. Remove the cap when the server is ported to 2.x.
+    "mcp>=1.0,<2",
 ]
 sign = [
     "cryptography>=41",
@@ -56,7 +58,7 @@ dev = [
     # so the full test suite (signing) runs on a plain `.[dev]` install
     "cryptography>=41",
     # so the full test suite (MCP server) runs on a plain `.[dev]` install
-    "mcp>=1.0",
+    "mcp>=1.0,<2",
 ]
 
 [project.urls]

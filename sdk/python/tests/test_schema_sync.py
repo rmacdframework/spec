@@ -51,14 +51,18 @@ def test_built_distribution_ships_its_data_files() -> None:
     """
     from pathlib import Path
 
-    import tomllib
-
     from rmacd.packs import builtin_pack_names
 
     root = Path(__file__).resolve().parents[1]
-    artifacts = tomllib.loads((root / "pyproject.toml").read_text(encoding="utf-8"))[
-        "tool"
-    ]["hatch"]["build"]["targets"]["wheel"]["artifacts"]
+    # Parsed as text, not via tomllib: the SDK supports Python 3.10, where
+    # tomllib does not exist and tomli is not a dependency.
+    pyproject = (root / "pyproject.toml").read_text(encoding="utf-8")
+    artifacts_block = pyproject.split("artifacts = [", 1)[1].split("]", 1)[0]
+    artifacts = [
+        line.strip().rstrip(",").strip('"')
+        for line in artifacts_block.splitlines()
+        if line.strip() and not line.strip().startswith("#")
+    ]
 
     assert "rmacd/py.typed" in artifacts
     assert (root / "rmacd" / "py.typed").is_file()
