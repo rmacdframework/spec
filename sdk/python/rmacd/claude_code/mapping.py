@@ -126,13 +126,45 @@ def _first_str(tool_input: dict[str, Any], *keys: str) -> str:
     return ""
 
 
-def _bash_path_candidates(command: str) -> list[str]:
-    """Path-like tokens of a shell command, for classification-map matching."""
+#: Shells whose ``-c`` argument is a nested script rather than a plain operand.
+_SHELL_BINARIES = frozenset({"bash", "sh", "zsh", "dash", "ksh", "ash", "busybox"})
+
+#: Depth cap for the ``-c`` recursion below — ``bash -c "sh -c '...'"`` is
+#: worth following, an adversarially nested chain is not.
+_MAX_SHELL_NESTING = 4
+
+
+def _shell_split(command: str) -> list[str]:
     try:
-        tokens = shlex.split(command, comments=True)
+        return shlex.split(command, comments=True)
     except ValueError:
-        tokens = command.split()
-    return [t for t in tokens if t and not t.startswith("-") and ("/" in t or "." in t or "~" in t)]
+        return command.split()
+
+
+def _bash_path_candidates(command: str, _depth: int = 0) -> list[str]:
+    """Path-like tokens of a shell command, for classification-map matching.
+
+    Recurses into ``sh -c "..."`` / ``bash -c "..."`` payloads: the nested
+    script arrives as a *single* quoted token, so without this a command like
+    ``bash -c "rm -rf /data/secret"`` exposed no path to the classification map
+    and the target silently fell back to the session default tier — turning a
+    §12.5 hard deny into an approvable prompt.
+    """
+    tokens = _shell_split(command)
+    candidates = [
+        t for t in tokens if t and not t.startswith("-") and ("/" in t or "." in t or "~" in t)
+    ]
+    if _depth >= _MAX_SHELL_NESTING:
+        return candidates
+    for i, token in enumerate(tokens):
+        if token != "-c" or i == 0:
+            continue
+        if tokens[i - 1].rsplit("/", 1)[-1] not in _SHELL_BINARIES:
+            continue
+        nested = tokens[i + 1 : i + 2]
+        if nested:
+            candidates.extend(_bash_path_candidates(nested[0], _depth + 1))
+    return candidates
 
 
 # Shell metacharacters that disqualify the introspection carve-out below: a

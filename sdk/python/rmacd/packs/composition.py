@@ -19,7 +19,20 @@ Winner selection (deterministic, fail-closed)
 
 A pack **claims** a call when at least one of its rules matches (an empty
 ``matched_rule_ids`` is the "not mine" sentinel — the chain falls through to
-the next pack). Claims are ranked by, in order:
+the next pack).
+
+Severity is a floor, not a tiebreak. Before ranking, the chain takes the most
+severe **operation** any pack positively *asserted* (a verb-table hit or an
+explicit ``classify.operation``); only claims at that operation compete to
+win. A rule that classifies tier alone asserts no operation — it carries its
+pack's ``default_operation``, which describes nothing about the call — so it
+never enters that contest. Likewise the most sensitive **tier** any claim
+assigned is applied to the winner. Together these mean *adding* a pack can
+only ever make a call look more dangerous, never less: before this rule,
+loading the ``docker`` pack alongside ``shell`` silently downgraded
+``rm -rf`` from Delete to Change.
+
+Among the surviving claims, ranking is by, in order:
 
 1. **Specificity** — how precisely the pack's matched rules identified the call:
 
@@ -36,6 +49,8 @@ the next pack). Claims are ranked by, in order:
    wins (highest operation, then most sensitive tier). This is the fail-closed
    choice when two packs' overlay regexes both match (e.g. a compound shell
    command touching two binaries) and keeps disjoint rule-sets order-independent.
+   Note this only *orders* claims that already survived the severity floor
+   above; it can no longer be reached by a claim that would lower the result.
 
 3. **Chain position** — apply order (``load_packs`` list order) breaks exact
    ties; earlier wins.
@@ -132,6 +147,10 @@ class _Claim:
     resolved: ResolvedCall
     specificity: int
     position: int
+    #: False when every rule this pack matched was a tier-only overlay, so the
+    #: claim's ``operation`` is merely the pack default rather than something
+    #: the pack positively asserted about the call.
+    asserts_operation: bool = True
 
     def rank(self) -> tuple[int, int, int, int]:
         tier_rank = _TIER_ORDER[self.resolved.tier] if self.resolved.tier is not None else -1
@@ -143,6 +162,44 @@ class _Claim:
             tier_rank,
             -self.position,
         )
+
+
+def _select_claim(claims: list[_Claim]) -> ResolvedCall:
+    """Pick the winning claim without ever *lowering* another pack's severity.
+
+    Specificity decides **ownership** — whose rules best describe the call, and
+    therefore which target, capability ceiling and ``source`` the resolved call
+    carries. But specificity must never be able to make a call look *safer*
+    than another pack already said it was, in either dimension:
+
+    - **Operation** — only packs that positively asserted an operation compete.
+      A tier-only overlay carries its pack's ``default_operation``, which says
+      nothing about the call; letting it win used to downgrade ``rm -rf`` from
+      Delete to Change merely because the docker pack was also loaded. Among
+      the asserting claims the most severe operation wins outright, and
+      specificity only breaks ties between equally severe claims.
+    - **Tier** — the most sensitive tier any claim assigned is applied to the
+      winner, so a more specific overlay cannot quietly move a target out of
+      ``restricted`` and out from under the §12.5 floor.
+    """
+    asserting = [c for c in claims if c.asserts_operation]
+    if asserting:
+        top_op = max(_OP_ORDER[c.resolved.operation] for c in asserting)
+        eligible = [c for c in asserting if _OP_ORDER[c.resolved.operation] == top_op]
+    else:
+        # Every claim is a tier-only overlay: no pack asserted an operation, so
+        # rank them all on their pack defaults (single-pack semantics).
+        eligible = claims
+
+    winner = max(eligible, key=_Claim.rank)
+    resolved = winner.resolved
+
+    tiers = [c.resolved.tier for c in claims if c.resolved.tier is not None]
+    if tiers:
+        most_sensitive = max(tiers, key=lambda t: _TIER_ORDER[t])
+        if resolved.tier is None or _TIER_ORDER[most_sensitive] > _TIER_ORDER[resolved.tier]:
+            resolved.tier = most_sensitive
+    return resolved
 
 
 def _resolved_severity(resolved: ResolvedCall) -> tuple[int, int]:
@@ -201,11 +258,12 @@ class ComposedToolDefinition(ToolDefinition):
                     resolved=self._entry_resolved(entry, result, args),
                     specificity=_claim_specificity(classifier.pack, result.matched_rule_ids),
                     position=position,
+                    asserts_operation=result.operation_asserted,
                 )
             )
 
         if claims:
-            return max(claims, key=_Claim.rank).resolved
+            return _select_claim(claims)
 
         if self.fallback is not None:
             resolved = self.fallback.resolve_call(args)

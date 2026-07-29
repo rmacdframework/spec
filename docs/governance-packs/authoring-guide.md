@@ -70,6 +70,37 @@ Shells and cloud CLIs pass the whole command as one string:
     default: internal
 ```
 
+#### Overlaying a binary onto shell tools
+
+To govern `docker rm` whether it arrives as `docker(...)` or as
+`bash("docker rm web")`, name both in one selector:
+
+```yaml
+- id: docker-destroy
+  when:
+    tool: [docker, bash, sh, zsh]
+    arg_regex: { arg: command, pattern: "(^|\\s)(rm|rmi|prune)\\b" }
+  tier: confidential
+```
+
+The engine anchors this for you: on a **shell** call, a rule that also names
+real binaries only applies when one of those binaries appears as a token of the
+command — so the pattern above cannot claim a bare `rm -rf` or someone else's
+`git rm`. Without that anchor (before SDK 0.14.0) this exact rule claimed
+`rm -rf` and, via composition, downgraded it from Delete to Change.
+
+Two things follow for authors:
+
+- You do **not** need to repeat the binary inside every overlay pattern. The
+  explicit `\bdocker\b[^|;&]*\s(rm|rmi)\b` form still works and is what a
+  selector listing *only* shell tools must use, since it has no binary to
+  anchor on.
+- A rule that sets `tier` but no operation asserts **no operation**. It still
+  falls back to the pack's `default_operation` when it is the only match, but
+  it can never overwrite another pack's operation during composition. Set
+  `classify.operation` (or a `verb_table`) whenever the rule really does know
+  the operation.
+
 ### MCP-style (verb is in the tool name)
 
 MCP servers expose each capability as its own named tool: `jira_delete_issue`,
@@ -438,4 +469,6 @@ changed and re-review only those.
 - [ ] Tiers default to the most sensitive plausible value, not the least.
 - [ ] Resolvers declared with a `fail_closed_default`; one resolver per concept.
 - [ ] Golden fixtures cover the riskiest calls (every Delete/Change path).
+- [ ] Overlay rules that set only `tier` are intentional — they assert no
+      operation (see *Overlaying a binary onto shell tools*).
 - [ ] Validated, reviewed, and signed before production use.

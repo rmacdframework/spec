@@ -186,7 +186,9 @@ ready-to-use interactive approval gateway; 0.12.0 published.
   the same tool name (e.g. `shell` + `git` + `docker` + `terraform` all
   overlaying `bash`): ordered chain, most-specific claim wins, severity breaks
   ties fail-closed, and each match carries its own pack's capability ceiling.
-  Previously the last-applied pack won.
+  Previously the last-applied pack won. (Hardened in 0.14.0 — severity is now a
+  floor rather than a tiebreak, and shell overlays are implicitly anchored to
+  their own binary; see [design §11](design.md#11-composition-safety-rules-0140).)
 
 **Exit criteria:** golden rows for every new pack; composition test suite
 green; catalog regenerated; 0.13.0 published.

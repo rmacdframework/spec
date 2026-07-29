@@ -7,6 +7,106 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.14.0] — 2026-07-29
+
+Consolidated security release. Closes **nine** ways a governed operation could
+be silently under-enforced: the three enforcement-floor bypasses from the
+2026-07-19 code review (fixed at the time but never released), plus six found
+by the 2026-07-29 audit — three in Claude Code session governance, two in pack
+classification, one in emergency escalation, one in egress control. Every fix
+ships with a regression test that reproduces the original behaviour.
+
+#### Fixed — enforcement floor
+
+- **The §12.5 immutable floor did not apply on the DC2D evaluation path.**
+  `_evaluate_dc2d` checked tier policy only, so a DC2D profile granting the
+  restricted tier permitted **autonomous Add/Change/Delete on Restricted**. The
+  floor now short-circuits at the top of the DC2D path, matching 3D and 2D.
+- **The bare `&` background operator hid a command's destructive tail.**
+  `ls & rm -rf /` classified as **Read**, because everything after `&` was
+  invisible to both the bash classifier and the pack engine. Both now split on
+  `&` via a `(?<!>)&(?![&>])` guard that spares `&&`, `&>` and `2>&1`.
+- **Compound commands resolved to the wrong segment.**
+  `git log; shred /etc/secret` resolved to git's Read, hiding the shell pack's
+  Delete. Composed-tool resolution is now per-segment — each segment resolves
+  independently, and the **most severe** result wins.
+
+**Upgrade note:** these fixes make enforcement *stricter*. A deployment that
+was unknowingly relying on one of the gaps below will start seeing denials
+where it previously saw allows or approval prompts. That is the point, but it
+is a behaviour change, hence the minor bump rather than a patch.
+
+#### Fixed — governance bypasses
+
+- **Claude Code: a subdirectory cwd silently unbound the session.**
+  `resolve_profile_path` probed only `<cwd>/.claude/rmacd-profile.json`, so
+  once the agent worked from a subdirectory the hook emitted *no decision at
+  all* and every subsequent tool call ran ungoverned. It now walks `cwd`
+  upward (nearest profile wins, so a subproject may bind a stricter one) and
+  falls back to `$CLAUDE_PROJECT_DIR` for a cwd outside the project tree.
+- **Claude Code: `..`, `./` and `~` evaded the classification map.**
+  Rules were matched against raw tool arguments, so `rm -rf /data/../data/secret`
+  and `rm -rf ./secret` classified as the session default tier while
+  `rm -rf /data/secret` correctly hit the restricted rule — downgrading a §12.5
+  hard deny to an approvable prompt. Targets are now matched in every
+  normalized form (expanded, cwd-anchored, `..`-collapsed, and with leading
+  `//` collapsed, which Linux resolves to `/` but `normpath` preserves).
+- **Claude Code: `sh -c "…"` hid path arguments from the map.** A nested shell
+  script arrives as one quoted token, so no path reached the classifier.
+  Path extraction now recurses into `-c` payloads of `bash`/`sh`/`zsh`/`dash`/
+  `ksh`/`ash`/`busybox`, to a depth of 4.
+- **Packs: loading a second pack could *lower* an operation.** With `shell` and
+  `docker` both loaded, `rm -rf` classified as **Change** instead of Delete,
+  in either load order. A tier-only overlay rule asserts no operation but still
+  carried its pack's wide `default_operation`, and outranked the shell pack's
+  Delete on selector specificity. Two changes: `ClassificationResult` now
+  reports `operation_asserted`, and composition takes the most severe asserted
+  operation as a floor before ranking by specificity, applying the most
+  sensitive tier any claim assigned. Adding a pack can no longer make a call
+  look safer than it is.
+- **Packs: shell overlays claimed commands belonging to other binaries.**
+  Rules written as `when: {tool: [docker, bash, sh, …], arg_regex: '(^|\s)push\b'}`
+  are correct for `tool: docker` but match *any* command line for `tool: bash` —
+  `docker-push` was claiming `git push origin main`, and `terraform-apply` was
+  claiming `kubectl apply` (wrong tier *and* a wrong audit trail). The engine
+  now supplies the anchor the author meant: when a shell call is matched by a
+  rule that also names real binaries, one of those binaries must appear as a
+  token of the command. Rules that anchor themselves (`argv_contains`, or the
+  `helm` pack's `\bhelm\b[^|;&]*\s…` form) are unaffected. This fixes 12 rules
+  across `docker`, `npm`, `terraform`, `git`, `gh`, `pip-uv` and `ssh-transfer`
+  without touching any pack data.
+- **Emergency escalation ignored `trigger_conditions` when no trigger was given.**
+  Both the 3D and DC2D paths treated an absent `emergency_trigger` as
+  satisfying the gate, so a caller could take the escalated grant by simply
+  omitting the field — a *wrong* trigger was rejected, no trigger was not. A
+  profile that declares `trigger_conditions` now requires a matching one.
+- **`block_external_models` was case- and trailing-dot-sensitive.**
+  `API.OpenAI.com/v1` and `api.openai.com.` reached the same host as
+  `api.openai.com` but bypassed the block, and allow-list entries were
+  likewise case-sensitive. Hostnames are now normalized (lower-cased, trailing
+  root dot stripped) on both sides of every comparison, including
+  `external_model_hosts` at construction.
+
+#### Fixed — packaging and documentation
+
+- **The wheel now ships `py.typed`** (PEP 561). It was absent from every
+  release despite `Typing :: Typed` in the classifiers, so consumers' mypy and
+  pyright silently treated all of `rmacd` as `Any`. A new test asserts the
+  build's data files — `py.typed`, the 4 schemas, all 34 packs.
+- **`Add` on `Restricted` is documented as Prohibited**, matching
+  `IMMUTABLE_PROHIBITIONS` and `profile-3d.schema.json`. Spec §3.1 and the
+  README both showed "Elevated Approval", so a profile built from the
+  "definitive governance reference" was rejected at schema validation *and*
+  runtime. §3.2 prose and the webapp's `/framework` matrix are corrected to
+  match, and a webapp test now pins all 20 cells to the SDK.
+
+#### Tests
+
+Suite: 830 → 866, coverage 89% → 90%. New coverage for every bypass above,
+including an order-independent sweep asserting that no built-in pack can
+downgrade a shell Delete, a parametrized set of path spellings that must all
+hit the §12.5 floor, and a build test pinning the wheel's data files.
+
 ### SDK 0.13.1 — Session-governance fix: introspection carve-out
 
 Found by live end-to-end testing of the plugin: with a read-only profile bound,

@@ -101,6 +101,13 @@ class ClassificationResult:
     matched_rule_ids: list[str] = field(default_factory=list)
     capability: list[str] | None = None
     resolver_lookups: list[ResolverLookup] = field(default_factory=list)
+    #: True when at least one matched rule actually *asserted* an operation
+    #: (verb table or explicit ``classify.operation``). False means every
+    #: matched rule was a tier-only overlay and ``operation`` below is just the
+    #: pack-wide ``default_operation``. Multi-pack composition needs the
+    #: distinction: a pack that only says "this is confidential" must not be
+    #: able to overwrite another pack's asserted operation with its own default.
+    operation_asserted: bool = True
 
 
 # ----- argument access -------------------------------------------------------
@@ -169,8 +176,71 @@ def _match_tool(pattern: str | list[str] | None, tool_name: str) -> bool:
     return pattern == tool_name
 
 
+#: Tool names that denote "run this shell command line", as opposed to a
+#: first-class binary. Used for the implicit binary anchor below.
+_SHELL_TOOL_NAMES = frozenset(
+    {
+        "bash",
+        "sh",
+        "shell",
+        "zsh",
+        "ksh",
+        "dash",
+        "ash",
+        "fish",
+        "cmd",
+        "pwsh",
+        "powershell",
+        "run_command",
+        "execute_command",
+        "run_shell_command",
+        "shell_exec",
+    }
+)
+
+
+def _implicit_binary_anchor(sel: Selector, tool_name: str, args: Mapping[str, Any]) -> bool:
+    """Require a rule's own binary to appear before it may claim a shell call.
+
+    Overlay rules are commonly written as one selector covering both the native
+    binary and the shell tools that can invoke it::
+
+        when: {tool: [docker, bash, sh, ...], arg_regex: {command: '(^|\\s)push\\b'}}
+
+    The regex is correct for ``tool: docker`` but wildly over-broad for
+    ``tool: bash``, where it matches *any* command line containing the verb —
+    ``docker-push`` was claiming ``git push origin main``, and ``docker-destroy``
+    was claiming a bare ``rm -rf``. Rather than make every pack duplicate its
+    rules into an anchored shell variant, the engine supplies the anchor the
+    author meant: when a *shell* call is matched by a rule that also names
+    real binaries, one of those binaries must actually appear as a token of the
+    command.
+
+    Rules that anchor themselves are untouched — an explicit ``argv_contains``
+    already does this job, and a selector listing only shell tools has no
+    binary to anchor on (its pattern is expected to name the binary itself,
+    as the ``helm`` pack's ``\\bhelm\\b[^|;&]*\\s...`` rules do).
+    """
+    if not isinstance(sel.tool, list) or tool_name not in _SHELL_TOOL_NAMES:
+        return True
+    if sel.argv_contains is not None or sel.arg_regex is None:
+        return True
+    binaries = [t for t in sel.tool if t not in _SHELL_TOOL_NAMES]
+    if not binaries:
+        return True
+    value = _get_arg(args, sel.arg_regex.arg)
+    if not isinstance(value, str):
+        return True
+    tokens = set(_shell_tokens(value[:_MAX_REGEX_INPUT], []))
+    return any(
+        binary in tokens or binary.rsplit("/", 1)[-1] in tokens for binary in binaries
+    )
+
+
 def _selector_matches(sel: Selector, tool_name: str, args: Mapping[str, Any]) -> bool:
     if not _match_tool(sel.tool, tool_name):
+        return False
+    if not _implicit_binary_anchor(sel, tool_name, args):
         return False
     if sel.arg_present is not None:
         val = _get_arg(args, sel.arg_present)
@@ -365,7 +435,8 @@ def classify_call(
         if rule.capability:
             capability.update(rule.capability)
 
-    operation = _max_op(ops) or pack.default_operation
+    asserted = _max_op(ops)
+    operation = asserted or pack.default_operation
     return ClassificationResult(
         operation=operation,
         tier=_most_sensitive(tiers),
@@ -373,6 +444,7 @@ def classify_call(
         matched_rule_ids=matched_ids,
         capability=sorted(capability, key=lambda o: _OP_RANK[o]) if capability else None,
         resolver_lookups=lookups,
+        operation_asserted=asserted is not None,
     )
 
 

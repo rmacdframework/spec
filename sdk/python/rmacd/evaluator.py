@@ -280,10 +280,12 @@ class PolicyEvaluator:
         if not allowed and context.emergency_active:
             esc = self.profile.emergency_escalation
             if esc and esc.enabled and esc.escalated_tiers:
-                trigger_ok = (
-                    not esc.trigger_conditions
-                    or context.emergency_trigger is None
-                    or context.emergency_trigger in esc.trigger_conditions
+                # A profile that declares trigger_conditions *requires* one.
+                # Treating an absent trigger as satisfying the gate let any
+                # caller escalate simply by omitting the field.
+                trigger_ok = not esc.trigger_conditions or (
+                    context.emergency_trigger is not None
+                    and context.emergency_trigger in esc.trigger_conditions
                 )
                 if trigger_ok and data_classification in esc.escalated_tiers:
                     allowed = True
@@ -455,11 +457,13 @@ class PolicyEvaluator:
         if isinstance(escalation, EmergencyEscalationDC2D):
             return False
 
-        # Verify trigger condition is valid
-        if (
-            context.emergency_trigger
-            and escalation.trigger_conditions
-            and context.emergency_trigger not in escalation.trigger_conditions
+        # Verify the trigger condition. A profile that declares
+        # trigger_conditions *requires* a matching trigger: an absent one must
+        # not satisfy the gate, otherwise omitting the field bypasses the
+        # condition entirely.
+        if escalation.trigger_conditions and (
+            context.emergency_trigger is None
+            or context.emergency_trigger not in escalation.trigger_conditions
         ):
             return False
 

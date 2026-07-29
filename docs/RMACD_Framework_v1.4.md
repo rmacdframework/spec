@@ -126,7 +126,7 @@ The intersection of RMACD operations and data classification tiers produces a 5ร
 |---|---|---|---|---|
 | Read | Autonomous | Autonomous | Logged | Notification |
 | Move | Autonomous | Notification | Approval | Elevated Approval |
-| Add | Notification | Approval | Elevated Approval | Elevated Approval |
+| Add | Notification | Approval | Elevated Approval | Prohibited |
 | Change | Approval | Approval | Elevated Approval | Prohibited |
 | Delete | Approval | Elevated Approval | Elevated Approval | Prohibited |
 
@@ -138,7 +138,7 @@ The matrix encodes several fundamental governance principles:
 
 - **Risk Compounds Across Dimensions:** Both higher-risk operations (moving down the RMACD hierarchy) and higher-sensitivity data (moving right across classification tiers) independently increase the required oversight level. The combination of both produces the most restrictive controls.
 - **Read Operations Remain Low-Risk Across Classifications:** Even against Restricted data, Read operations require only notification-level oversight because they cannot alter system state. However, enhanced logging ensures accountability and audit capability.
-- **Destructive Operations on Sensitive Data Are Prohibited:** Change and Delete operations against Restricted data are marked 'Prohibited' for autonomous agents. These operations require human execution, though agents may recommend or prepare such actions.
+- **State-Changing Operations on Sensitive Data Are Prohibited:** Add, Change and Delete operations against Restricted data are all marked 'Prohibited' for autonomous agents. These operations require human execution, though agents may recommend or prepare such actions. This is the ยง12.5 immutable floor: unlike every other cell, these three cannot be relaxed by an organization's own matrix adjustments, by an autonomy override, or through the exception process.
 - **The 'Approval' Threshold Shifts Left with Risk:** For low-risk operations (Read, Move), approval requirements only appear at higher data classifications. For high-risk operations (Change, Delete), approval is required even for Public data.
 
 ## **3.3 Approval Authority Mapping**

@@ -691,3 +691,142 @@ def test_status_command_allowed_under_readonly_profile(tmp_path: Path) -> None:
     )
     out = json.loads(proc.stdout)
     assert out["hookSpecificOutput"]["permissionDecision"] == "allow"
+
+
+# ---------------------------------------------------------------------------
+# Bypass regressions (0.14.0). Each test below reproduces a way a governed
+# session could be silently ungoverned or a §12.5 deny downgraded to an
+# approvable prompt. They assert the *fixed* behaviour.
+# ---------------------------------------------------------------------------
+
+
+def _project_with_profile(tmp_path: Path) -> Path:
+    """A project root carrying .claude/rmacd-profile.json, plus a subdirectory."""
+    claude_dir = tmp_path / ".claude"
+    claude_dir.mkdir()
+    (claude_dir / "rmacd-profile.json").write_text(json.dumps(PROFILE_3D), encoding="utf-8")
+    nested = tmp_path / "src" / "deep"
+    nested.mkdir(parents=True)
+    return nested
+
+
+def test_subdirectory_cwd_still_binds_the_project_profile(tmp_path: Path) -> None:
+    """Regression: a cwd below the project root silently unbound the session.
+
+    resolve_profile_path only probed ``<cwd>/.claude/rmacd-profile.json``, so
+    working from a subdirectory produced NO decision at all — Claude Code's own
+    flow proceeded ungoverned for the rest of the session.
+    """
+    nested = _project_with_profile(tmp_path)
+    proc = run_hook(
+        json.dumps(event("Bash", {"command": "rm -rf /etc"}, cwd=str(nested))),
+        tmp_path,
+    )
+    assert proc.stdout.strip(), "hook emitted no decision — session was unbound"
+    out = decision_of(proc)
+    assert out["permissionDecision"] in ("deny", "ask")
+
+
+def test_cwd_outside_project_falls_back_to_claude_project_dir(tmp_path: Path) -> None:
+    """A cwd outside the project tree still binds via CLAUDE_PROJECT_DIR."""
+    _project_with_profile(tmp_path)
+    outside = tmp_path.parent / f"{tmp_path.name}-outside"
+    outside.mkdir()
+    proc = run_hook(
+        json.dumps(event("Bash", {"command": "rm -rf /etc"}, cwd=str(outside))),
+        tmp_path,
+        env_overrides={"CLAUDE_PROJECT_DIR": str(tmp_path)},
+    )
+    assert proc.stdout.strip(), "hook emitted no decision — session was unbound"
+    assert decision_of(proc)["permissionDecision"] in ("deny", "ask")
+
+
+def test_resolve_profile_path_walks_up_and_prefers_nearest(tmp_path: Path) -> None:
+    """The nearest .claude profile wins, so a subproject may bind a stricter one."""
+    root_claude = tmp_path / ".claude"
+    root_claude.mkdir()
+    (root_claude / "rmacd-profile.json").write_text(json.dumps(PROFILE_3D), encoding="utf-8")
+    sub = tmp_path / "sub"
+    sub_claude = sub / ".claude"
+    sub_claude.mkdir(parents=True)
+    (sub_claude / "rmacd-profile.json").write_text(json.dumps(PROFILE_3D), encoding="utf-8")
+    deep = sub / "a" / "b"
+    deep.mkdir(parents=True)
+
+    assert session.resolve_profile_path(deep, {}) == sub_claude / "rmacd-profile.json"
+    assert session.resolve_profile_path(tmp_path, {}) == root_claude / "rmacd-profile.json"
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        "rm -rf /data/secret",  # the canonical form (already denied pre-fix)
+        "rm -rf /data/../data/secret",  # .. traversal
+        "rm -rf /data/./secret",  # redundant .
+        "rm -rf //data//secret",  # duplicate separators
+        'bash -c "rm -rf /data/secret"',  # nested shell script
+        "sh -c 'rm -rf /data/secret'",
+        'bash -c "sh -c \'rm -rf /data/secret\'"',  # doubly nested
+    ],
+)
+def test_path_spellings_cannot_evade_the_immutable_floor(
+    tmp_path: Path, command: str
+) -> None:
+    """Regression: `..`, `./` and `sh -c` hid the target from the map.
+
+    Each spelling names the same restricted path, so each must hit the §12.5
+    floor. Before the fix the tier fell back to the session default and the
+    hard deny became an approvable 'ask'.
+    """
+    binding = make_binding(
+        tmp_path,
+        env_overrides={
+            session.ENV_CLASSIFICATION_MAP: json.dumps({"/data/secret/*": "restricted"})
+        },
+    )
+    out = hook.decide(event("Bash", {"command": command}), binding)["hookSpecificOutput"]
+    assert out["permissionDecision"] == "deny", f"{command!r} was not denied"
+    assert "§12.5" in out["permissionDecisionReason"]
+
+
+def test_relative_target_resolves_against_session_cwd(tmp_path: Path) -> None:
+    """`./secret` under cwd=/data must classify as /data/secret would."""
+    data = tmp_path / "data"
+    (data / "secret").mkdir(parents=True)
+    path = tmp_path / "p.json"
+    path.write_text(json.dumps(PROFILE_3D), encoding="utf-8")
+    binding = session.bind_session(
+        cwd=data,
+        env={
+            session.ENV_PROFILE_PATH: str(path),
+            session.ENV_CLASSIFICATION_MAP: json.dumps(
+                {str(data / "secret") + "/*": "restricted"}
+            ),
+        },
+    )
+    assert binding is not None
+    assert binding.classify_path("./secret") is DataClassification.RESTRICTED
+    assert binding.classify_path("secret/key.pem") is DataClassification.RESTRICTED
+    assert binding.classify_path("../data/secret") is DataClassification.RESTRICTED
+
+
+def test_write_to_relative_restricted_path_is_denied(tmp_path: Path) -> None:
+    data = tmp_path / "data"
+    (data / "secret").mkdir(parents=True)
+    path = tmp_path / "p.json"
+    path.write_text(json.dumps(PROFILE_3D), encoding="utf-8")
+    binding = session.bind_session(
+        cwd=data,
+        env={
+            session.ENV_PROFILE_PATH: str(path),
+            session.ENV_CLASSIFICATION_MAP: json.dumps(
+                {str(data / "secret") + "/*": "restricted"}
+            ),
+        },
+    )
+    assert binding is not None
+    out = hook.decide(
+        event("Write", {"file_path": "secret/creds.txt"}, cwd=str(data)), binding
+    )["hookSpecificOutput"]
+    assert out["permissionDecision"] == "deny"
+    assert "§12.5" in out["permissionDecisionReason"]

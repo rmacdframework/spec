@@ -220,6 +220,26 @@ into Claude Agent SDK, OpenAI Agents SDK, Microsoft Agent Framework, LangChain,
 AutoGen, and CrewAI, and [runtime patterns](../../docs/runtime-patterns.md)
 for the surrounding architecture.
 
+## Security fixes in 0.14.0
+
+0.14.0 closes six ways a governed operation could be silently under-enforced.
+If you use Claude Code session governance, multi-pack registries, emergency
+escalation, or DC2D egress controls, **upgrade** — and expect stricter
+outcomes, since each fix turns a wrongly-permitted call into a denial:
+
+| Area | Was |
+|---|---|
+| Claude Code binding | A cwd below the project root emitted *no decision* — the session ran ungoverned |
+| Classification map | `..`, `./`, `~` and `sh -c "…"` hid the target, downgrading §12.5 denials to prompts |
+| Pack composition | Loading a second pack could *lower* an operation (`rm -rf` → Change) |
+| Shell overlays | A pack's verb regex claimed other binaries' commands (`docker-push` ← `git push`) |
+| Emergency escalation | An absent `emergency_trigger` satisfied a declared `trigger_conditions` |
+| Egress | `API.OpenAI.com` and `api.openai.com.` bypassed `block_external_models` |
+
+The wheel also ships `py.typed` for the first time, so your type checker now
+sees the SDK's annotations instead of treating it as `Any`. Full detail in the
+[CHANGELOG](../../CHANGELOG.md).
+
 ## Governance Packs (SDK 0.11.0)
 
 Instead of hand-writing a classifier for each tool, get classification from a

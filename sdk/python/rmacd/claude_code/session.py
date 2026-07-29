@@ -3,9 +3,16 @@
 Binding order for the profile (first hit wins):
 
 1. ``RMACD_PROFILE_PATH`` environment variable.
-2. ``<project root>/.claude/rmacd-profile.json``.
-3. Otherwise the session is **unbound** — :func:`bind_session` returns ``None``
+2. ``.claude/rmacd-profile.json`` in the session's working directory, then in
+   each parent directory — nearest wins.
+3. ``$CLAUDE_PROJECT_DIR/.claude/rmacd-profile.json``, for a cwd that has moved
+   outside the project tree.
+4. Otherwise the session is **unbound** — :func:`bind_session` returns ``None``
    and the hook passes every call through untouched.
+
+Steps 2-3 both matter: Claude Code reports the session's *current* directory on
+every hook event, so probing only that directory meant a governed project
+became silently ungoverned the moment the agent worked from a subdirectory.
 
 The distinction between *unbound* and *broken* matters for the fail-mode
 table: an unconfigured session must be zero-friction (passthrough), while a
@@ -34,9 +41,11 @@ Environment variables read here:
 
 from __future__ import annotations
 
+import contextlib
 import fnmatch
 import json
 import os
+import re
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -55,6 +64,9 @@ ENV_DEFAULT_TIER = "RMACD_DEFAULT_TIER"
 ENV_UNKNOWN_TOOL = "RMACD_UNKNOWN_TOOL"
 ENV_AGENT_ID = "RMACD_AGENT_ID"
 ENV_ENVIRONMENT = "RMACD_ENVIRONMENT"
+#: Set by Claude Code to the session's project root. Used as the last resort
+#: when the session's cwd sits outside any directory carrying a profile.
+ENV_PROJECT_DIR = "CLAUDE_PROJECT_DIR"
 
 DEFAULT_PACKS: tuple[str, ...] = ("shell", "filesystem")
 DEFAULT_AGENT_ID = "claude-code"
@@ -78,6 +90,35 @@ def max_tier(
     if b is None:
         return a
     return a if _TIER_RANK[a] >= _TIER_RANK[b] else b
+
+
+_LEADING_SLASHES = re.compile(r"^/{2,}")
+
+
+def _path_variants(target: str, cwd: Path | None) -> list[str]:
+    """Every form of *target* a classification rule may legitimately match.
+
+    Always includes the literal string (so relative patterns keep working),
+    plus — for path-shaped targets — the ``~``-expanded, cwd-anchored,
+    ``..``-collapsed absolute form. Matching all of them is what stops
+    ``rm -rf /data/../data/secret`` and ``rm -rf ./secret`` from evading the
+    ``/data/secret/*`` rule that plain ``rm -rf /data/secret`` trips — an
+    evasion that turned a §12.5 hard deny into an approvable prompt.
+    """
+    variants = [target]
+    if not target or "://" in target:
+        return variants
+    candidate = os.path.expanduser(target)
+    if not os.path.isabs(candidate) and cwd is not None:
+        candidate = os.path.join(str(cwd), candidate)
+    normalized = os.path.normpath(candidate)
+    # POSIX reserves a leading "//" as implementation-defined and normpath
+    # preserves it, but Linux resolves it to "/" — so "//data//secret" reaches
+    # the same file as "/data/secret" and must match the same rules.
+    for form in (candidate, normalized, _LEADING_SLASHES.sub("/", normalized)):
+        if form not in variants:
+            variants.append(form)
+    return variants
 
 
 class SessionBindingError(Exception):
@@ -120,6 +161,9 @@ class SessionBinding:
     default_tier: DataClassification = DataClassification.INTERNAL
     unknown_tool_decision: str = "deny"  # "deny" | "ask"
     agent_id: str = DEFAULT_AGENT_ID
+    #: The session's working directory, used to resolve relative tool targets
+    #: to absolute paths before classification-map matching.
+    cwd: Path | None = None
 
     @property
     def profile_id(self) -> str:
@@ -142,26 +186,61 @@ class SessionBinding:
         return isinstance(self.profile, ProfileDC2D)
 
     def classify_path(self, target: str) -> DataClassification | None:
-        """Most sensitive tier any classification-map rule assigns to *target*."""
+        """Most sensitive tier any classification-map rule assigns to *target*.
+
+        Every normalized form of *target* is tested (see :func:`_path_variants`),
+        so a rule cannot be sidestepped by spelling the same path with ``..``,
+        ``~`` or a cwd-relative prefix.
+        """
         best: DataClassification | None = None
-        for rule in self.classification_rules:
-            if rule.matches(target):
-                best = max_tier(best, rule.tier)
+        for form in _path_variants(target, self.cwd):
+            for rule in self.classification_rules:
+                if rule.matches(form):
+                    best = max_tier(best, rule.tier)
         return best
 
 
 def resolve_profile_path(
     cwd: str | Path | None = None, env: Mapping[str, str] | None = None
 ) -> Path | None:
-    """The profile path this session would bind, or ``None`` when unbound."""
+    """The profile path this session would bind, or ``None`` when unbound.
+
+    Search order:
+
+    1. ``RMACD_PROFILE_PATH`` (explicit wins outright).
+    2. ``<cwd>/.claude/rmacd-profile.json``, then the same file in each parent
+       directory — nearest match wins, so a subproject may bind a stricter
+       profile than its repository root.
+    3. ``$CLAUDE_PROJECT_DIR/.claude/rmacd-profile.json``, for the case where
+       the session's cwd has wandered outside the project tree entirely.
+
+    The upward walk matters: Claude Code reports the session's *current*
+    directory in each hook event, so without it a governed project silently
+    became ungoverned the moment the agent worked from a subdirectory.
+    """
     environ = os.environ if env is None else env
     explicit = environ.get(ENV_PROFILE_PATH, "").strip()
     if explicit:
         return Path(explicit)
-    root = Path(cwd) if cwd is not None else Path.cwd()
-    candidate = root / PROJECT_PROFILE_RELPATH
-    if candidate.is_file():
-        return candidate
+
+    start = Path(cwd) if cwd is not None else Path.cwd()
+    # An unreadable or vanished cwd falls back to the literal path.
+    with contextlib.suppress(OSError):
+        start = start.resolve()
+
+    roots: list[Path] = [start, *start.parents]
+    project_dir = environ.get(ENV_PROJECT_DIR, "").strip()
+    if project_dir:
+        roots.append(Path(project_dir))
+
+    seen: set[Path] = set()
+    for root in roots:
+        if root in seen:
+            continue
+        seen.add(root)
+        candidate = root / PROJECT_PROFILE_RELPATH
+        if candidate.is_file():
+            return candidate
     return None
 
 
@@ -188,8 +267,13 @@ def _parse_classification_map(raw: str) -> list[ClassificationRule]:
     rules: list[ClassificationRule] = []
     for pattern, tier in data.items():
         try:
+            # Expand ``~`` so a map written as {"~/.ssh/*": "restricted"} lines
+            # up with the absolute paths targets normalize to.
             rules.append(
-                ClassificationRule(pattern=str(pattern), tier=DataClassification(str(tier)))
+                ClassificationRule(
+                    pattern=os.path.expanduser(str(pattern)),
+                    tier=DataClassification(str(tier)),
+                )
             )
         except ValueError as exc:
             raise SessionBindingError(
@@ -222,6 +306,10 @@ def bind_session(
     profile_path = resolve_profile_path(cwd, environ)
     if profile_path is None:
         return None
+
+    session_cwd = Path(cwd) if cwd is not None else Path.cwd()
+    with contextlib.suppress(OSError):
+        session_cwd = session_cwd.resolve()
 
     try:
         profile = ProfileLoader().load_file(profile_path)
@@ -287,6 +375,7 @@ def bind_session(
         default_tier=default_tier,
         unknown_tool_decision=unknown_tool,
         agent_id=agent_id,
+        cwd=session_cwd,
     )
 
 
@@ -304,6 +393,7 @@ __all__ = [
     "ENV_ENVIRONMENT",
     "ENV_PACKS",
     "ENV_PROFILE_PATH",
+    "ENV_PROJECT_DIR",
     "ENV_UNKNOWN_TOOL",
     "PROJECT_PROFILE_RELPATH",
 ]

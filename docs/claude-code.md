@@ -96,11 +96,30 @@ Notes for managed deployments:
   (`permissionDecision: "ask"`); no separate approval gateway is needed for
   the interactive session case.
 
+## Profile binding order
+
+First hit wins:
+
+1. `RMACD_PROFILE_PATH`.
+2. `.claude/rmacd-profile.json` in the session's current working directory,
+   then in each parent directory — **nearest wins**, so a subproject may bind
+   a stricter profile than its repository root.
+3. `$CLAUDE_PROJECT_DIR/.claude/rmacd-profile.json`, covering a session whose
+   cwd has moved outside the project tree.
+4. Otherwise the session is unbound (passthrough).
+
+The upward walk matters. Claude Code reports the session's *current* directory
+on every hook event, so before 0.14.0 — when only the cwd itself was probed —
+a governed project became silently ungoverned the moment the agent worked from
+a subdirectory. If you are pinning a profile for a fleet, prefer
+`RMACD_PROFILE_PATH` via managed settings: it is unambiguous and independent of
+where the session happens to be working.
+
 ## Environment variables
 
 | Variable | Meaning | Default |
 |----------|---------|---------|
-| `RMACD_PROFILE_PATH` | Profile JSON to bind (overrides the project file) | unset → try `.claude/rmacd-profile.json`, else unbound |
+| `RMACD_PROFILE_PATH` | Profile JSON to bind (overrides the project file) | unset → search for `.claude/rmacd-profile.json` (see *Profile binding order* below), else unbound |
 | `RMACD_PACKS` | Extra governance packs, comma-separated built-in names or file paths, merged onto the defaults | unset |
 | `RMACD_CLASSIFICATION_MAP` | Path-glob → tier map: inline JSON (`{"/data/secret/*": "restricted"}`) or a path to a JSON file of that shape | unset |
 | `RMACD_DEFAULT_TIER` | Tier assumed for targets no map rule matches (3D/DC2D evaluation requires a tier) | `internal` |
@@ -115,6 +134,16 @@ The registry always contains the built-in `shell` and `filesystem` packs;
 Classification-map semantics: `fnmatch` globs; a `/dir/*` pattern also covers
 `/dir` itself (so `rm -rf /dir` is classified as strictly as its contents);
 when several patterns match, the **most sensitive** tier wins.
+
+Targets are matched in every normalized form as well as verbatim, so a rule
+cannot be sidestepped by spelling the same path differently — `/data/secret`,
+`/data/../data/secret`, `./secret` (against the session cwd), `~/…` and
+`//data//secret` all match a `/data/secret/*` rule. Patterns themselves are
+`~`-expanded at load, so `{"~/.ssh/*": "restricted"}` works. Path arguments
+nested inside `sh -c "…"` / `bash -c "…"` payloads are extracted too (to a
+depth of 4), so a wrapped command cannot hide its target from the map. Before
+0.14.0 each of these evaded the map and fell back to `RMACD_DEFAULT_TIER`,
+which downgraded §12.5 denials to approval prompts.
 
 ## How tool calls are mapped
 

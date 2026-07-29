@@ -240,3 +240,94 @@ def test_block_external_models_fires_for_schemeless_host():
     )
     assert decision.allowed is False
     assert decision.matched_rule == "block_external_models"
+
+
+@pytest.mark.parametrize(
+    "destination",
+    [
+        "API.OpenAI.com/v1",  # mixed case
+        "API.OPENAI.COM/v1",  # upper case
+        "api.openai.com./v1",  # trailing root dot
+        "https://API.OpenAI.com/v1/chat",  # cased host behind a scheme
+        "API.OpenAI.com.:443/v1",  # case + dot + port
+    ],
+)
+def test_block_external_models_is_case_and_trailing_dot_insensitive(destination):
+    """Regression: host comparison was literal, so casing bypassed the block.
+
+    DNS names are case-insensitive and a trailing dot denotes the root zone, so
+    every spelling below reaches the same host as 'api.openai.com' — which the
+    gate already blocked. Only the exact-lowercase form was caught.
+    """
+    gate = PolicyDrivenEgressGate()
+    controls = EgressControls(block_external_models=True, allowed_destinations=None)
+
+    decision = gate.check(destination, DataClassification.RESTRICTED, controls)
+    assert decision.allowed is False, f"{destination!r} bypassed block_external_models"
+    assert decision.matched_rule == "block_external_models"
+
+
+def test_allowlist_matching_is_case_insensitive():
+    """An allow-list entry must match regardless of how either side is cased."""
+    gate = PolicyDrivenEgressGate()
+    controls = EgressControls(allowed_destinations=["Example.COM"])
+
+    for destination in ("api.example.com", "API.Example.com", "example.com."):
+        assert gate.check(
+            destination, DataClassification.CONFIDENTIAL, controls
+        ).allowed is True, destination
+
+    # Still exhaustive: an unrelated host is denied.
+    assert gate.check(
+        "evil.com", DataClassification.CONFIDENTIAL, controls
+    ).allowed is False
+
+
+def test_dc2d_emergency_requires_a_declared_trigger():
+    """Regression: the DC2D path explicitly treated a missing trigger as OK.
+
+    ``trigger_ok`` was ``... or context.emergency_trigger is None or ...``, so
+    omitting the field granted the escalated tier outright.
+    """
+    from rmacd.evaluator import EvaluationContext, PolicyEvaluator
+    from rmacd.models import EmergencyEscalationDC2D, ProfileDC2D, TriggerCondition
+
+    profile = ProfileDC2D(
+        profile_id="rmacd-dc2d-trigger-required-v1",
+        profile_name="Trigger Required",
+        model="data-classification-2d",
+        version="1.0",
+        data_access={
+            "public": {"allowed": True, "autonomy": "autonomous"},
+            "internal": {"allowed": False, "autonomy": "prohibited"},
+            "confidential": {"allowed": False, "autonomy": "prohibited"},
+            "restricted": {"allowed": False, "autonomy": "prohibited"},
+        },
+        emergency_escalation=EmergencyEscalationDC2D(
+            enabled=True,
+            trigger_conditions=[TriggerCondition.SOC_DECLARED_INCIDENT],
+            escalated_tiers=[DataClassification.INTERNAL],
+            escalated_autonomy="approval",
+        ),
+    )
+    evaluator = PolicyEvaluator(profile)
+
+    assert evaluator.evaluate(
+        "C", "internal", EvaluationContext(emergency_active=True)
+    ).allowed is False
+    assert evaluator.evaluate(
+        "C",
+        "internal",
+        EvaluationContext(
+            emergency_active=True,
+            emergency_trigger=TriggerCondition.MANUAL_AUTHORIZATION,
+        ),
+    ).allowed is False
+    assert evaluator.evaluate(
+        "C",
+        "internal",
+        EvaluationContext(
+            emergency_active=True,
+            emergency_trigger=TriggerCondition.SOC_DECLARED_INCIDENT,
+        ),
+    ).allowed is True

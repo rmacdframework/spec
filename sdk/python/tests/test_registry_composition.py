@@ -376,3 +376,91 @@ def test_composed_tool_survives_registry_export_import(tmp_path: Any) -> None:
     ]:
         resolved = bash.resolve_call({"command": command})
         assert (resolved.source, resolved.operation, resolved.tier) == (source, op, tier)
+
+
+# --- (g) severity floor across packs: adding a pack must never make a call
+#         look SAFER. (0.14.0 bypass regression.) ---
+
+
+@pytest.mark.parametrize(
+    "command", ["rm -rf /tmp/x", "shred /tmp/secret", "dd if=/dev/zero of=/tmp/x"]
+)
+def test_no_builtin_pack_can_downgrade_a_shell_delete(command: str) -> None:
+    """Loading any built-in pack alongside `shell` must not lower the operation.
+
+    Regression: the docker pack's tier-only `docker-destroy` overlay matched a
+    bare `rm` and, carrying the docker pack's wide default_operation, won on
+    specificity — downgrading `rm -rf` from Delete to Change. Order-independent.
+    """
+    from rmacd.packs import builtin_pack_names
+    from rmacd.registry.tools import _OP_ORDER
+
+    baseline = load_packs(["shell"]).get_tool("bash").resolve_call({"command": command})
+    for name in builtin_pack_names():
+        if name == "shell":
+            continue
+        for packs in (["shell", name], [name, "shell"]):
+            tool = load_packs(packs).get_tool("bash")
+            if not isinstance(tool, ComposedToolDefinition):
+                continue
+            resolved = tool.resolve_call({"command": command})
+            assert _OP_ORDER[resolved.operation] >= _OP_ORDER[baseline.operation], (
+                f"packs {packs} downgraded {command!r} from "
+                f"{baseline.operation} to {resolved.operation}"
+            )
+
+
+def test_tier_only_overlay_does_not_claim_the_operation() -> None:
+    """A rule classifying tier alone asserts no operation (engine contract).
+
+    ``operation`` still reports the pack default so single-pack semantics are
+    unchanged; ``operation_asserted`` is what tells composition the pack said
+    nothing about the operation and must not outrank a pack that did.
+    """
+    from rmacd.packs import GovernancePack, classify_call
+
+    tier_only = GovernancePack.from_dict(
+        {
+            "pack": "tier-only",
+            "version": "1.0.0",
+            "default_operation": "C",
+            "rules": [
+                {
+                    "id": "sensitive",
+                    "when": {"tool": "widget"},
+                    "classify": {"tier": "confidential"},
+                }
+            ],
+        }
+    )
+    result = classify_call(tier_only, "widget", {})
+    assert result.matched_rule_ids == ["sensitive"]
+    assert result.tier == "confidential"
+    assert result.operation == "C"  # the pack default, not an assertion
+    assert result.operation_asserted is False
+
+    asserting = GovernancePack.from_dict(
+        {
+            "pack": "asserting",
+            "version": "1.0.0",
+            "default_operation": "R",
+            "rules": [
+                {"id": "wipe", "when": {"tool": "widget"}, "classify": {"operation": "D"}}
+            ],
+        }
+    )
+    assert classify_call(asserting, "widget", {}).operation_asserted is True
+
+
+def test_shell_overlay_requires_its_own_binary_in_the_command() -> None:
+    """docker's `push` overlay must not claim `git push` (implicit binary anchor)."""
+    resolved = load_packs(["git", "docker", "terraform"]).get_tool("bash").resolve_call(
+        {"command": "git push origin main"}
+    )
+    assert resolved.source == "git"
+    assert resolved.tier == DC.CONFIDENTIAL
+    # ...but a real docker push still resolves through the docker pack.
+    docker_push = load_packs(["shell", "docker"]).get_tool("bash").resolve_call(
+        {"command": "docker push myimage:latest"}
+    )
+    assert docker_push.source == "docker"

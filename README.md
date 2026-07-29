@@ -111,7 +111,7 @@ What we've built, from the standard up to running agents. Each layer links to it
 |--|--------|----------|--------------|------------|
 | **Read** | Auto | Auto | Logged | Notify |
 | **Move** | Auto | Notify | Approve | Elevated |
-| **Add** | Notify | Approve | Elevated | Elevated |
+| **Add** | Notify | Approve | Elevated | **Prohibited** |
 | **Change** | Approve | Approve | Elevated | **Prohibited** |
 | **Delete** | Approve | Elevated | Elevated | **Prohibited** |
 

@@ -597,3 +597,72 @@ class TestProfileDC2DLoaderAndValidator:
             pytest.skip(f"Example file not found at {example}")
         validator = ProfileValidator()
         assert validator.is_valid(example)
+
+
+class TestEmergencyTriggerRequired:
+    """A declared trigger_conditions list must actually be satisfied.
+
+    Regression (0.14.0): both evaluation paths treated an *absent*
+    ``emergency_trigger`` as satisfying the gate, so a caller could take the
+    escalated grant simply by omitting the field. A wrong trigger was rejected;
+    no trigger was not.
+    """
+
+    @staticmethod
+    def _profile_3d() -> Profile3D:
+        return Profile3D(
+            profile_id="rmacd-3d-trigger-required-v1",
+            profile_name="Trigger Required",
+            model="three-dimensional",
+            version="1.0",
+            permissions={DataClassification.PUBLIC: [Operation.READ]},
+            emergency_escalation=EmergencyEscalation3D(
+                enabled=True,
+                trigger_conditions=[TriggerCondition.SOC_DECLARED_INCIDENT],
+                escalated_permissions={
+                    DataClassification.PUBLIC: [Operation.READ, Operation.CHANGE],
+                },
+                max_duration_minutes=60,
+                notification_targets=["security@example.com"],
+            ),
+        )
+
+    def test_absent_trigger_does_not_escalate(self) -> None:
+        evaluator = PolicyEvaluator(self._profile_3d())
+        decision = evaluator.evaluate(
+            "C", "public", EvaluationContext(emergency_active=True)
+        )
+        assert decision.allowed is False, "escalation granted with no trigger supplied"
+
+    def test_wrong_trigger_does_not_escalate(self) -> None:
+        evaluator = PolicyEvaluator(self._profile_3d())
+        decision = evaluator.evaluate(
+            "C",
+            "public",
+            EvaluationContext(
+                emergency_active=True,
+                emergency_trigger=TriggerCondition.MANUAL_AUTHORIZATION,
+            ),
+        )
+        assert decision.allowed is False
+
+    def test_matching_trigger_still_escalates(self) -> None:
+        evaluator = PolicyEvaluator(self._profile_3d())
+        decision = evaluator.evaluate(
+            "C",
+            "public",
+            EvaluationContext(
+                emergency_active=True,
+                emergency_trigger=TriggerCondition.SOC_DECLARED_INCIDENT,
+            ),
+        )
+        assert decision.allowed is True
+
+    def test_profile_without_trigger_conditions_is_unaffected(self) -> None:
+        """No declared conditions ⇒ emergency_active alone still escalates."""
+        profile = self._profile_3d()
+        profile.emergency_escalation.trigger_conditions = []
+        decision = PolicyEvaluator(profile).evaluate(
+            "C", "public", EvaluationContext(emergency_active=True)
+        )
+        assert decision.allowed is True

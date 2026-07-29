@@ -38,3 +38,34 @@ def test_bundled_schema_matches_authoritative(name: str) -> None:
         f"{name} has drifted from the authoritative copy in {AUTHORITATIVE_DIR}; "
         f"re-copy it into rmacd/schemas/"
     )
+
+
+def test_built_distribution_ships_its_data_files() -> None:
+    """The wheel must carry py.typed, the schemas and every built-in pack.
+
+    Tests run from the source tree, so a mistake in the hatch ``artifacts``
+    list is invisible to every other test while shipping a wheel where
+    ``load_pack("aws")`` raises FileNotFoundError for every user. PEP 561 also
+    requires the ``py.typed`` marker for the strict typing here to reach
+    consumers at all.
+    """
+    from pathlib import Path
+
+    import tomllib
+
+    from rmacd.packs import builtin_pack_names
+
+    root = Path(__file__).resolve().parents[1]
+    artifacts = tomllib.loads((root / "pyproject.toml").read_text(encoding="utf-8"))[
+        "tool"
+    ]["hatch"]["build"]["targets"]["wheel"]["artifacts"]
+
+    assert "rmacd/py.typed" in artifacts
+    assert (root / "rmacd" / "py.typed").is_file()
+    assert any("schemas" in a for a in artifacts)
+    assert any("packs/data" in a for a in artifacts)
+
+    # Every built-in pack name must have a data file the artifact glob covers.
+    data_dir = root / "rmacd" / "packs" / "data"
+    for name in builtin_pack_names():
+        assert (data_dir / f"{name}.json").is_file(), f"pack data missing for {name!r}"

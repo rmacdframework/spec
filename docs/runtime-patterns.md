@@ -1,7 +1,7 @@
 # RMACD Runtime Patterns
 
 **Companion to:** `RMACD_Framework_v1.4.md` (Appendices C and D)
-**Targets:** SDK ≥ 0.10.0 (`rmacd-framework` on PyPI)
+**Targets:** SDK ≥ 0.14.0 (`rmacd-framework` on PyPI)
 
 The canonical specification (Appendix C) describes the four-component
 enforcement architecture (Policy Store, PDP, PEP, Audit Engine) and the

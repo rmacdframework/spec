@@ -3,9 +3,10 @@
 **Companion to:** `runtime-patterns.md` (this doc is the framework-specific
 cookbook). Targets SDK ≥ 0.8.0 (registry-backed `enforce_tool_call`);
 the MCP auto-classification section targets ≥ 0.10.0; Governance Packs
-(`load_packs`, see below) target ≥ 0.11.0.
+(`load_packs`, see below) target ≥ 0.11.0; the MCP policy-server section
+targets ≥ 0.13.0. Current release: 0.14.0.
 
-Two reference integrations ship as full runnable examples:
+Four reference integrations ship as full runnable examples:
 
 - **Claude Agent SDK** — `spec/examples/agent-integration-claude-sdk/`
   — uses the SDK's `PreToolUse` hook as the enforcement point.

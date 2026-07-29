@@ -5,8 +5,10 @@ built-in packs in 0.12.0 (added the cloud-identity packs `aws-iam`,
 `az-identity`, `gcp-iam`) and to **34 built-in packs** in 0.13.0 (developer
 toolchain and enterprise-operations families), which also added **pack
 composition** (`rmacd.packs.composition`) so multiple packs can govern the same
-tool name. Companion documents: [README](README.md),
-[roadmap](roadmap.md), [authoring guide](authoring-guide.md).
+tool name. 0.14.0 hardened composition and shell-overlay matching (see
+[Composition safety rules](#11-composition-safety-rules-0140)). Companion
+documents: [README](README.md), [roadmap](roadmap.md),
+[authoring guide](authoring-guide.md).
 
 ---
 
@@ -318,3 +320,57 @@ enforcer.registry = load_packs(["shell", "aws-cli", "kubectl", "acme/internal@2.
 | Regex DoS from packs | Engine input-length cap + `find_redos_risks` flagging at `pack validate` time |
 | Resolver non-determinism | Fail-closed default + resolved value recorded in audit |
 | Drift unnoticed as tools change | `source_hash` + `pack diff` maintenance loop |
+
+---
+
+## 11. Composition safety rules (0.14.0)
+
+Two rules keep multi-pack composition from *weakening* a classification. Both
+were added after `load_packs(["shell", "docker"])` was found to classify
+`rm -rf` as **Change** rather than Delete, in either load order.
+
+### 11.1 Severity is a floor, not a tiebreak
+
+Selector specificity decides **ownership** — whose rules best describe a call,
+and therefore which target, capability ceiling and `source` the resolved call
+carries. It does not decide severity:
+
+- Only packs that *positively asserted* an operation compete for it. A rule
+  that classifies tier alone asserts nothing about the operation; it carried
+  its pack's `default_operation`, and on a specificity win that default
+  replaced another pack's real answer. `ClassificationResult.operation_asserted`
+  now distinguishes the two, and a non-asserting claim can never lower the
+  operation.
+- The most sensitive tier any claim assigned is applied to the winner, so a
+  more specific overlay cannot move a target out of `restricted` and out from
+  under the §12.5 floor.
+
+Net effect: **adding a pack can only ever make a call look more dangerous,
+never less.** Single-pack semantics are unchanged — with one pack loaded, an
+unmatched or tier-only call still resolves to that pack's `default_operation`.
+
+### 11.2 Implicit binary anchoring for shell overlays
+
+Overlay rules are commonly written with one selector covering both the native
+binary and the shells that can invoke it:
+
+```yaml
+when: { tool: [docker, bash, sh, zsh], arg_regex: { arg: command, pattern: '(^|\s)push\b' } }
+```
+
+The pattern is right for `tool: docker` and far too broad for `tool: bash`,
+where it matches *any* command line containing the verb — `docker-push` was
+claiming `git push origin main`, and `terraform-apply` was claiming
+`kubectl apply` (wrong tier, and a wrong pack in the audit trail).
+
+The engine now supplies the anchor the author meant: **when a shell call is
+matched by a rule that also names real binaries, one of those binaries must
+appear as a token of the command.** Rules that anchor themselves are untouched:
+
+- an explicit `argv_contains` already does this job;
+- a selector listing only shell tools has no binary to anchor on, so its
+  pattern is expected to name the binary itself — the `helm` pack's
+  `\bhelm\b[^|;&]*\s(upgrade|rollback)\b` form.
+
+Both styles remain valid. The implicit anchor simply means the compact
+one-rule form is no longer a foot-gun.

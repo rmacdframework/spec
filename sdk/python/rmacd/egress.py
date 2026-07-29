@@ -90,6 +90,21 @@ _KNOWN_EXTERNAL_MODEL_HOSTS = frozenset(
 )
 
 
+def _normalize_host(host: str | None) -> str | None:
+    """Canonical form of a hostname for comparison.
+
+    DNS hostnames are case-insensitive and a single trailing dot denotes the
+    root zone, so ``API.OpenAI.com``, ``api.openai.com`` and
+    ``api.openai.com.`` all name the same host. Comparing them literally let
+    the first and third bypass ``block_external_models`` and made allow-list
+    entries case-sensitive.
+    """
+    if not host:
+        return None
+    normalized = host.strip().rstrip(".").lower()
+    return normalized or None
+
+
 class PolicyDrivenEgressGate:
     """Default gate. Reads decisions off the profile's ``EgressControls``.
 
@@ -115,10 +130,17 @@ class PolicyDrivenEgressGate:
         self,
         external_model_hosts: frozenset[str] | None = None,
     ) -> None:
-        self.external_model_hosts = (
+        raw_hosts = (
             external_model_hosts
             if external_model_hosts is not None
             else _KNOWN_EXTERNAL_MODEL_HOSTS
+        )
+        # Normalize at construction so membership tests below are case- and
+        # trailing-dot-insensitive regardless of how the caller spelled them.
+        self.external_model_hosts = frozenset(
+            normalized
+            for normalized in (_normalize_host(host) for host in raw_hosts)
+            if normalized is not None
         )
 
     def check(
@@ -191,8 +213,12 @@ class PolicyDrivenEgressGate:
             if entry == destination:
                 return True
             if host is not None:
-                entry_host = cls._extract_host(entry) or entry
-                if host == entry_host or host.endswith("." + entry_host):
+                # Both sides are normalized by _extract_host, so an entry
+                # spelled "Tenant-Hosted-LLM" or "Example.COM" still matches.
+                entry_host = cls._extract_host(entry) or _normalize_host(entry)
+                if entry_host is not None and (
+                    host == entry_host or host.endswith("." + entry_host)
+                ):
                     return True
         return False
 
@@ -202,15 +228,20 @@ class PolicyDrivenEgressGate:
         # populates ``hostname`` when a scheme is present, so fall back to
         # treating a scheme-less destination as a bare "host[/path]" — without
         # this, "api.openai.com/v1" would yield no host and the external-model
-        # block would silently not fire. Returns None for labels that aren't
-        # host-shaped (e.g. "internal-kb"), which the allow-list rule handles.
+        # block would silently not fire. Returns a *normalized* host (lower
+        # case, no trailing root dot); every comparison in this class is
+        # therefore case-insensitive, so "API.OpenAI.com/v1" and
+        # "api.openai.com." cannot slip past a rule that "api.openai.com"
+        # would trip. Returns None for empty input; non-host-shaped labels
+        # (e.g. "internal-kb") come back as themselves, which the allow-list
+        # rule handles.
         if "://" in destination:
-            return urlparse(destination).hostname
+            return _normalize_host(urlparse(destination).hostname)
         # Bare host or "host/path": take the authority portion before any path.
         candidate = destination.split("/", 1)[0]
         # Strip a port if present (host:port), but not if it's clearly a label.
         host = candidate.rsplit(":", 1)[0] if candidate.count(":") == 1 else candidate
-        return host or None
+        return _normalize_host(host)
 
 
 __all__ = [
