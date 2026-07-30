@@ -120,6 +120,9 @@ class TestSummaryCounts:
             "queued": 2,
             "approved": 1,
             "rejected": 1,
+            # Outcome records, not decisions — counted separately so they never
+            # dilute the decision percentages. Absent from this fixture.
+            "executed": 0,
             "other": 0,
         }
         assert summary["records"] == {"included": 9, "malformed": 0}

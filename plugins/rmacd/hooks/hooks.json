@@ -23,6 +23,18 @@
           }
         ]
       }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${RMACD_PYTHON:-python3}\" \"${CLAUDE_PLUGIN_ROOT}/hooks/rmacd_post.py\"",
+            "timeout": 10
+          }
+        ]
+      }
     ]
   }
 }

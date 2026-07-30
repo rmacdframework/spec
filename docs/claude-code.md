@@ -194,6 +194,41 @@ permission prompts and auto-approve everything. "Unbound" must mean
 Stderr is safe in all cases: with exit code 0 Claude Code reads only stdout
 for the JSON decision and shows stderr only in `--debug` mode.
 
+## Audit trail
+
+A bound session records every governance decision to
+`.claude/rmacd-audit.jsonl` — beside the profile that bound it — in the spec
+Appendix C.6 format. Two hooks write it:
+
+| Hook | Records | Result values |
+|------|---------|---------------|
+| `PreToolUse` | The decision, before the call runs | `ALLOW`, `DENY`, `QUEUED` |
+| `PostToolUse` | The outcome, for calls that ran | `EXECUTED` (+ `execution.status`) |
+
+**Decisions are recorded at `PreToolUse` on purpose.** A denied call never
+runs, so it never reaches `PostToolUse`; a trail assembled only from executions
+would omit every denial — precisely the evidence that shows the boundary held.
+
+Records carry an `extra` block outside the C.6 shape with the Claude Code
+`session_id`, `tool_use_id`, `tool_name`, `cwd`, and — when the call came from
+a subagent — its `agent_id` and `agent_type`. The two record kinds join on
+`tool_use_id`. The absence of `agent_id` is itself meaningful: the call came
+from the main conversation.
+
+Configuration:
+
+| Variable | Effect |
+|----------|--------|
+| `RMACD_AUDIT_PATH` | Write to this path instead of the default |
+| `RMACD_AUDIT=off` | Disable session audit entirely (`0`, `off`, `false`, `no`) |
+
+Summarize a trail with `rmacd audit summarize .claude/rmacd-audit.jsonl`.
+
+Auditing is **best-effort and never affects a decision**: an unwritable sink
+produces a stderr note and the governance outcome stands. Add
+`.claude/rmacd-audit.jsonl` to `.gitignore` unless you intend to commit the
+evidence.
+
 ## Worked example
 
 Bind the DevOps example profile and mark a path restricted:

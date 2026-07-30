@@ -46,6 +46,7 @@ import tempfile
 from typing import Any, TextIO
 
 from rmacd.claude_code import mapping, session
+from rmacd.claude_code.audit import SessionAuditor, resolve_audit_path, session_context
 from rmacd.evaluator import IMMUTABLE_PROHIBITIONS
 from rmacd.models import DataClassification, Operation, PolicyDecision
 
@@ -122,15 +123,48 @@ def _map_denied_decision(
     )
 
 
-def decide(event: dict[str, Any], binding: session.SessionBinding) -> dict[str, Any]:
+def decide(
+    event: dict[str, Any],
+    binding: session.SessionBinding,
+    auditor: SessionAuditor | None = None,
+) -> dict[str, Any]:
     """Produce the hook output for one PreToolUse event under a bound profile.
 
     Never raises for policy outcomes; unexpected exceptions are the caller's
     signal to fail closed.
+
+    When ``auditor`` is supplied, **every** return path below records a decision
+    first. Auditing at the decision point rather than after execution is
+    deliberate: a denied call never runs, so it never reaches ``PostToolUse`` —
+    a trail built only from executions would omit exactly the denials that
+    constitute the evidence.
     """
     tool_name = str(event.get("tool_name") or "")
     raw_input = event.get("tool_input")
     tool_input: dict[str, Any] = raw_input if isinstance(raw_input, dict) else {}
+    context = session_context(event)
+
+    def _record(
+        result: str,
+        operation: Operation,
+        target: str,
+        tier: DataClassification | None,
+        decision: PolicyDecision | None = None,
+        blocked_reason: str | None = None,
+    ) -> None:
+        if auditor is None:
+            return
+        auditor.decision(
+            agent_id=binding.agent_id,
+            profile_id=binding.profile_id,
+            operation=operation,
+            target=target,
+            classification=tier,
+            decision=decision,
+            result=result,
+            blocked_reason=blocked_reason,
+            context=context,
+        )
 
     try:
         call = mapping.map_tool_call(tool_name, tool_input, binding)
@@ -139,13 +173,18 @@ def decide(event: dict[str, Any], binding: session.SessionBinding) -> dict[str, 
             f"RMACD: {exc.detail}. Unknown tools fail closed while a profile is bound "
             f"(override with RMACD_UNKNOWN_TOOL=ask). Profile: {binding.profile_id}."
         )
+        # An unmapped tool has no operation; record it at the most severe so a
+        # reader cannot mistake "we could not classify this" for "it was a read".
         if binding.unknown_tool_decision == "ask":
+            _record("QUEUED", Operation.DELETE, tool_name, None, blocked_reason=exc.detail)
             return _ask(
                 f"RMACD: {exc.detail}. RMACD_UNKNOWN_TOOL=ask routes this to your "
                 f"approval. Profile: {binding.profile_id}."
             )
+        _record("DENY", Operation.DELETE, tool_name, None, blocked_reason=exc.detail)
         return _deny(reason)
     except mapping.CapabilityCeilingError as exc:
+        _record("DENY", exc.operation, tool_name, exc.tier, blocked_reason=str(exc))
         return _deny(
             f"RMACD: {_describe(exc.operation, exc.tier, tool_name)} denied — {exc}."
             + _decision_reason_suffix("tool capability ceiling", binding.profile_id)
@@ -159,12 +198,14 @@ def decide(event: dict[str, Any], binding: session.SessionBinding) -> dict[str, 
     if tier is None and not binding.is_2d:
         tier = binding.default_tier
 
-    # Side-effect-free decision: no approval gateway, no audit write. The
-    # hook process cannot host an interactive gateway; approval-level
-    # autonomy becomes Claude Code's own "ask" prompt below.
+    # The decision itself stays side-effect-free: no approval gateway. The hook
+    # process cannot host an interactive gateway; approval-level autonomy
+    # becomes Claude Code's own "ask" prompt below. The audit write that follows
+    # is an append to the session's own sink and never affects the outcome.
     decision = binding.enforcer.evaluate_only(call.operation, call.target, tier)
 
     if not decision.allowed:
+        _record("DENY", call.operation, call.target, tier, decision)
         return _map_denied_decision(decision, call.operation, tier, call.target, call.rule, binding)
 
     # DC2D data-flow gate: outbound destinations (WebFetch/WebSearch) must
@@ -174,6 +215,13 @@ def decide(event: dict[str, Any], binding: session.SessionBinding) -> dict[str, 
             tier if tier is not None else binding.default_tier, call.egress_destination
         )
         if not egress.allowed:
+            egress_reason = (
+                f"egress to '{call.egress_destination}' blocked: "
+                f"{egress.reason or 'egress_controls'}"
+            )
+            _record(
+                "DENY", call.operation, call.target, tier, blocked_reason=egress_reason
+            )
             return _deny(
                 f"RMACD: {_describe(call.operation, tier, call.target)} denied — egress to "
                 f"'{call.egress_destination}' blocked: {egress.reason or 'egress_controls'}."
@@ -183,12 +231,14 @@ def decide(event: dict[str, Any], binding: session.SessionBinding) -> dict[str, 
             )
 
     if decision.requires_approval:
+        _record("QUEUED", call.operation, call.target, tier, decision)
         return _ask(
             f"RMACD: {_describe(call.operation, tier, call.target)} requires "
             f"'{decision.autonomy_level.value}' autonomy — approving this prompt is the "
             f"human-in-the-loop step." + _decision_reason_suffix(call.rule, binding.profile_id)
         )
 
+    _record("ALLOW", call.operation, call.target, tier, decision)
     return _allow()
 
 
@@ -266,8 +316,10 @@ def run(stdin: TextIO, stdout: TextIO, stderr: TextIO) -> int:
         )
         return 0
 
+    auditor = SessionAuditor(resolve_audit_path(binding.profile_path), stderr)
+
     try:
-        output = decide(event, binding)
+        output = decide(event, binding, auditor)
     except Exception as exc:  # fail closed on any hook/SDK error while bound
         tool_name = event.get("tool_name", "unknown")
         output = _deny(

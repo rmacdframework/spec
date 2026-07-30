@@ -7,6 +7,49 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+#### Added
+
+- **Governed sessions now write an audit trail.** Previously a bound Claude Code
+  session produced **no** audit records at all — the `PreToolUse` hook is
+  side-effect-free and uses `evaluate_only`, so nothing was ever persisted. For
+  a product whose headline claim is audit evidence, that was the largest gap
+  between claim and behaviour.
+
+  Two hooks write to `.claude/rmacd-audit.jsonl` (beside the profile that bound
+  the session), in the Appendix C.6 format:
+
+  - `PreToolUse` records the **decision** — `ALLOW`, `DENY`, or `QUEUED`.
+  - `PostToolUse` records the **outcome** — `EXECUTED` plus `execution.status`.
+
+  Recording at the decision point is the design's whole point: a denied call
+  never runs, so it never reaches `PostToolUse`. A trail built only from
+  executions would omit every denial, which is the evidence an auditor actually
+  asks for. Every return path in `decide()` records, including the
+  unknown-tool and capability-ceiling denials that short-circuit before
+  evaluation.
+
+  Records carry an `extra` block with `session_id`, `tool_use_id`, `tool_name`,
+  `cwd`, and — for calls made inside a subagent — `agent_id` and `agent_type`,
+  so a subagent decision is attributable rather than indistinguishable from the
+  main conversation. The two record kinds join on `tool_use_id`.
+
+  Configure with `RMACD_AUDIT_PATH` (explicit sink) or `RMACD_AUDIT=off`.
+  Auditing is best-effort: an unwritable sink notes to stderr and the
+  governance decision stands unchanged.
+
+#### Fixed
+
+- **`build_audit_record(extra=...)` no longer discards its argument.** It was
+  documented as "reserved ... so callers can pre-emptively include metadata"
+  but `del`'d the value. It is now an optional `AuditRecord` field, omitted
+  entirely from serialized output when unset — so records from callers that do
+  not use it stay byte-for-byte identical to Appendix C.6.
+- **`rmacd audit summarize` no longer buckets executions as "other".**
+  `EXECUTED` was absent from `audit_report.RESULTS`, so every `@guard` and
+  session execution record fell into the unclassified bucket — a session audit
+  read as ~50 % "other". It now has its own line, counted separately from
+  decisions so it cannot dilute the decision percentages.
+
 ## [0.14.1] — 2026-07-30
 
 Follow-up to the 0.14.0 security release. Closes the remaining fail-open in

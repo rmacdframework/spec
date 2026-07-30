@@ -74,6 +74,11 @@ class AuditRecord(BaseModel):
     policy_decision: AuditPolicyDecision
     execution: AuditExecution | None = None
     compliance_tags: list[str] = Field(default_factory=list)
+    #: Sink-specific context that is not part of the C.6 shape — session id,
+    #: tool-use id, subagent identity. Omitted entirely from serialized output
+    #: when unset, so records from callers that do not use it stay byte-for-byte
+    #: identical to Appendix C.6.
+    extra: dict[str, Any] | None = None
 
 
 class AuditLogger(Protocol):
@@ -122,7 +127,10 @@ class JSONLAuditLogger:
             self._stream = sink
 
     def log(self, record: AuditRecord) -> None:
-        line = record.model_dump_json() + "\n"
+        # `extra` is dropped when unset rather than serialized as null, so a
+        # record from a caller that never uses it matches Appendix C.6 exactly.
+        exclude = {"extra"} if record.extra is None else None
+        line = record.model_dump_json(exclude=exclude) + "\n"
         if self._stream is not None:
             self._stream.write(line)
             self._stream.flush()
@@ -151,12 +159,12 @@ def build_audit_record(
     """Construct an ``AuditRecord`` from a ``PolicyDecision``.
 
     Centralises the policy→audit mapping so every code path produces records
-    with the same shape. ``extra`` is reserved for future fields and currently
-    ignored — present so callers can pre-emptively include metadata without
-    breaking when the schema grows.
+    with the same shape. ``extra`` carries sink-specific context outside the
+    C.6 shape (session id, tool-use id, subagent identity); it is omitted from
+    serialized output when unset.
     """
-    del extra  # reserved for future schema extension
     return AuditRecord(
+        extra=extra,
         agent_id=agent_id,
         profile_id=profile_id,
         operation=AuditOperation(

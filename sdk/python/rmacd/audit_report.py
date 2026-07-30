@@ -41,7 +41,11 @@ OPERATIONS: tuple[str, ...] = ("R", "M", "A", "C", "D")
 TIERS: tuple[str, ...] = ("public", "internal", "confidential", "restricted")
 
 #: ``policy_decision.result`` values the SDK's enforcer writes (Appendix C.6).
-RESULTS: tuple[str, ...] = ("ALLOW", "DENY", "QUEUED", "APPROVED", "REJECTED")
+#: ``EXECUTED`` is written by ``@guard`` and by the PostToolUse session hook
+#: after a call runs; it was previously absent here, so every execution record
+#: fell into the "other" bucket — which made a session audit read as ~50 %
+#: unclassified.
+RESULTS: tuple[str, ...] = ("ALLOW", "DENY", "QUEUED", "APPROVED", "REJECTED", "EXECUTED")
 
 _DENIED_RESULTS = frozenset({"DENY", "REJECTED"})
 
@@ -316,6 +320,9 @@ _DECISION_LABELS: tuple[tuple[str, str], ...] = (
     ("approved", "approval granted"),
     ("rejected", "approval denied"),
     ("queued", "approval queued"),
+    # Not a decision — the outcome of a call a decision already permitted.
+    # Counted separately so it never dilutes the decision percentages.
+    ("executed", "executed (outcome)"),
     ("other", "other"),
 )
 
@@ -394,7 +401,7 @@ def render_text(summary: dict[str, Any]) -> str:
         count = decisions.get(key, 0)
         if key == "other" and count == 0:
             continue
-        lines.append(f"  {label:<17} {count:>6}  {_percent(count, included)}")
+        lines.append(f"  {label:<18} {count:>6}  {_percent(count, included)}")
 
     rows = _matrix_rows(summary)
     lines += ["", "Operation x tier (terminal decisions, allowed/denied)"]

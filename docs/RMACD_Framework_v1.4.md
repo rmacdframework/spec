@@ -875,6 +875,19 @@ for them as it does in the main conversation.
 Records are JSON Lines in the Appendix C.6 shape, one per decision, appended in
 decision order. An implementation MUST NOT rewrite or reorder emitted records.
 
+### Where the record is written
+
+An implementation MUST record the **decision**, not merely the execution. A
+denied operation never runs, so a trail assembled from completed operations
+omits every denial — the exact evidence that demonstrates the boundary held.
+Where a runtime offers separate pre- and post-execution interception (§9.7),
+the decision is recorded before the call and the outcome after it, joined by a
+call identifier.
+
+Records MAY carry an `extra` block for context outside the C.6 shape — session
+and call identifiers, and the agent identity when the call originated in a
+subagent. Consumers MUST tolerate its absence.
+
 The reference SDK provides `rmacd audit summarize`, which produces an
 operation × classification matrix of decisions, denial counts by cause, and
 explicit identification of §12.5 floor denials — the evidence an auditor asks
