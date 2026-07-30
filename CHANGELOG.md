@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.14.1] — 2026-07-30
+
+Follow-up to the 0.14.0 security release. Closes the remaining fail-open in
+session governance, two evidence-integrity defects, and brings the normative
+specification into line with the shipped software.
+
+**Upgrade note:** the plugin now **denies** tool calls when a profile is
+configured but the SDK cannot be imported, where it previously let the session
+run ungoverned. A session that was silently unenforced will start blocking —
+that is the fix working. Install the SDK, or set `RMACD_PYTHON` to the
+interpreter that has it.
+
 #### Fixed — normative specification
 
 The spec described software that does not exist and omitted four subsystems that
