@@ -188,7 +188,8 @@ permission prompts and auto-approve everything. "Unbound" must mean
 | No profile bound | Passthrough (no decision emitted; Claude Code's own permission flow unchanged); one-time stderr notice "RMACD installed but unbound" per session |
 | Profile bound, hook errors | **Fail closed** — deny with a diagnostic reason (covers invalid profile/pack/map, malformed stdin, and unexpected exceptions) |
 | Profile bound, unknown MCP tool | Deny by default; `RMACD_UNKNOWN_TOOL=ask` routes it to the user's approval instead |
-| SDK missing (plugin without pip install) | The hook command fails; Claude Code treats a failed hook command as **non-blocking**, so the session runs ungoverned — `/rmacd:status` detects this and explains the install |
+| SDK missing (plugin without pip install), profile bound | **Fail closed** — the plugin's stdlib-only wrapper denies every tool call and names the profile source, the interpreter, and the install command. A `SessionStart` notice says so once, up front |
+| SDK missing, no profile bound | Passthrough. An unbound session is an explicit zero-friction passthrough; installing the plugin without configuring it must not block anything |
 
 Stderr is safe in all cases: with exit code 0 Claude Code reads only stdout
 for the JSON decision and shows stderr only in `--debug` mode.

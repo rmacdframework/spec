@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+#### Fixed — fail-closed coverage
+
+- **A missing or broken SDK ran the entire session ungoverned.** The plugin
+  invoked `python3 -m rmacd.claude_code.hook` directly, so an unimportable
+  `rmacd` exited non-zero — and Claude Code treats a non-zero hook exit as a
+  **non-blocking** error. Reproduced: with a valid profile bound, `rm -rf /etc`
+  produced no decision at all and would have proceeded. The plugin now runs a
+  stdlib-only wrapper, `plugins/rmacd/hooks/rmacd_guard.py`, which denies every
+  tool call when `import rmacd` fails *and* a profile source exists, naming the
+  profile source, the interpreter that failed, and the install command. With no
+  profile bound it stays silent — an unbound session is an explicit
+  zero-friction passthrough. Bound-detection mirrors `resolve_profile_path`,
+  including the upward walk, so it cannot re-introduce the 0.14.0 cwd bug.
+- **Added a `SessionStart` hook.** Binding failures previously surfaced only as
+  per-tool-call stderr visible under `--debug`. The session now reports its
+  governance state once, up front — most importantly the
+  profile-bound-but-SDK-missing case.
+- **The hook interpreter is overridable.** `hooks.json` hardcoded `python3`, so
+  a venv/system mismatch produced an ungoverned session; it now honours
+  `${RMACD_PYTHON:-python3}`.
+- **Hook timeout reduced from 30 s to 10 s**, against a measured ~380 ms hook
+  wall time. A 30 s budget only elapses when something is badly wrong, which is
+  exactly when a timeout should not be generous.
+
 #### Fixed — evidence integrity
 
 - **`@guard` on an async tool recorded a false `EXECUTED`/`SUCCESS` audit

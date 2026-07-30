@@ -19,9 +19,12 @@ Fail modes (normative, from the c2 spec):
 - Profile bound but the hook errors → **fail closed** (deny with diagnostic).
 - Profile bound, unknown MCP tool → deny by default; ``RMACD_UNKNOWN_TOOL=ask``
   downgrades to Claude Code's own permission prompt.
-- SDK not installed → the hook command itself fails; Claude Code treats a
-  failed hook command as a non-blocking error, and ``/rmacd:status`` explains
-  the install step.
+- SDK not installed **and a profile is bound** → **fail closed**. A non-zero
+  hook exit is a *non-blocking* error in Claude Code, so this used to run the
+  whole session ungoverned. The plugin now invokes a stdlib-only wrapper
+  (``plugins/rmacd/hooks/rmacd_guard.py``) that denies when ``import rmacd``
+  fails while a profile source exists, and warns once at ``SessionStart``.
+- SDK not installed and **no** profile bound → passthrough, unchanged.
 """
 
 from rmacd.claude_code.mapping import (
