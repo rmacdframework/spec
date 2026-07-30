@@ -30,6 +30,7 @@ Three call shapes are supported:
 from __future__ import annotations
 
 import functools
+import inspect
 import logging
 import os
 import time
@@ -545,16 +546,68 @@ class PolicyEnforcer:
         op = Operation(operation) if isinstance(operation, str) else operation
 
         def decorator(fn: F) -> F:
+            def _tier(
+                tier: DataClassification | str | None,
+            ) -> DataClassification | None:
+                # A classifier may legitimately return None for the tier (2D
+                # profiles have no classification axis); _audit_execution takes
+                # an optional classification, so pass it straight through.
+                return DataClassification(tier) if isinstance(tier, str) else tier
+
+            # An async tool needs an async wrapper. With a plain `def` wrapper,
+            # `fn(...)` only returns a coroutine — it has not run yet — so the
+            # success record fires immediately with duration_ms≈0 and the
+            # `except` arm can never observe a failure raised inside the
+            # coroutine. A guarded async tool that raised still recorded
+            # EXECUTED/SUCCESS. In an audit-evidence product that is forged
+            # evidence, so the two cases are dispatched separately below.
+            if inspect.iscoroutinefunction(fn):
+
+                @functools.wraps(fn)
+                async def async_wrapper(*args: Any, **kwargs: Any) -> Any:
+                    target, tier = classifier(*args, **kwargs)
+                    self.enforce(
+                        operation=op,
+                        target=target,
+                        classification=tier,
+                        justification=justification,
+                    )
+                    # Start the clock after enforcement so the recorded duration
+                    # measures the tool, not any approval round-trip.
+                    start = time.perf_counter()
+                    try:
+                        result = await fn(*args, **kwargs)
+                    except Exception as exc:
+                        self._audit_execution(
+                            operation=op,
+                            target=target,
+                            classification=_tier(tier),
+                            status="FAILURE",
+                            duration_ms=int((time.perf_counter() - start) * 1000),
+                            error=str(exc),
+                        )
+                        raise
+                    self._audit_execution(
+                        operation=op,
+                        target=target,
+                        classification=_tier(tier),
+                        status="SUCCESS",
+                        duration_ms=int((time.perf_counter() - start) * 1000),
+                    )
+                    return result
+
+                return async_wrapper  # type: ignore[return-value]
+
             @functools.wraps(fn)
             def wrapper(*args: Any, **kwargs: Any) -> Any:
                 target, tier = classifier(*args, **kwargs)
-                start = time.perf_counter()
                 self.enforce(
                     operation=op,
                     target=target,
                     classification=tier,
                     justification=justification,
                 )
+                start = time.perf_counter()
                 # Run the wrapped function and record execution outcome.
                 try:
                     result = fn(*args, **kwargs)
@@ -562,9 +615,7 @@ class PolicyEnforcer:
                     self._audit_execution(
                         operation=op,
                         target=target,
-                        classification=(
-                            DataClassification(tier) if isinstance(tier, str) else tier
-                        ),
+                        classification=_tier(tier),
                         status="FAILURE",
                         duration_ms=int((time.perf_counter() - start) * 1000),
                         error=str(exc),
@@ -573,9 +624,7 @@ class PolicyEnforcer:
                 self._audit_execution(
                     operation=op,
                     target=target,
-                    classification=(
-                        DataClassification(tier) if isinstance(tier, str) else tier
-                    ),
+                    classification=_tier(tier),
                     status="SUCCESS",
                     duration_ms=int((time.perf_counter() - start) * 1000),
                 )

@@ -1,6 +1,6 @@
 """Policy evaluator for RMACD Framework profiles."""
 
-from datetime import datetime, time
+from datetime import datetime, time, timezone
 from zoneinfo import ZoneInfo
 
 from rmacd.models import (
@@ -501,8 +501,16 @@ class PolicyEvaluator:
         if not time_windows:
             return None
 
-        # Convert to configured timezone
+        # Convert to configured timezone.
+        #
+        # A naive timestamp reaching here can only have come from a caller that
+        # built its own EvaluationContext (the default factory is tz-aware).
+        # astimezone() would read it as system local time, silently skewing the
+        # window by the host's UTC offset, so treat naive input as UTC — which
+        # is what every producer in this codebase actually means.
         tz = ZoneInfo(time_windows.timezone) if time_windows.timezone else ZoneInfo("UTC")
+        if timestamp.tzinfo is None:
+            timestamp = timestamp.replace(tzinfo=timezone.utc)
         local_time = timestamp.astimezone(tz)
 
         # Check allowed days

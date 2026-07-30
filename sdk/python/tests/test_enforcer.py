@@ -10,6 +10,8 @@ mode.
 
 from __future__ import annotations
 
+import asyncio
+import inspect
 import io
 import json
 from pathlib import Path
@@ -194,6 +196,102 @@ def test_guard_decorator_runs_function_when_allowed(admin_profile, buf):
     results = audit_results(buf)
     assert "ALLOW" in results
     assert "EXECUTED" in results
+
+
+def audit_executions(buf: io.StringIO) -> list[dict]:
+    """The ``execution`` block of every record that carries one."""
+    return [
+        json.loads(line)["execution"]
+        for line in buf.getvalue().splitlines()
+        if json.loads(line).get("execution")
+    ]
+
+
+def test_guard_on_async_tool_records_failure_not_success(admin_profile, buf):
+    """A guarded async tool that raises must not be audited as SUCCESS.
+
+    Regression: the wrapper used to be a plain ``def``, so ``fn(...)`` returned
+    an un-awaited coroutine, the SUCCESS record fired immediately with
+    ``duration_ms≈0``, and the ``except`` arm could never see a failure raised
+    inside the coroutine. That is forged evidence in an audit-evidence product.
+    """
+    enforcer = make_enforcer(admin_profile, audit_sink=buf)
+
+    @enforcer.guard(
+        operation="R",
+        classifier=lambda **_: ("doc://boom", "public"),
+    )
+    async def failing_tool() -> str:
+        await asyncio.sleep(0.01)
+        raise RuntimeError("tool blew up")
+
+    with pytest.raises(RuntimeError, match="tool blew up"):
+        asyncio.run(failing_tool())
+
+    executions = audit_executions(buf)
+    assert len(executions) == 1
+    assert executions[0]["status"] == "FAILURE"
+    assert executions[0]["error"] == "tool blew up"
+    assert "EXECUTED" in audit_results(buf)
+
+
+def test_guard_on_async_tool_records_success_and_real_duration(admin_profile, buf):
+    """A successful async tool is audited once, after it actually completes."""
+    enforcer = make_enforcer(admin_profile, audit_sink=buf)
+
+    @enforcer.guard(
+        operation="R",
+        classifier=lambda **_: ("doc://slow", "public"),
+    )
+    async def slow_tool() -> str:
+        await asyncio.sleep(0.05)
+        return "done"
+
+    assert asyncio.run(slow_tool()) == "done"
+
+    executions = audit_executions(buf)
+    assert len(executions) == 1
+    assert executions[0]["status"] == "SUCCESS"
+    assert executions[0]["error"] is None
+    # The old wrapper reported ~0 because it never waited for the coroutine.
+    assert executions[0]["duration_ms"] >= 40
+
+
+def test_guard_preserves_coroutine_function_identity(admin_profile):
+    """The wrapper must still look async to frameworks that introspect it.
+
+    Adapters branch on ``inspect.iscoroutinefunction`` to decide whether to
+    await a tool; a sync wrapper around an async tool silently breaks them.
+    """
+    enforcer = make_enforcer(admin_profile)
+
+    @enforcer.guard(operation="R", classifier=lambda **_: ("doc://x", "public"))
+    async def async_tool() -> str:
+        return "x"
+
+    @enforcer.guard(operation="R", classifier=lambda **_: ("doc://y", "public"))
+    def sync_tool() -> str:
+        return "y"
+
+    assert inspect.iscoroutinefunction(async_tool)
+    assert not inspect.iscoroutinefunction(sync_tool)
+
+
+def test_guard_on_async_tool_blocks_before_awaiting(observer_profile):
+    """Denial still happens before the coroutine body runs."""
+    enforcer = make_enforcer(observer_profile)
+    calls: list[str] = []
+
+    @enforcer.guard(
+        operation="C",
+        classifier=lambda *, server_id, **_: (f"server://{server_id}", "internal"),
+    )
+    async def update_config(*, server_id: str) -> None:
+        calls.append(server_id)
+
+    with pytest.raises(RMACDPermissionDeniedError):
+        asyncio.run(update_config(server_id="web-01"))
+    assert calls == []
 
 
 # ---- from_env() ------------------------------------------------------------

@@ -1,6 +1,6 @@
 """Pydantic models for RMACD Framework profiles and policy decisions."""
 
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Literal
 
@@ -329,10 +329,22 @@ class PolicyDecision(BaseModel):
     )
 
 
+def _utcnow() -> datetime:
+    """Timezone-aware UTC now.
+
+    ``datetime.utcnow()`` returns a *naive* datetime holding UTC wall-clock,
+    which ``astimezone()`` then interprets as **system local time**. That made
+    every ``allowed_hours`` / ``allowed_days`` / ``blackout_dates`` check wrong
+    by the host's UTC offset — both admitting and denying incorrectly — and left
+    audit records naive while ``registry/tools.py`` already emitted aware ones.
+    """
+    return datetime.now(timezone.utc)
+
+
 class EvaluationContext(BaseModel):
     """Context for policy evaluation."""
 
-    timestamp: datetime = Field(default_factory=datetime.utcnow)
+    timestamp: datetime = Field(default_factory=_utcnow)
     environment: Environment | None = None
     emergency_active: bool = False
     emergency_trigger: TriggerCondition | None = None

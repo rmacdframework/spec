@@ -1,5 +1,6 @@
 """Tests for the PolicyEvaluator."""
 
+import time as time_module
 from datetime import datetime, timezone
 
 import pytest
@@ -358,6 +359,61 @@ class TestConstraints:
         evaluator = PolicyEvaluator(self._profile_with_hours("22:00", "06:00"))
         ctx = EvaluationContext(timestamp=datetime(2026, 6, 8, 12, 0, tzinfo=timezone.utc))
         assert evaluator.evaluate("R", "public", ctx).allowed is False
+
+    def test_default_context_timestamp_is_timezone_aware(self) -> None:
+        """The default timestamp must carry a tzinfo.
+
+        Regression: it used to default to ``datetime.utcnow()``, a *naive*
+        datetime holding UTC wall-clock. ``_check_time_windows`` then called
+        ``.astimezone()``, which reads naive datetimes as **system local time**,
+        so every hours/days/blackout check was wrong by the host's UTC offset.
+        """
+        ctx = EvaluationContext()
+        assert ctx.timestamp.tzinfo is not None
+        # And it is actually UTC, not merely aware.
+        drift = abs(
+            (ctx.timestamp - datetime.now(timezone.utc)).total_seconds()
+        )
+        assert drift < 5
+
+    def test_naive_timestamp_is_treated_as_utc(self) -> None:
+        """A caller-supplied naive timestamp must not be read as host-local.
+
+        12:00 naive is inside an 08:00–18:00 UTC window. Without the defensive
+        attach this evaluated as 12:00 *local*, which on a UTC+9 host becomes
+        03:00 UTC and denies.
+        """
+        evaluator = PolicyEvaluator(self._profile_with_hours("08:00", "18:00"))
+        ctx = EvaluationContext(timestamp=datetime(2026, 6, 8, 12, 0))
+        assert ctx.timestamp.tzinfo is None  # precondition
+        assert evaluator.evaluate("R", "public", ctx).allowed is True
+
+    def test_window_decision_is_independent_of_host_timezone(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """The same instant must produce the same verdict on any host.
+
+        Exercises the original 4-hour-skew bug directly: an aware 12:00 UTC
+        timestamp is inside an 08:00-18:00 UTC window regardless of what TZ the
+        process happens to run under.
+        """
+        inside = datetime(2026, 6, 8, 12, 0, tzinfo=timezone.utc)
+        outside = datetime(2026, 6, 8, 22, 0, tzinfo=timezone.utc)
+        evaluator = PolicyEvaluator(self._profile_with_hours("08:00", "18:00"))
+
+        try:
+            for tz_name in ("UTC", "America/New_York", "Asia/Tokyo", "Pacific/Kiritimati"):
+                monkeypatch.setenv("TZ", tz_name)
+                time_module.tzset()
+                in_ctx = EvaluationContext(timestamp=inside)
+                out_ctx = EvaluationContext(timestamp=outside)
+                assert evaluator.evaluate("R", "public", in_ctx).allowed is True, tz_name
+                assert evaluator.evaluate("R", "public", out_ctx).allowed is False, tz_name
+        finally:
+            # tzset() mutates process-global state; restore it even on failure
+            # so an assertion here cannot leak a wrong TZ into later tests.
+            monkeypatch.delenv("TZ", raising=False)
+            time_module.tzset()
 
     def test_environment_constraint_blocks_mismatch(self) -> None:
         profile = Profile3D(

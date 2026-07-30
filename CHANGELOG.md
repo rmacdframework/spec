@@ -7,6 +7,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+#### Fixed — evidence integrity
+
+- **`@guard` on an async tool recorded a false `EXECUTED`/`SUCCESS` audit
+  record.** The decorator's wrapper was a plain `def`, so calling an `async def`
+  tool returned an un-awaited coroutine: the success record fired immediately
+  with `duration_ms≈0`, and the `except` arm could never observe a failure
+  raised inside the coroutine. A guarded async tool that raised was still
+  audited as having succeeded — forged evidence in a product whose headline
+  claim is audit evidence. `guard` now emits an `async def` wrapper for
+  coroutine functions, awaits the tool before auditing, and preserves
+  `inspect.iscoroutinefunction` so adapters that branch on it still work.
+  The execution clock now also starts *after* enforcement, so a recorded
+  duration measures the tool rather than any approval round-trip.
+- **Evaluation and audit timestamps were timezone-naive.**
+  `EvaluationContext.timestamp` defaulted to `datetime.utcnow()`, a naive
+  datetime holding UTC wall-clock. `_check_time_windows` then called
+  `.astimezone()`, which interprets naive datetimes as **system local time** —
+  so every `allowed_hours`, `allowed_days` and `blackout_dates` check was wrong
+  by the host's UTC offset, both admitting and denying incorrectly (reproduced:
+  a 4-hour error under `TZ=America/New_York`). It also left audit records naive
+  while `registry/tools.py` emitted timezone-aware ones, so the two halves of
+  the same product disagreed. The default is now `datetime.now(timezone.utc)`,
+  and `_check_time_windows` defensively treats a caller-supplied naive
+  timestamp as UTC.
+
+#### Changed
+
+- The test suite is now warning-clean and runs with `filterwarnings = ["error"]`.
+  All 262 prior warnings had the single `datetime.utcnow()` root cause above; a
+  naive datetime creeping back in is a correctness bug, not noise, so it now
+  fails the build.
+
 ## [0.14.0] — 2026-07-29
 
 Consolidated security release. Closes **nine** ways a governed operation could

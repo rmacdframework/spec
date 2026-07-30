@@ -114,3 +114,7 @@ ignore_missing_imports = true
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-v --cov=rmacd --cov-report=term-missing"
+# The suite is warning-clean as of the tz-aware timestamp fix; keep it that way.
+# A naive datetime creeping back in is a correctness bug (time-window checks
+# skew by the host's UTC offset), not noise, so it should fail the build.
+filterwarnings = ["error"]
