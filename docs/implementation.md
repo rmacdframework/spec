@@ -37,15 +37,20 @@ See spec Appendix D for the full DC2D variant.
 
 ## Step 2: Define Permission Profiles
 
-Start with the provided templates:
+The cumulative permission model gives a natural ladder of roles (spec §9.4).
+These are conceptual templates, not identifiers the SDK resolves:
 
 - **Observer** — Read-only agents
 - **Logistics** — Read + Move agents
 - **Provisioning** — Read + Move + Add agents
 - **Operations** — Read + Move + Add + Change agents
-- **Administrator** — Full RMACD (with restrictions on Restricted data)
+- **Administrator** — Full RMACD (Add, Change and Delete on Restricted remain
+  prohibited — see §12.5; that boundary is not grantable)
 
-Customize as needed for your agent types.
+Worked examples ship in `schemas/examples/`, named for the deployment shape
+rather than the ladder: `observer-2d`, `observer-3d`, `operations-2d`,
+`monitoring-3d`, `devops-3d`, `incident-responder-3d`, `administrator-3d`, and
+`regulated-data-handler-dc2d`. Start from the nearest one and customize.
 
 ### Profiles as code
 

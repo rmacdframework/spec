@@ -7,6 +7,51 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+#### Fixed — normative specification
+
+The spec described software that does not exist and omitted four subsystems that
+do. Every claim below was checked against running code.
+
+- **§9.4 advertised a 27-tool "pre-configured catalog"** — `web_search`,
+  `database_query`, `s3_bucket_delete` and the rest. None of those ids exist
+  anywhere in the SDK, and `ToolsRegistry` ships **empty** (verified: 0 tools on
+  a fresh registry). Replaced with how tool coverage actually works —
+  Governance Packs, and the 34 that ship — plus a pointer to the generated
+  catalog and a note that the `shell` pack is advisory.
+- **§9.4 named Coordinator / Contributor / Developer standard profiles that do
+  not exist.** Three different namings of "the five standard profiles" were in
+  circulation across §9.4, `implementation.md`, and `schemas/examples/`
+  filenames. Canonicalised on one ladder, labelled explicitly as conceptual
+  templates rather than resolvable identifiers, and cross-referenced to the
+  eight example profiles that really ship.
+- **§9.4's workflow-risk example could not run.** It scored three tools it never
+  registered, so `calculate_workflow_risk` returned all zeros with
+  `error: "No valid tools found"` and the next line raised `KeyError` on
+  `highest_risk_tool`. Now self-contained, with the real output, and labelled
+  advisory — nothing in the enforcement path consults risk scores.
+- **Appendix C.6 did not match `AuditRecord`.** It wrapped the record in an
+  `audit_record` envelope the SDK never emits, spelled the operation `"CHANGE"`
+  where the SDK emits `"C"`, carried a phantom `execution.rollback_available`,
+  and omitted `blocked_reason`, `constraints_applied` and `emergency_mode`.
+  Replaced with a byte-accurate record and a list of the fields readers most
+  often get wrong.
+- **Appendix C.5 did not match `ApprovalRequest`.** `timeout_minutes` for
+  `timeout_seconds`, `required_autonomy` for `autonomy_level`, a nested
+  operation object where the SDK keeps it flat, and phantom `approvers` /
+  `context` fields. Corrected, with approver routing explained as the gateway's
+  responsibility and a conformance note that `approval_authority` is not yet
+  enforced.
+- **Added §9.6–§9.9** for the four shipped subsystems that had `docs/` prose but
+  no normative anchor: Governance Packs (with the composition-never-weakens,
+  segment-independence and binary-anchoring rules stated normatively), Session
+  Governance (binding order and the fail-mode table, including the
+  governance-layer-unavailable row), Audit Evidence, and the MCP Policy Server.
+  Appendix C.8 now lists all six companion documents rather than two, and the
+  version note reaches 0.14.0 instead of stopping at 0.12.0.
+- **New test file `test_spec_examples_match_sdk.py`** parses the JSON straight
+  out of the spec markdown and diffs it against live records, so C.5/C.6 cannot
+  drift again. Verified each assertion fails against the previous text.
+
 #### Fixed — fail-closed coverage
 
 - **A missing or broken SDK ran the entire session ungoverned.** The plugin

@@ -18,7 +18,7 @@ Version 1.4.0 | June 2026
 
 *Version 1.3.2 Update: Hardened enforcement of the §12.5 safety boundary in rmacd 0.7.0 — Add/Change/Delete on Restricted data is now rejected both by `profile-3d.schema.json` (at profile-authoring time) and by an immutable runtime floor in the evaluator (at decision time), closing a gap where an `autonomy_overrides` entry could previously raise a prohibited cell. Also fixed time-window midnight wraparound, an egress allow-list substring-match bypass and scheme-less host handling, MCP keyword misclassification, and redaction-pattern issues; expanded the SDK test suite from 60 to 148 tests. See CHANGELOG.*
 
-*Version 1.4.0 SDK updates (June 2026): rmacd 0.9.1 single-sourced the package version and bundled the three profile JSON schemas into the wheel. rmacd 0.10.0 added **LLM-assisted tool classification** — an optional `LLMToolClassifier` (install extra `rmacd-framework[llm]`) that has a Claude model classify ambiguous tool definitions into RMACD terms with a rationale and confidence score, wired into `MCPRegistryBridge` as a fallback (or replacement) for the keyword heuristic. Every auto-classified MCP tool now carries a capability ceiling capped at its inferred operation and classification provenance metadata, with a `low_confidence_tools()` human-review queue; the bridge registers into an existing enforcer registry and accepts raw MCP `tools/list` responses. The bash classifier learned shell control keywords, process substitution, and additional destructive binaries; registry denials are now audited. LLM classification is advisory input at registration time — runtime enforcement (the §12.5 floor, the agent profile, the capability ceiling) remains deterministic. rmacd 0.11.0 added **Governance Packs** (`rmacd.packs`) — declarative, reusable, signable packs that map a tool call to RMACD terms `(operation, data tier, target)` as data instead of hand-written classifiers, with 19 built-in packs, an AI-compile authoring workflow (`rmacd classify`), and Ed25519 signing/drift detection (`rmacd pack sign|verify|diff`). Packs are an SDK capability (not normative); runtime classification stays deterministic. rmacd 0.12.0 added 3 cloud-identity packs (`aws-iam`, `az-identity`, `gcp-iam`) — **22 built-in packs** total — and promoted `CLIApprovalGateway` into the SDK so an approval-gated agent is testable straight from `pip install`. See `docs/governance-packs/` and CHANGELOG.*
+*Version 1.4.0 SDK updates (June 2026): rmacd 0.9.1 single-sourced the package version and bundled the three profile JSON schemas into the wheel. rmacd 0.10.0 added **LLM-assisted tool classification** — an optional `LLMToolClassifier` (install extra `rmacd-framework[llm]`) that has a Claude model classify ambiguous tool definitions into RMACD terms with a rationale and confidence score, wired into `MCPRegistryBridge` as a fallback (or replacement) for the keyword heuristic. Every auto-classified MCP tool now carries a capability ceiling capped at its inferred operation and classification provenance metadata, with a `low_confidence_tools()` human-review queue; the bridge registers into an existing enforcer registry and accepts raw MCP `tools/list` responses. The bash classifier learned shell control keywords, process substitution, and additional destructive binaries; registry denials are now audited. LLM classification is advisory input at registration time — runtime enforcement (the §12.5 floor, the agent profile, the capability ceiling) remains deterministic. rmacd 0.11.0 added **Governance Packs** (`rmacd.packs`) — declarative, reusable, signable packs that map a tool call to RMACD terms `(operation, data tier, target)` as data instead of hand-written classifiers, with 19 built-in packs, an AI-compile authoring workflow (`rmacd classify`), and Ed25519 signing/drift detection (`rmacd pack sign|verify|diff`). Packs are an SDK capability (not normative); runtime classification stays deterministic. rmacd 0.12.0 added 3 cloud-identity packs (`aws-iam`, `az-identity`, `gcp-iam`) and promoted `CLIApprovalGateway` into the SDK so an approval-gated agent is testable straight from `pip install`. rmacd 0.13.0 added **session governance** (§9.7) — a `PreToolUse` hook and Claude Code plugin that bind an interactive coding session to a profile — plus **audit evidence** tooling (§9.8, `rmacd audit summarize`) and the read-only **MCP policy server** (§9.9, `rmacd mcp-serve`), reaching **34 built-in packs**. rmacd 0.14.0 was a security release closing nine under-enforcement bypasses, and corrected the §3.1 matrix: Add on Restricted is **Prohibited**, not Elevated Approval. See `docs/governance-packs/`, `docs/claude-code.md`, `docs/audit-evidence.md`, and CHANGELOG.*
 
 *Version 1.4.0 SDK updates (July 2026): rmacd 0.13.0 added **session governance for Claude Code** (`rmacd.claude_code`) — a deterministic `PreToolUse` hook (`python3 -m rmacd.claude_code.hook`) that binds a profile to a Claude Code session and evaluates the session's own Bash/file/MCP tool calls against it before they run (unbound sessions pass through; bound sessions fail closed; approval-level autonomy maps to Claude Code's permission prompt), shipped with a **Claude Code plugin** (`plugins/rmacd/`, installed via `/plugin marketplace add rmacdframework/spec`) carrying the `rmacd-integrate` skill, `/rmacd:init`, and `/rmacd:status`. The built-in pack catalog grew from 22 to **34 packs** (developer toolchain: `git`, `gh`, `docker`, `terraform`, `npm`, `pip-uv`, `make`; enterprise operations: `helm`, `vault`, `ssh-transfer`, `stripe`, `servicenow`), and **pack composition** (`rmacd.packs.composition`) lets multiple packs govern the same tool name — most-specific claim wins, severity breaks ties fail-closed, each match carries its own pack's capability ceiling. An optional **MCP server** (`rmacd.mcp_server`, install extra `rmacd-framework[mcp]`, CLI `rmacd mcp-serve`) exposes read-only policy tools (evaluate, validate, matrix, pack info, bash classification) to any MCP client. **Audit evidence** arrived as `rmacd audit summarize` (text/json/markdown reports with an operation×tier matrix and §12.5-floor hits) plus `docs/audit-evidence.md` (SIEM shipping and SOC 2 / ISO 27001 / GDPR mapping via §10). All additive and deterministic — the §12.5 floor, profile, and capability ceiling remain the runtime gates. See `docs/claude-code.md` and CHANGELOG.*
 
@@ -475,7 +475,7 @@ The Tools Registry provides:
 - **Risk Scoring** — Automatically calculate risk scores for individual tools and multi-tool workflows
 - **Audit Logging** — Track all tool registrations, access validations (allows *and* denials), and policy decisions
 - **MCP Integration** — Auto-classify Model Context Protocol (MCP) tools, with a capability ceiling at the inferred operation, classification provenance metadata, and a human-review queue for low-confidence results
-- **LLM-Assisted Classification** (SDK 0.10.0+, optional) — A Claude model classifies tool definitions the keyword heuristic cannot, returning a structured `(operation, tier, HITL)` with rationale and confidence; advisory only — runtime enforcement remains deterministic
+- **LLM-Assisted Classification** (optional) — A Claude model classifies tool definitions the keyword heuristic cannot, returning a structured `(operation, tier, HITL)` with rationale and confidence; advisory only — runtime enforcement remains deterministic. At authoring time this is the compiler that produces a Governance Pack (§9.6)
 
 ### Risk Scoring Algorithm
 
@@ -531,40 +531,97 @@ else:
 The registry can analyze multi-tool workflows to identify risk concentrations:
 
 ```python
-# Define a deployment workflow
-workflow_tools = ["github_commit", "kubernetes_deploy", "slack_notify"]
+# Every tool in the workflow must be registered first — the registry ships
+# empty, and unregistered ids are reported in `missing_tools` rather than
+# raising, which would otherwise yield a silent all-zero risk score.
+for tool_id, name, level, tier in [
+    ("github_commit", "GitHub Commit", "C", "internal"),
+    ("kubernetes_deploy", "Kubernetes Deploy", "A", "internal"),
+    ("slack_notify", "Slack Notify", "A", "public"),
+]:
+    quick_register(
+        registry,
+        tool_id=tool_id,
+        tool_name=name,
+        rmacd_level=level,
+        description=name,
+        data_access=tier,
+        required_hitl="approval",
+    )
 
 # Calculate aggregate risk
-risk_analysis = registry.calculate_workflow_risk(workflow_tools)
+risk_analysis = registry.calculate_workflow_risk(
+    ["github_commit", "kubernetes_deploy", "slack_notify"]
+)
 
-print(f"Total Risk: {risk_analysis['total_risk']}/10")
-print(f"Highest RMACD Level: {risk_analysis['highest_rmacd']}")
+print(f"Total Risk: {risk_analysis['total_risk']}/10")       # 5.26/10
+print(f"Highest RMACD Level: {risk_analysis['highest_rmacd']}")  # C
 print(f"Highest Risk Tool: {risk_analysis['highest_risk_tool']}")
 ```
 
-### Pre-Configured Tool Catalog
+> Risk scoring is **advisory** — a prioritisation aid for review, not part of
+> the enforcement path. No decision in §9.5 or §12.5 consults it.
 
-The implementation includes 27 pre-configured tools across all RMACD levels:
+### Pre-Classified Tool Coverage: Governance Packs
 
-| RMACD Level | Example Tools | Count |
-|-------------|---------------|-------|
-| Read | web_search, database_query, metrics_monitor | 5 |
-| Move | file_move, github_transfer, container_relocate | 4 |
-| Add | file_create, kubernetes_deploy, slack_post | 6 |
-| Change | file_edit, github_commit, config_update | 6 |
-| Delete | file_delete, database_delete, s3_bucket_delete | 6 |
+A `ToolsRegistry` starts **empty**. Tool coverage is not a fixed catalogue baked
+into the registry; it is supplied by **Governance Packs** — declarative,
+versionable, signable documents that map a tool call to
+`(operation, classification, target)` as data rather than code. Load them and
+the registry is populated:
+
+```python
+from rmacd.packs import load_packs
+
+registry = load_packs(["shell", "filesystem", "git", "kubectl"])
+```
+
+The SDK ships **34 built-in packs**, covering shells, cloud CLIs and their
+identity surfaces, developer toolchains, databases, and SaaS/MCP servers:
+
+| Family | Packs |
+|--------|-------|
+| Shell and filesystem | `shell`, `filesystem` |
+| Cloud CLIs | `aws`, `az`, `gcloud`, `kubectl`, `boto3` |
+| Cloud identity | `aws-iam`, `az-identity`, `gcp-iam` |
+| Cloud-provider MCPs | `aws-api-mcp`, `azure-mcp`, `gcp-toolbox` |
+| Developer toolchain | `git`, `gh`, `github`, `gitlab`, `docker`, `terraform`, `helm`, `npm`, `pip-uv`, `make` |
+| Data | `sql`, `postgres` |
+| SaaS and collaboration | `slack`, `jira`, `confluence`, `google-drive`, `ms365`, `servicenow`, `stripe` |
+| Secrets and transfer | `vault`, `ssh-transfer` |
+
+The authoritative, generated list — including per-pack tool and rule counts —
+is `docs/governance-packs/catalog.md`. Packs carry a `content_hash` and an
+optional Ed25519 signature so a deployment can pin exactly the classification
+logic it reviewed; see §9.6.
+
+> **Note.** The `shell` pack is **advisory**. The hand-tuned
+> `rmacd.registry.bash` engine remains the enforcing classifier for shell
+> commands — the pack under-classifies constructs the declarative language
+> cannot yet express (shell redirects, `-c`/`eval` payloads, flag-elevated
+> commands such as `find -delete`). See `docs/governance-packs/design.md` §8.
 
 ### Standard Permission Profiles
 
-Five standard permission profiles map to common agent roles:
+The cumulative permission model (§3) yields a natural ladder of agent roles.
+These are **conceptual templates**, not identifiers the SDK resolves — a
+profile is whatever its JSON declares:
 
-| Profile | Permissions | Use Cases |
-|---------|-------------|-----------|
+| Template | Permissions | Use Cases |
+|----------|-------------|-----------|
 | Observer | R | Monitoring, reporting, analytics |
-| Coordinator | R, M | File organization, data migration |
-| Contributor | R, M, A | Content creation, resource provisioning |
-| Developer | R, M, A, C | Development, configuration management |
+| Logistics | R, M | File organization, data migration |
+| Provisioning | R, M, A | Content creation, resource provisioning |
+| Operations | R, M, A, C | Development, configuration management |
 | Administrator | R, M, A, C, D | System administration, data cleanup |
+
+Note that even Administrator cannot perform Add, Change, or Delete on
+Restricted data — that boundary is immutable (§12.5) and is enforced beneath
+any permission grant.
+
+Worked example profiles ship in `schemas/examples/`:
+`observer-2d`, `observer-3d`, `operations-2d`, `monitoring-3d`, `devops-3d`,
+`incident-responder-3d`, `administrator-3d`, and `regulated-data-handler-dc2d`.
 
 ### Enforcement bridge
 
@@ -712,6 +769,142 @@ tool capability ceiling. The registry answers "what does this tool call
 answers "may *this agent* do that, right now?" — and enforces the
 intersection. The previously-standalone `tools-registry/` directory was
 folded into `rmacd.registry` and removed in v1.4.0.
+
+## **9.6 Governance Packs**
+
+A **Governance Pack** is a declarative, versionable document that maps tool
+calls to `(operation, classification, target)`. Packs move classification out
+of code and into reviewable data, so onboarding a tool surface becomes
+configuration rather than a code change.
+
+A pack declares:
+
+- **Selectors** — which tool a rule applies to (exact name, glob, or regex),
+  optionally narrowed by argument predicates.
+- **Extraction** — how to reach the meaningful argument: wrapper stripping,
+  tokenization, and recursion into `$(...)` substitution.
+- **A `verb_table`** — token-to-operation mapping, combined by **MAX
+  operation**, with a fail-closed `default_operation`.
+- **A `pattern_map`** — target-to-classification mapping, resolved
+  most-sensitive-wins, plus a `target` template.
+- **A capability ceiling** — the most a tool may *ever* do, independent of the
+  calling profile.
+
+### Normative requirements
+
+1. **Determinism.** Pack evaluation MUST be a pure function of the pack set and
+   the tool call. An LLM MAY assist at *authoring* time; it MUST NOT
+   participate in a runtime decision.
+2. **Composition never weakens.** When multiple packs match a call, the result
+   is the **most severe asserted operation** and the **most sensitive tier**.
+   Severity is applied as a floor *before* specificity ranking, so a more
+   specific rule can never lower an operation asserted by a less specific one.
+   A rule asserting no operation MUST contribute no operation claim.
+3. **Segment independence.** A compound shell command is resolved per segment
+   (split on `;`, `&&`, `||`, `|`, and bare `&`); the result is the maximum
+   across segments. `git log; shred x` is a Delete.
+4. **Binary anchoring.** A rule naming both shell tools and real binaries MUST
+   require one of those binaries as a command token, so an overlay cannot claim
+   an unrelated binary's invocation.
+5. **The pack layer is subordinate.** Classification is *input* to enforcement.
+   The profile, the tool capability ceiling, and the §12.5 immutable floor
+   always gate the resulting call.
+
+### Integrity
+
+Each pack carries a canonical `content_hash`; packs MAY carry a detached
+Ed25519 signature over it. A deployment SHOULD pin the packs it has reviewed
+and load with signature verification required. `source_hash` capture supports
+drift detection: when an upstream tool surface changes, affected tools are
+flagged for re-review rather than silently reclassified.
+
+The reference SDK ships **34 built-in packs** (§9.4) and the CLI verbs
+`rmacd classify`, `rmacd pack validate|review|sign|verify|diff`. Design
+rationale and the authoring workflow are in `docs/governance-packs/`.
+
+## **9.7 Session Governance**
+
+Sections 9.4–9.6 govern an agent *an integrator builds*. Session governance
+covers the other case: a general-purpose coding agent, run by a human, whose
+tool calls should be subject to the same profile.
+
+The reference implementation governs Claude Code through its `PreToolUse`
+hook. The model generalizes to any agent runtime offering a synchronous
+pre-execution interception point.
+
+### Binding
+
+A session is **bound** when a profile resolves, searched in this order:
+
+1. `RMACD_PROFILE_PATH` (explicit, wins outright).
+2. `<cwd>/.claude/rmacd-profile.json`, then each parent directory —
+   nearest wins, so a subproject may bind a stricter profile than its root.
+3. `$CLAUDE_PROJECT_DIR/.claude/rmacd-profile.json`.
+
+The upward walk is required, not optional: session working directories change
+during normal use, and resolving only the exact cwd silently unbinds the
+session.
+
+### Normative fail modes
+
+| State | Required behavior |
+|-------|-------------------|
+| No profile bound | Passthrough. Emit no decision; the host's own permission flow is unchanged. Notify once. |
+| Bound, hook errors | **Deny**, with a diagnostic reason. Covers invalid profile, malformed input, and unexpected exceptions. |
+| Bound, unknown tool | Deny by default; MAY be configured to route to the host's approval prompt instead. |
+| Bound, governance layer unavailable | **Deny.** See below. |
+
+The last row is the one most easily missed. If the host treats a failed hook as
+non-blocking — as Claude Code does — then a missing or unimportable SDK yields
+an **ungoverned session with no error surfaced to the user**. A conforming
+implementation MUST therefore detect "a profile is configured but governance
+cannot run" and deny, rather than relying on the hook process itself to be
+present and healthy.
+
+Where autonomy resolves to approval, the hook SHOULD surface the host's own
+permission prompt rather than blocking on an out-of-band gateway: the hook
+process is short-lived and has no interactive input.
+
+Tool calls made inside **subagents** are governed identically — the hook fires
+for them as it does in the main conversation.
+
+## **9.8 Audit Evidence**
+
+§9.5 emits audit records; this section covers turning them into evidence.
+
+Records are JSON Lines in the Appendix C.6 shape, one per decision, appended in
+decision order. An implementation MUST NOT rewrite or reorder emitted records.
+
+The reference SDK provides `rmacd audit summarize`, which produces an
+operation × classification matrix of decisions, denial counts by cause, and
+explicit identification of §12.5 floor denials — the evidence an auditor asks
+for when the question is "prove the boundary held". Records carry the profile
+id and, where applicable, the approval id and approver, so a decision can be
+traced to the policy that produced it and the human who authorized it.
+
+`immutable_logging` in a profile's audit requirements signals a WORM
+destination. **Conformance note (SDK ≤ 0.14.0):** the reference
+`JSONLAuditLogger` writes plain lines with no hash chain, sequence number, or
+signature, and `pii_masking` is not applied to audit fields. An implementation
+claiming tamper-evidence MUST supply it at the sink.
+
+## **9.9 MCP Policy Server**
+
+RMACD policy is itself exposed over the Model Context Protocol, so a model can
+*consult* governance without being able to alter it. The reference server
+(`rmacd mcp-serve`, `[mcp]` extra) offers read-only tools:
+
+| Tool | Purpose |
+|------|---------|
+| `rmacd_evaluate` | Evaluate an operation/classification against a profile |
+| `rmacd_matrix` | Effective autonomy matrix for a profile |
+| `rmacd_validate_profile` | Validate a profile against its schema |
+| `rmacd_list_packs` / `rmacd_pack_info` | Inspect available governance packs |
+| `rmacd_classify_bash` | Classify a shell command in RMACD terms |
+
+Every tool is **advisory and side-effect-free**. Nothing here is an enforcement
+path: a model consulting the server cannot grant itself permission, and an
+answer from it is not a decision. Enforcement remains §9.5 at the call site.
 
 # **10. Regulatory Compliance Mapping**
 
@@ -1644,67 +1837,95 @@ def modify_config(*, server_id: str, config: dict):
 
 ## **C.5 Approval Workflow Integration**
 
-When operations require human approval, RMACD integrates with existing workflow systems:
+When operations require human approval, RMACD integrates with existing workflow
+systems. This is the `ApprovalRequest` an `ApprovalGateway` receives, verbatim
+as the SDK constructs it:
 
 ```json
 {
-  "approval_request": {
-    "request_id": "apr-20260110-001",
-    "agent_id": "devops-agent-001",
-    "profile_id": "rmacd-3d-operations-v1",
-    "operation": {
-      "type": "CHANGE",
-      "target": "config://prod/app-server-01/nginx.conf",
-      "classification": "internal",
-      "description": "Update nginx worker_connections from 1024 to 2048"
-    },
-    "required_autonomy": "approval",
-    "approvers": ["change-manager@company.com"],
-    "timeout_minutes": 60,
-    "created_at": "2026-01-10T14:30:00Z",
-    "context": {
-      "reason": "Performance optimization for increased traffic",
-      "rollback_plan": "Revert to backup nginx.conf.bak",
-      "impact_assessment": "Low - affects single server"
-    }
-  }
+  "request_id": "apr-20260110-001",
+  "agent_id": "devops-agent-001",
+  "profile_id": "rmacd-3d-operations-v1",
+  "operation": "C",
+  "target": "config://prod/app-server-01/nginx.conf",
+  "classification": "internal",
+  "autonomy_level": "approval",
+  "justification": "Performance optimization for increased traffic",
+  "timeout_seconds": 300,
+  "metadata": null,
+  "created_at": "2026-01-10T14:30:00Z"
 }
 ```
 
-Approval requests can be routed to ServiceNow, Jira, Slack, Microsoft Teams, or custom workflow systems via webhooks and API integrations.
+Note the shape: `operation` is the single-letter RMACD code at the top level
+(not a nested object), the required autonomy is `autonomy_level`, and the
+timeout is `timeout_seconds`. Free-form context belongs in `metadata`.
+
+**Approver routing is the gateway's responsibility, not the request's.** The
+request carries no `approvers` list: the profile's `approval_authority` block
+declares who may approve and how many are required, and the integrator's
+`ApprovalGateway` implementation reads it. Requests can be routed to
+ServiceNow, Jira, Slack, Microsoft Teams, or custom workflow systems via
+webhooks and API integrations.
+
+> **Conformance note (SDK ≤ 0.14.0).** `approval_authority` — `approvers`,
+> `timeout_minutes`, `require_multiple_approvers`, `minimum_approvers` — is
+> schema-validated but **not yet enforced by the reference SDK**: it does not
+> reach the gateway, and `timeout_seconds` is currently fixed at 300. An
+> implementation claiming conformance must enforce it or document the gap.
 
 ## **C.6 Audit Log Format**
 
-All policy decisions and agent operations generate structured audit logs for compliance:
+All policy decisions and agent operations generate structured audit logs for
+compliance. Each record is one line of JSONL, emitted exactly as shown — the
+object is **top-level**, with no `audit_record` envelope:
 
 ```json
 {
-  "audit_record": {
-    "record_id": "aud-20260110-143022-001",
-    "timestamp": "2026-01-10T14:30:22.456Z",
-    "agent_id": "devops-agent-001",
-    "profile_id": "rmacd-3d-operations-v1",
-    "operation": {
-      "type": "CHANGE",
-      "target": "config://prod/app-server-01/nginx.conf",
-      "classification": "internal"
-    },
-    "policy_decision": {
-      "result": "ALLOW",
-      "autonomy_level": "approval",
-      "approval_id": "apr-20260110-001",
-      "approved_by": "john.smith@company.com",
-      "approved_at": "2026-01-10T14:28:00Z"
-    },
-    "execution": {
-      "status": "SUCCESS",
-      "duration_ms": 1250,
-      "rollback_available": true
-    },
-    "compliance_tags": ["SOX", "ISO27001"]
-  }
+  "record_id": "aud-a21511787fe6416a",
+  "timestamp": "2026-01-10T14:30:22.456Z",
+  "agent_id": "devops-agent-001",
+  "profile_id": "rmacd-3d-operations-v1",
+  "operation": {
+    "type": "C",
+    "target": "config://prod/app-server-01/nginx.conf",
+    "classification": "internal"
+  },
+  "policy_decision": {
+    "result": "ALLOW",
+    "autonomy_level": "approval",
+    "blocked_reason": null,
+    "approval_id": "apr-20260110-001",
+    "approved_by": "john.smith@company.com",
+    "approved_at": "2026-01-10T14:28:00Z",
+    "constraints_applied": [],
+    "emergency_mode": false
+  },
+  "execution": {
+    "status": "SUCCESS",
+    "duration_ms": 1250,
+    "error": null
+  },
+  "compliance_tags": ["SOX", "ISO27001"]
 }
 ```
+
+Points where a reader is most likely to get this wrong:
+
+- `operation.type` is the **single-letter RMACD code** (`"C"`), not a word
+  (`"CHANGE"`). It is the value of the `Operation` enum.
+- `policy_decision.result` is one of `ALLOW`, `DENY`, `QUEUED`, `APPROVED`,
+  `REJECTED`, `EXECUTED`. `EXECUTED` records are emitted by `@guard` after a
+  tool runs and are the only ones carrying an `execution` block; on every other
+  record `execution` is `null`. *(Known gap in SDK ≤ 0.14.0:
+  `rmacd.audit_report` omits `EXECUTED` from its result table, so `@guard`
+  execution records fall into that report's "other" bucket.)*
+- `blocked_reason`, `constraints_applied` and `emergency_mode` are always
+  present. `constraints_applied` names the constraint families that
+  participated in the decision — `immutable_prohibition` identifies a §12.5
+  floor denial.
+- Timestamps are RFC 3339 with a `Z` suffix and are **timezone-aware UTC**.
+- There is no `rollback_available` field.
 
 ## **C.7 Deployment Checklist**
 
@@ -1722,16 +1943,25 @@ Organizations implementing RMACD should complete the following deployment steps:
 ## **C.8 Companion Runtime Documentation**
 
 The architecture and pseudocode in this Appendix describe *what* the
-enforcement layer does. Two companion documents in `docs/` describe
-*how* an integrator wires it together at the call site:
+enforcement layer does. The companion documents in `docs/` describe *how* an
+integrator wires it together at the call site:
 
+- **`docs/implementation.md`** — step-by-step adoption: choosing a deployment
+  shape, defining profiles, classifying resources, and rolling out enforcement.
 - **`docs/runtime-patterns.md`** — profile binding, resource
   classification lookup, dynamic operation classification, approval-wait
   semantics for LLM tool calls, SDK error contract, agent self-restriction
   prompts, and DC2D runtime enforcement.
 - **`docs/framework-adapters.md`** — copy-pasteable integration code for
-  LangChain, AutoGen, CrewAI, plus a generic dispatch-site pattern for
-  any other framework.
+  the OpenAI Agents SDK, Microsoft Agent Framework, LangChain, AutoGen and
+  CrewAI, plus a generic dispatch-site pattern for any other framework.
+- **`docs/governance-packs/`** (§9.6) — pack format, design rationale, the
+  AI-compile authoring workflow, signing and drift detection, and the
+  generated `catalog.md` of built-in packs.
+- **`docs/claude-code.md`** (§9.7) — session governance: binding, the
+  normative fail-mode table, tool mapping, and the plugin.
+- **`docs/audit-evidence.md`** (§9.8) — the audit record field reference and
+  `rmacd audit summarize`.
 
 # **Appendix D: The Data-Classification Two-Dimensional Variant (DC2D)**
 
