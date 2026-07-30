@@ -58,6 +58,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Changed
 
+- **The `shell` pack is now documented as advisory, not a `bash.py` parity port.**
+  The parity claim in `design.md` §8/§9, `governance-packs/README.md` and the
+  pack's own description was false, and the golden fixture certified it only on
+  the subset where the two engines already agree — it contained no redirect, no
+  `-c`, no `eval` and no flag-elevated command. Measured divergences, all of
+  them *under*-classifications by the pack: `echo x > /etc/passwd` R vs C,
+  `bash -c "rm -rf /"` and `eval "rm -rf /"` C vs D, `find . -delete` R vs D,
+  `curl -X DELETE` C vs D, `mkfs.ext4` C vs D, `rsync --delete` C vs D.
+  `bash.py` remains the enforcing shell classifier. The seven divergences are
+  now pinned by tests that fail if either engine changes *or* if a gap is closed
+  without the case being promoted, so the shortfall stays visible. Closing it
+  needs four engine primitives: redirect detection, `-c`/`eval` recursion, flag
+  elevation, and prefix binary matching.
 - The test suite is now warning-clean and runs with `filterwarnings = ["error"]`.
   All 262 prior warnings had the single `datetime.utcnow()` root cause above; a
   naive datetime creeping back in is a correctness bug, not noise, so it now

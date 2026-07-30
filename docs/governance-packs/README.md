@@ -105,7 +105,7 @@ Governance Packs remove that tax.
 
 | Family | Packs |
 |--------|-------|
-| Shell | `shell` (reference; ports the existing `bash.py`) |
+| Shell | `shell` (**advisory only** — partial port of `bash.py`, which remains the enforcing shell classifier; see [design.md §8](design.md)) |
 | Cloud CLIs | `aws`, `gcloud`, `az`, `kubectl` |
 | Cloud IAM / identity | `aws-iam`, `az-identity`, `gcp-iam` |
 | Dev tools | `github`, `gitlab`, `sql`, `filesystem` |

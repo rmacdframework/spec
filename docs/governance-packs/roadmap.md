@@ -64,6 +64,17 @@ hashing are stable and tested.
 **Exit criteria:** behavior parity with a representative subset of `bash.py`,
 driven entirely by a data pack.
 
+> **Met as written, but the wording flattered the result** (noted 2026-07-30).
+> "A representative subset" turned out to mean *the subset where the two engines
+> already agree* — the fixture contains no redirect, no `-c`, no `eval` and no
+> flag-elevated command. On the constructs that distinguish them the pack
+> under-classifies: `echo x > /etc/passwd` R vs C, `bash -c "rm -rf /"` C vs D,
+> `find . -delete` R vs D, `curl -X DELETE` C vs D, `mkfs.ext4` C vs D,
+> `rsync --delete` C vs D. The `shell` pack is therefore **advisory**, and
+> `bash.py` is the enforcing shell classifier. Closing this needs four engine
+> primitives: redirect detection, `-c`/`eval` recursion, flag elevation, and
+> prefix binary matching.
+
 ## Phase 2 — Pack loading, registration, serialization, resolvers
 
 **Status:** ✅ Complete — shipped in 0.11.0.

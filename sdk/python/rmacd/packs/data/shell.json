@@ -1,7 +1,7 @@
 {
   "pack": "shell",
   "version": "1.0.0",
-  "description": "RMACD classification for shell/bash command tools. The hand-tuned rmacd.registry.bash engine remains the fast path; this data pack is the portable, signable representation (parity-tested on a representative subset).",
+  "description": "RMACD classification for shell/bash command tools. ADVISORY ONLY \u2014 this data pack does NOT have parity with the hand-tuned rmacd.registry.bash engine, which remains the enforcing classifier for shell commands. The declarative engine has no redirect detection, no `-c`/`eval` recursion, no flag-elevation primitive and no prefix binary matching, so it under-classifies constructs such as `echo x > /etc/passwd` (R vs C), `bash -c \"rm -rf /\"` (C vs D), `find . -delete` (R vs D) and `curl -X DELETE` (C vs D). Use it as the portable, signable representation of the common cases; do not rely on it alone to gate a shell tool.",
   "default_operation": "C",
   "provenance": {
     "authored_by": "rmacd",
@@ -11,32 +11,102 @@
   "rules": [
     {
       "id": "shell-coreutils",
-      "when": {"tool": ["bash", "sh", "shell", "zsh", "run_command", "execute_command"]},
+      "when": {
+        "tool": [
+          "bash",
+          "sh",
+          "shell",
+          "zsh",
+          "run_command",
+          "execute_command"
+        ]
+      },
       "parse": {
         "arg": "command",
-        "strip_wrappers": ["sudo", "env", "nice", "nohup", "time", "timeout", "xargs", "doas"]
+        "strip_wrappers": [
+          "sudo",
+          "env",
+          "nice",
+          "nohup",
+          "time",
+          "timeout",
+          "xargs",
+          "doas"
+        ]
       },
       "verb_table": {
-        "ls": "R", "cat": "R", "grep": "R", "egrep": "R", "find": "R", "echo": "R",
-        "head": "R", "tail": "R", "wc": "R", "stat": "R", "pwd": "R", "which": "R",
-        "whoami": "R", "id": "R", "env": "R", "printenv": "R", "df": "R", "du": "R",
-        "ps": "R", "top": "R", "file": "R", "readlink": "R", "dirname": "R",
-        "basename": "R", "sort": "R", "uniq": "R", "diff": "R", "less": "R", "more": "R",
-        "date": "R", "uname": "R", "hostname": "R", "uptime": "R", "free": "R",
-        "mv": "M", "rename": "M",
-        "cp": "A", "mkdir": "A", "touch": "A", "tee": "A", "ln": "A", "install": "A",
-        "chmod": "C", "chown": "C", "chgrp": "C", "truncate": "C",
-        "rm": "D", "rmdir": "D", "shred": "D", "unlink": "D"
+        "ls": "R",
+        "cat": "R",
+        "grep": "R",
+        "egrep": "R",
+        "find": "R",
+        "echo": "R",
+        "head": "R",
+        "tail": "R",
+        "wc": "R",
+        "stat": "R",
+        "pwd": "R",
+        "which": "R",
+        "whoami": "R",
+        "id": "R",
+        "env": "R",
+        "printenv": "R",
+        "df": "R",
+        "du": "R",
+        "ps": "R",
+        "top": "R",
+        "file": "R",
+        "readlink": "R",
+        "dirname": "R",
+        "basename": "R",
+        "sort": "R",
+        "uniq": "R",
+        "diff": "R",
+        "less": "R",
+        "more": "R",
+        "date": "R",
+        "uname": "R",
+        "hostname": "R",
+        "uptime": "R",
+        "free": "R",
+        "mv": "M",
+        "rename": "M",
+        "cp": "A",
+        "mkdir": "A",
+        "touch": "A",
+        "tee": "A",
+        "ln": "A",
+        "install": "A",
+        "chmod": "C",
+        "chown": "C",
+        "chgrp": "C",
+        "truncate": "C",
+        "rm": "D",
+        "rmdir": "D",
+        "shred": "D",
+        "unlink": "D"
       },
       "default": "C",
       "tier": {
         "pattern_map": [
-          {"arg_regex": {"arg": "command", "pattern": "(shadow|/etc/sudoers|secret|credential|private[_-]?key|\\.pem|\\.env|password|token)"}, "tier": "confidential"}
+          {
+            "arg_regex": {
+              "arg": "command",
+              "pattern": "(shadow|/etc/sudoers|secret|credential|private[_-]?key|\\.pem|\\.env|password|token)"
+            },
+            "tier": "confidential"
+          }
         ],
         "default": "internal"
       },
       "target": "shell://{command}",
-      "capability": ["R", "M", "A", "C", "D"]
+      "capability": [
+        "R",
+        "M",
+        "A",
+        "C",
+        "D"
+      ]
     }
   ]
 }

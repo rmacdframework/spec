@@ -295,8 +295,17 @@ enforcer.registry = load_packs(["shell", "aws-cli", "kubectl", "acme/internal@2.
 
 - Existing Python `classifier` lambdas: unchanged, still supported.
 - `enforce_tool_call`, the evaluator, and the §12.5 floor: untouched.
-- The bundled `shell` pack reproduces current `bash.py` behavior; `bash.py` is
-  retained as the fast engine, with golden parity tests between the two.
+- The bundled `shell` pack is **advisory only** and does *not* reproduce
+  `bash.py` behaviour; `bash.py` remains the enforcing classifier for shell
+  commands. The parity intended here was never achieved: the declarative engine
+  has no redirect detection, no `-c`/`eval` recursion, no flag-elevation
+  primitive and no prefix binary matching, so it under-classifies
+  `echo x > /etc/passwd` (R vs C), `bash -c "rm -rf /"` and `eval "rm -rf /"`
+  (C vs D), `find . -delete` (R vs D), `curl -X DELETE` (C vs D),
+  `mkfs.ext4` (C vs D) and `rsync --delete` (C vs D). The golden tests cover
+  only the subset where the two agree — see the parity fixture note in
+  `roadmap.md`. Closing the gap means growing the declarative language; until
+  then, do not gate a shell tool on the pack alone.
 
 ## 9. Decisions (resolved 2026-06-13)
 
@@ -308,7 +317,7 @@ enforcer.registry = load_packs(["shell", "aws-cli", "kubectl", "acme/internal@2.
 | 4 | **Format:** YAML-authored, canonical JSON for hashing/signing. |
 | 5 | **Module home:** `rmacd.packs` (new top-level package; named for the artifact to avoid colliding with the data-classification axis). |
 | 6 | **Signing:** ed25519 detached signature over `content_hash`. |
-| 7 | **`bash.py`:** kept as the fast engine alongside the `shell` data pack, with golden parity tests. |
+| 7 | **`bash.py`:** kept as the fast engine alongside the `shell` data pack, with golden parity tests. *(Revised 2026-07-30: parity was not achieved. `bash.py` is the **enforcing** engine; the `shell` pack is advisory. See §8.)* |
 
 ## 10. Risks & mitigations
 

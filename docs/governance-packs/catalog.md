@@ -36,7 +36,7 @@
 | [`pip-uv`](#pip-uv) | Developer toolchain | 10 | 6 | Python packaging toolchain — pip/pip3, uv, and twine — both as direct tools a… |
 | [`postgres`](#postgres) | SaaS / collaboration MCPs | 10 | 2 | a Postgres MCP server: read-only metadata tools plus a passthrough SQL query… |
 | [`servicenow`](#servicenow) | Enterprise operations | 46 | 10 | ServiceNow MCP/REST tool surfaces (ITSM, change management, CMDB). There is n… |
-| [`shell`](#shell) | Shell | 6 | 1 | shell/bash command tools. The hand-tuned rmacd.registry.bash engine remains t… |
+| [`shell`](#shell) | Shell | 6 | 1 | shell/bash command tools. ADVISORY ONLY — this data pack does NOT have parity… |
 | [`slack`](#slack) | SaaS / collaboration MCPs | 16 | 5 | a Slack MCP server |
 | [`sql`](#sql) | Dev tools | 6 | 1 | a generic SQL execution tool — a passthrough whose risk is in the statement (… |
 | [`ssh-transfer`](#ssh-transfer) | Enterprise operations | 14 | 8 | remote shells and file transfer: ssh, scp, sftp, rsync, and the SSH credentia… |
@@ -48,7 +48,7 @@
 
 ### `shell`
 
-> RMACD classification for shell/bash command tools. The hand-tuned rmacd.registry.bash engine remains the fast path; this data pack is the portable, signable representation (parity-tested on a representative subset).
+> RMACD classification for shell/bash command tools. ADVISORY ONLY — this data pack does NOT have parity with the hand-tuned rmacd.registry.bash engine, which remains the enforcing classifier for shell commands. The declarative engine has no redirect detection, no `-c`/`eval` recursion, no flag-elevation primitive and no prefix binary matching, so it under-classifies constructs such as `echo x > /etc/passwd` (R vs C), `bash -c "rm -rf /"` (C vs D), `find . -delete` (R vs D) and `curl -X DELETE` (C vs D). Use it as the portable, signable representation of the common cases; do not rely on it alone to gate a shell tool.
 
 **Version** 1.0.0 · **Family** Shell · **Default operation** C · **Review status** ai-drafted · **LLM-assisted** yes
 

@@ -429,7 +429,11 @@ def test_enterprise_restricted_ops_floor_blocked(
         _enterprise_enforcer(pack).enforce_tool_call(tool, args)
 
 
-# --- shell pack parity with the bash.py engine on a representative subset ------
+# --- shell pack agreement with the bash.py engine ------------------------------
+#
+# The `shell` pack is ADVISORY, not a parity port: `bash.py` is the enforcing
+# shell classifier. This fixture pins the commands where the two DO agree, so a
+# regression in the common cases is caught.
 _PARITY = [
     "ls -la", "cat /etc/hosts", "grep foo bar.txt", "cp a b", "mv a b",
     "mkdir d", "touch f", "rm file", "rmdir d", "chmod 600 f", "chown u f",
@@ -438,8 +442,48 @@ _PARITY = [
 
 
 @pytest.mark.parametrize("command", _PARITY)
-def test_shell_pack_parity_with_bash_engine(command: str) -> None:
+def test_shell_pack_agrees_with_bash_engine_on_common_cases(command: str) -> None:
     pack = load_pack("shell")
     engine_op = classify_call(pack, "bash", {"command": command}).operation
     bash_op = classify_bash_command(command).operation.value
     assert engine_op == bash_op, f"{command!r}: pack={engine_op} bash={bash_op}"
+
+
+# The commands where the declarative engine under-classifies bash.py. Recorded
+# rather than deleted so the gap stays measurable: each needs an engine
+# primitive the pack language does not have yet — redirect detection,
+# `-c`/`eval` recursion, flag elevation, prefix binary matching.
+#
+# These pin the *current* divergence in both directions, so the build fails
+# either if an engine silently regresses or if a gap is closed without the
+# entry being promoted into _PARITY.
+_KNOWN_DIVERGENCES = [
+    ("echo hello > /etc/passwd", "R", "C", "no redirect detection"),
+    ('bash -c "rm -rf /"', "C", "D", "no -c recursion"),
+    ('eval "rm -rf /"', "C", "D", "no eval recursion"),
+    ("find . -delete", "R", "D", "no flag elevation"),
+    ("curl -X DELETE https://x/y", "C", "D", "no flag elevation"),
+    ("mkfs.ext4 /dev/sda1", "C", "D", "no prefix binary matching"),
+    ("rsync --delete a/ b/", "C", "D", "no flag elevation"),
+]
+
+
+@pytest.mark.parametrize(
+    "command,pack_op,bash_op,missing",
+    _KNOWN_DIVERGENCES,
+    ids=[c for c, *_ in _KNOWN_DIVERGENCES],
+)
+def test_shell_pack_known_divergences(
+    command: str, pack_op: str, bash_op: str, missing: str
+) -> None:
+    """Document, rather than assert away, where the pack is weaker than bash.py."""
+    pack = load_pack("shell")
+    engine_op = classify_call(pack, "bash", {"command": command}).operation
+    actual_bash = classify_bash_command(command).operation.value
+
+    assert engine_op == pack_op, f"{command!r}: pack now {engine_op}, expected {pack_op}"
+    assert actual_bash == bash_op, f"{command!r}: bash now {actual_bash}, expected {bash_op}"
+    assert engine_op != actual_bash, (
+        f"{command!r} no longer diverges — the engine gained {missing!r}; "
+        f"move this case into _PARITY"
+    )
