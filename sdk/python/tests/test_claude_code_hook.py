@@ -907,3 +907,83 @@ def test_write_to_relative_restricted_path_is_denied(tmp_path: Path) -> None:
     )["hookSpecificOutput"]
     assert out["permissionDecision"] == "deny"
     assert "§12.5" in out["permissionDecisionReason"]
+
+
+# ---------------------------------------------------------------------------
+# nested tool arguments and file:// targets (2026-08-11)
+# ---------------------------------------------------------------------------
+
+
+def _mcp_tier(tmp_path: Path, args: dict[str, Any]) -> DataClassification | None:
+    binding = make_binding(
+        tmp_path,
+        env_overrides={
+            session.ENV_CLASSIFICATION_MAP: json.dumps({"/data/secret/*": "restricted"})
+        },
+    )
+    return mapping.map_tool_call("mcp__fs__read_file", args, binding).tier
+
+
+@pytest.mark.parametrize(
+    "args",
+    [
+        {"path": "/data/secret/x"},
+        {"paths": ["/data/secret/x"]},
+        {"opts": {"path": "/data/secret/x"}},
+        {"a": {"b": {"c": ["/data/secret/x"]}}},
+    ],
+    ids=["top-level", "list", "nested-dict", "deep"],
+)
+def test_classification_map_reaches_nested_tool_arguments(
+    tmp_path: Path, args: dict[str, Any]
+) -> None:
+    """A path one level down must not evade the map.
+
+    Scanning only top-level strings let `{"paths": [...]}` fall through to the
+    session default tier — the same §12.5-downgrade shape as the `sh -c`
+    evasion closed in 0.14.0.
+    """
+    assert _mcp_tier(tmp_path, args) == DataClassification.RESTRICTED
+
+
+def test_unmapped_nested_path_still_takes_the_default_tier(tmp_path: Path) -> None:
+    """The walk must not classify everything it touches as sensitive."""
+    assert _mcp_tier(tmp_path, {"paths": ["/data/public/x"]}) != DataClassification.RESTRICTED
+
+
+def test_nested_argument_walk_is_depth_bounded(tmp_path: Path) -> None:
+    deep: Any = "/data/secret/x"
+    for _ in range(50):
+        deep = {"n": deep}
+    assert _mcp_tier(tmp_path, {"a": deep}) != DataClassification.RESTRICTED
+
+
+@pytest.mark.parametrize(
+    "target,expected",
+    [
+        ("/data/secret/x", DataClassification.RESTRICTED),
+        # Packs render URI-shaped targets (90 of the built-in templates do), so
+        # bailing on every "://" made target-based classification a no-op.
+        ("file:///data/secret/x", DataClassification.RESTRICTED),
+        ("file://host/data/secret/x", DataClassification.RESTRICTED),
+        ("file:///data/public/x", None),
+        # A remote scheme is not a local path: s3://data/secret is not /data/secret.
+        ("s3://data/secret/x", None),
+        # Inputs a rendered target can genuinely contain must not raise —
+        # classification runs in the decision path, where an exception denies.
+        ("file://['/data/secret/x']", DataClassification.RESTRICTED),
+        ("file://{path}", None),
+        ("file://", None),
+        ("", None),
+    ],
+)
+def test_classify_path_handles_file_urls_without_raising(
+    tmp_path: Path, target: str, expected: DataClassification | None
+) -> None:
+    binding = make_binding(
+        tmp_path,
+        env_overrides={
+            session.ENV_CLASSIFICATION_MAP: json.dumps({"/data/secret/*": "restricted"})
+        },
+    )
+    assert binding.classify_path(target) == expected

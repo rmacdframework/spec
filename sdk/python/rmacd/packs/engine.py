@@ -64,6 +64,12 @@ _SUBSHELL = re.compile(r"\$\(([^()]*)\)")
 _BACKTICK = re.compile(r"`([^`]*)`")
 _TEMPLATE_TOKEN = re.compile(r"\{([^{}]+)\}")
 
+#: A dot-path segment that indexes a sequence rather than naming a key.
+_INDEX_RE = re.compile(r"-?\d+")
+
+#: Depth bound for walking a nested argument value (see ``_arg_str_values``).
+_MAX_ARG_DEPTH = 4
+
 
 # ----- resolvers -------------------------------------------------------------
 @dataclass
@@ -112,14 +118,46 @@ class ClassificationResult:
 
 # ----- argument access -------------------------------------------------------
 def _get_arg(args: Mapping[str, Any], path: str) -> Any:
-    """Look up an argument by name or dot-path (e.g. ``params.Bucket``)."""
+    """Look up an argument by name or dot-path (e.g. ``params.Bucket``).
+
+    A numeric segment indexes a sequence, so ``edits.0.oldText`` and
+    ``paths.0`` resolve. Without it a selector could address nested *mappings*
+    but nothing inside a list, so a pack's own sensitivity overlay — the
+    ``arg_regex`` rules matching ``id_rsa``/``.env``/``secret`` — silently
+    failed on any tool that takes its paths as an array.
+    """
     cur: Any = args
     for part in path.split("."):
         if isinstance(cur, Mapping) and part in cur:
             cur = cur[part]
+        elif isinstance(cur, (list, tuple)) and _INDEX_RE.fullmatch(part):
+            index = int(part)
+            if not -len(cur) <= index < len(cur):
+                return None
+            cur = cur[index]
         else:
             return None
     return cur
+
+
+def _arg_str_values(value: Any, _depth: int = 0) -> list[str]:
+    """Every string reachable from *value*, depth-bounded.
+
+    Lets a selector written against a scalar argument keep working when the
+    tool passes a list or an object instead: ``arg_regex: {arg: path}`` should
+    fire on ``{"path": ["/a/id_rsa"]}`` exactly as it does on ``{"path":
+    "/a/id_rsa"}``. Anything deeper than the bound is ignored rather than
+    followed — the input is attacker-shaped.
+    """
+    if isinstance(value, str):
+        return [value]
+    if _depth >= _MAX_ARG_DEPTH:
+        return []
+    if isinstance(value, Mapping):
+        return [s for v in value.values() for s in _arg_str_values(v, _depth + 1)]
+    if isinstance(value, (list, tuple, set)):
+        return [s for v in value for s in _arg_str_values(v, _depth + 1)]
+    return []
 
 
 # ----- tokenization ----------------------------------------------------------
@@ -251,9 +289,12 @@ def _selector_matches(sel: Selector, tool_name: str, args: Mapping[str, Any]) ->
             if _get_arg(args, name) != expected:
                 return False
     if sel.arg_regex is not None:
-        val = _get_arg(args, sel.arg_regex.arg)
-        if not isinstance(val, str) or (
-            re.search(sel.arg_regex.pattern, val[:_MAX_REGEX_INPUT]) is None
+        # Match any string the argument contains, not just a scalar one: an
+        # overlay guarding `path` must still fire when the tool takes `paths`
+        # as an array, which is where sensitive-data detection was being lost.
+        candidates = _arg_str_values(_get_arg(args, sel.arg_regex.arg))
+        if not any(
+            re.search(sel.arg_regex.pattern, v[:_MAX_REGEX_INPUT]) for v in candidates
         ):
             return False
     if sel.argv_contains is not None:

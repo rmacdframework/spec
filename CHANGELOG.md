@@ -47,6 +47,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Fixed
 
+- **The classification map could be evaded by nesting a path one level down.**
+  `claude_code/mapping.py` scanned only top-level string arguments, so an MCP
+  call of `{"paths": ["/data/secret/x"]}` or `{"opts": {"path": ...}}` never
+  reached `classify_path` and fell through to the session default tier — the
+  same §12.5-downgrade shape as the `sh -c` evasion closed in 0.14.0. Arguments
+  are now walked recursively, depth-bounded at 4 like the shell recursion.
+
+  **Not reachable with the shipped packs**, which is why this is a normal fix
+  and not a security release: across all 34 built-in packs and 237 registered
+  tool names, every classifiable argument is a top-level scalar, and the batch
+  tools that would carry path arrays (`read_multiple_files`, `push_files`,
+  `create_or_update_file`) are unregistered and so fail closed. It was live for
+  any registry built by `MCPRegistryBridge` or a hand-written pack — the
+  documented way to onboard a real MCP server.
+
+- **A pack's own sensitivity overlay missed array-shaped arguments.** Same root
+  cause, separate code path: `_get_arg` could address nested mappings but
+  nothing inside a list, so an `arg_regex` rule guarding `path` against
+  `id_rsa`/`.env`/`secret` silently failed on `{"path": ["/h/.ssh/id_rsa"]}`.
+  Dot-paths now index sequences (`edits.0.oldText`), and an `arg_regex` matches
+  any string the argument contains. Demonstrated with no classification map at
+  all, so this was independent of the item above.
+
+- **Target-based classification was dead for the entire pack catalog.**
+  `_path_variants` returned early on any target containing `://`, but **90 of
+  the built-in target templates are URI-shaped** (`file://{path}`, `aws://…`),
+  so `classify_path(resolved.target)` — the defence-in-depth half of the MCP
+  overlay — matched nothing. `file://` targets are now unwrapped to the path
+  they denote; genuinely remote schemes are still left alone, since
+  `s3://bucket/secret` is not the local path `/bucket/secret`. Parsed without
+  `urlparse`, which raises on inputs a rendered target can really contain (a
+  template interpolating a list yields `file://['/a/b']`, whose bracket reads
+  as a malformed IPv6 host) — and classification must never raise, because it
+  runs in the decision path where an exception denies an otherwise fine call.
+
 - **Execution records claimed every call ran autonomously.** The `PostToolUse`
   record hardcoded `autonomy_level: autonomous`, so a call a human had explicitly
   approved through the `ask` prompt was filed as one the agent made on its own.

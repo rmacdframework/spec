@@ -49,6 +49,7 @@ import re
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
+from urllib.parse import unquote
 
 from rmacd.enforcer import PolicyEnforcer
 from rmacd.evaluator import AnyProfile
@@ -94,6 +95,9 @@ def max_tier(
 
 _LEADING_SLASHES = re.compile(r"^/{2,}")
 
+#: Scheme prefix treated as "a local path with a scheme on it".
+_FILE_URL_PREFIX = "file://"
+
 
 def _path_variants(target: str, cwd: Path | None) -> list[str]:
     """Every form of *target* a classification rule may legitimately match.
@@ -106,7 +110,29 @@ def _path_variants(target: str, cwd: Path | None) -> list[str]:
     evasion that turned a §12.5 hard deny into an approvable prompt.
     """
     variants = [target]
-    if not target or "://" in target:
+    if not target:
+        return variants
+    # `file://` is a path wearing a scheme, and packs render targets that way:
+    # 90 of the built-in target templates are URI-shaped, so bailing on every
+    # "://" made `classify_path(resolved.target)` — the defence-in-depth half of
+    # the MCP overlay — a no-op for the entire pack catalog. Unwrap file URLs and
+    # classify what they point at; leave genuinely remote schemes alone, since
+    # `s3://bucket/secret` is not the local path `/bucket/secret`.
+    # Parsed by hand rather than with ``urlparse``, which raises on inputs a
+    # rendered target can genuinely contain (a template that interpolated a
+    # list yields `file://['/a/b']`, and the bracket reads as a malformed IPv6
+    # host). Classification must never raise: it runs inside the decision path,
+    # where an exception becomes a fail-closed deny of an otherwise fine call.
+    if target.startswith(_FILE_URL_PREFIX):
+        rest = target[len(_FILE_URL_PREFIX) :]
+        slash = rest.find("/")  # skips any authority in file://host/path
+        unwrapped = unquote(rest[slash:]) if slash != -1 else ""
+        if unwrapped and unwrapped not in variants:
+            variants.append(unwrapped)
+            target = unwrapped
+        else:
+            return variants
+    elif "://" in target:
         return variants
     candidate = os.path.expanduser(target)
     if not os.path.isabs(candidate) and cwd is not None:

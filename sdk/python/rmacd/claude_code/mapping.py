@@ -30,6 +30,7 @@ no LLM, no network — so the hook adds no meaningful latency.
 from __future__ import annotations
 
 import shlex
+from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -132,6 +133,9 @@ _SHELL_BINARIES = frozenset({"bash", "sh", "zsh", "dash", "ksh", "ash", "busybox
 #: Depth cap for the ``-c`` recursion below — ``bash -c "sh -c '...'"`` is
 #: worth following, an adversarially nested chain is not.
 _MAX_SHELL_NESTING = 4
+
+#: Depth bound for walking tool arguments (see ``_arg_strings``).
+_MAX_ARG_NESTING = 4
 
 
 def _shell_split(command: str) -> list[str]:
@@ -309,6 +313,34 @@ def _map_web(tool_name: str, tool_input: dict[str, Any]) -> MappedCall:
     )
 
 
+def _arg_strings(value: Any, _depth: int = 0) -> list[str]:
+    """Every string anywhere in a tool's arguments, for classification matching.
+
+    Scanning only top-level values let a path one level down evade the
+    classification map entirely: ``{"paths": ["/data/secret/x"]}`` and
+    ``{"opts": {"path": "/data/secret/x"}}`` both fell through to the session
+    default tier, which is the same §12.5-downgrade shape as the ``sh -c``
+    evasion closed in 0.14.0. No built-in pack registers a tool that takes
+    paths this way today — batch tools like ``read_multiple_files`` are
+    unregistered and so fail closed — but any registry built by
+    ``MCPRegistryBridge`` or a hand-written pack can, and that is the documented
+    way to onboard a real MCP server.
+
+    Depth-bounded for the same reason as :func:`_bash_path_candidates`: the
+    input is attacker-shaped and a cyclic or pathological structure must not
+    turn a governance decision into a hang.
+    """
+    if isinstance(value, str):
+        return [value] if value else []
+    if _depth >= _MAX_ARG_NESTING:
+        return []
+    if isinstance(value, Mapping):
+        return [s for v in value.values() for s in _arg_strings(v, _depth + 1)]
+    if isinstance(value, (list, tuple, set)):
+        return [s for v in value for s in _arg_strings(v, _depth + 1)]
+    return []
+
+
 def _map_mcp(tool_name: str, tool_input: dict[str, Any], binding: SessionBinding) -> MappedCall:
     parts = tool_name.split("__", 2)
     bare_name = parts[2] if len(parts) == 3 and parts[2] else tool_name
@@ -329,9 +361,8 @@ def _map_mcp(tool_name: str, tool_input: dict[str, Any], binding: SessionBinding
     # Classification-map overlay: path-like arguments may raise the tier
     # (e.g. an MCP filesystem server touching a restricted-mapped path).
     tier = resolved.tier
-    for value in tool_input.values():
-        if isinstance(value, str) and value:
-            tier = max_tier(tier, binding.classify_path(value))
+    for value in _arg_strings(tool_input):
+        tier = max_tier(tier, binding.classify_path(value))
     tier = max_tier(tier, binding.classify_path(resolved.target))
     return MappedCall(
         operation=resolved.operation,

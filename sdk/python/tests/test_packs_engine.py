@@ -12,7 +12,7 @@ from rmacd.packs import (
     clear_resolvers,
     register_resolver,
 )
-from rmacd.packs.engine import ResolverContext
+from rmacd.packs.engine import ResolverContext, _get_arg
 from rmacd.registry.bash import classify_bash_command
 
 
@@ -305,3 +305,57 @@ def test_shell_pack_parity_with_bash_classifier(command: str) -> None:
     engine_op = classify_call(SHELL_PARITY_PACK, "bash", {"command": command}).operation
     bash_op = classify_bash_command(command).operation.value
     assert engine_op == bash_op, f"{command!r}: engine={engine_op} bash={bash_op}"
+
+
+# ---------------------------------------------------------------------------
+# nested / list arguments (2026-08-11)
+# ---------------------------------------------------------------------------
+
+_NESTED_ARG_PACK = GovernancePack.from_dict(
+    {
+        "pack": "nested-arg-probe",
+        "version": "1.0.0",
+        "default_operation": "R",
+        "rules": [
+            {
+                "id": "sensitive-overlay",
+                "when": {"arg_regex": {"arg": "path", "pattern": "(?i)id_rsa|secret"}},
+                "tier": "restricted",
+            }
+        ],
+    }
+)
+
+
+def test_get_arg_indexes_into_sequences() -> None:
+    """A dot-path could address nested mappings but nothing inside a list."""
+    args = {"edits": [{"oldText": "a"}, {"oldText": "b"}], "paths": ["/x", "/y"]}
+    assert _get_arg(args, "paths.0") == "/x"
+    assert _get_arg(args, "paths.-1") == "/y"
+    assert _get_arg(args, "edits.1.oldText") == "b"
+    assert _get_arg(args, "paths.9") is None  # out of range, not an IndexError
+    assert _get_arg(args, "paths.notanindex") is None
+
+
+def test_arg_regex_fires_on_a_list_valued_argument() -> None:
+    """A pack's own sensitivity overlay must not be evaded by array-shaped args.
+
+    Tools that take their paths as an array are common in real MCP servers, and
+    the scalar-only lookup meant such a call skipped the overlay entirely.
+    """
+    scalar = classify_call(_NESTED_ARG_PACK, "read_file", {"path": "/h/.ssh/id_rsa"})
+    listed = classify_call(_NESTED_ARG_PACK, "read_file", {"path": ["/h/.ssh/id_rsa"]})
+    nested = classify_call(_NESTED_ARG_PACK, "read_file", {"path": {"a": "/h/secret"}})
+    benign = classify_call(_NESTED_ARG_PACK, "read_file", {"path": ["/h/readme.md"]})
+    assert scalar.tier == "restricted"
+    assert listed.tier == "restricted"
+    assert nested.tier == "restricted"
+    assert benign.tier != "restricted"
+
+
+def test_arg_walk_is_depth_bounded() -> None:
+    """Attacker-shaped input must not turn a decision into a hang."""
+    deep: object = "/h/.ssh/id_rsa"
+    for _ in range(50):
+        deep = [deep]
+    assert classify_call(_NESTED_ARG_PACK, "read_file", {"path": deep}).tier != "restricted"
