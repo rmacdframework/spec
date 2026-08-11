@@ -117,4 +117,20 @@ addopts = "-v --cov=rmacd --cov-report=term-missing"
 # The suite is warning-clean as of the tz-aware timestamp fix; keep it that way.
 # A naive datetime creeping back in is a correctness bug (time-window checks
 # skew by the host's UTC offset), not noise, so it should fail the build.
-filterwarnings = ["error"]
+#
+# The one exemption is a warning about *upstream's* model, which we cannot act
+# on: FastMCP declares `lifespan` with a generic forward reference
+# (mcp/server/fastmcp/server.py), and pydantic-settings >= 2.15 warns that it
+# cannot resolve it. The remedy it suggests — calling `model_rebuild()` — is for
+# the package that owns the field, not its consumers. `lifespan` appears nowhere
+# in rmacd. Matched by message rather than category so pytest can start without
+# pydantic-settings installed (it arrives only with the optional `mcp` extra).
+#
+# CI resolves dependencies fresh while a developer's venv is months old, so this
+# surfaced only in CI — the third failure of that shape after `mcp` 2.0.0 and the
+# `tomllib`/3.10 mismatch. Committing `uv.lock` is the standing fix for the class
+# (see todo.md, "Supply chain"); this entry only unblocks the symptom.
+filterwarnings = [
+    "error",
+    "ignore:Field 'lifespan' has an incomplete definition:",
+]

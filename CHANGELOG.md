@@ -47,6 +47,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Fixed
 
+- **CI was red on an upstream warning, not on our code.** `pydantic-settings`
+  2.15 warns that it cannot resolve FastMCP's generically-typed `lifespan`
+  field, and the suite pins `filterwarnings = ["error"]`, so three
+  `test_mcp_server.py` tests failed for every commit while passing locally —
+  CI resolves dependencies fresh, a developer venv does not. The warning is
+  about a field `rmacd` neither declares nor touches, and its suggested remedy
+  (`model_rebuild()`) belongs to the package that owns it, so it is now ignored
+  by message. Everything else still fails the build, including a
+  same-shaped message naming a different field.
+
 - **The classification map could be evaded by nesting a path one level down.**
   `claude_code/mapping.py` scanned only top-level string arguments, so an MCP
   call of `{"paths": ["/data/secret/x"]}` or `{"opts": {"path": ...}}` never
