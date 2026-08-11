@@ -66,6 +66,9 @@ cleanup() {
 trap cleanup EXIT
 
 note "workspace: $WORK"
+# Publish the path so a CI job can collect the transcripts afterwards. The
+# workspace is a fresh mktemp dir each run, so the upload step cannot guess it.
+[ -n "${GITHUB_ENV:-}" ] && echo "UAT_WORK=$WORK" >> "$GITHUB_ENV"
 cd "$WORK"
 git init -q .
 git config user.email uat@example.invalid
@@ -138,13 +141,18 @@ grep -q "UAT-SENTINEL-42" s2.out && ok "Read allowed (sentinel returned)" || bad
 
 # Delete denied: FILESYSTEM TRUTH — the file must still exist.
 [ -f scratch/junk.txt ] && ok "Delete denied (scratch/junk.txt intact)" || bad "Delete denied (scratch/junk.txt intact)" s2.out
-grep -q "RMACD:" s2.out && ok "deny reason cites RMACD" || bad "deny reason cites RMACD" s2.out
-# Positive counterpart to scenario 3's invariant: a *bound* session must emit
-# decisions. Without this, a hook that silently stopped deciding would still
-# pass scenario 3 and look like a clean unbound passthrough.
-grep -q "hookSpecificOutput" s2.out \
-  && ok "bound session emits governance decisions" \
-  || bad "bound session emits governance decisions" s2.out
+# Every RMACD message in a transcript that is NOT one of the two informational
+# SessionStart notices. A plain `grep RMACD:` stopped proving anything once
+# Claude Code began surfacing hook stderr: the notice puts that string in every
+# transcript, bound or not, so the deny assertion would pass hollowly and the
+# unbound assertion would fail spuriously. Both now filter the known notices.
+rmacd_decisions() {
+  grep -oE 'RMACD:[^"\\]{0,160}' "$1" 2>/dev/null \
+    | grep -vF -e 'governance active' -e 'no profile bound' -e 'installed but unbound' || true
+}
+[ -n "$(rmacd_decisions s2.out)" ] \
+  && ok "deny reason cites RMACD" \
+  || bad "deny reason cites RMACD" s2.out
 
 # Change gated on approval: FILESYSTEM TRUTH — no commit may exist
 # (headless sessions cannot approve, so the 'ask' resolves to not-run).
@@ -159,25 +167,27 @@ rm .claude/rmacd-profile.json
 run_claude "Run this bash command via the Bash tool and paste its exact raw output: cat README.md" s3.out
 grep -q "UAT-SENTINEL-42" s3.out && ok "unbound read works" || bad "unbound read works" s3.out
 
-# What "leaves Claude Code untouched" actually means: no governance *decision*.
-# Every decision the hook makes is a `hookSpecificOutput` object on stdout, so
-# its total absence is the precise invariant — an unbound session is a
-# passthrough, and Claude Code's own permission flow is left to run unchanged.
+# "Leaves Claude Code untouched" means no governance *decision* — not silence.
+# The SessionStart notice tells the user the plugin is installed but idle, and
+# since the guard short-circuits unbound sessions before importing the SDK, that
+# notice is the only signal they get that RMACD is present and doing nothing.
 #
-# It deliberately does NOT assert silence. The SessionStart notice tells the
-# user the plugin is installed but idle, and since the guard short-circuits
-# unbound sessions before importing the SDK, that notice is the only signal they
-# get that RMACD is present and doing nothing.
-#
-# The old assertion here was a blanket `grep RMACD:`, which passed only because
-# hook stderr used to be invisible outside --debug. Claude Code now emits
+# The old assertion was a blanket `grep RMACD:`, which held only while hook
+# stderr was invisible outside --debug. Claude Code now emits
 # `{"type":"system","subtype":"hook_response",...}` events carrying `stderr`
 # verbatim, so the notice became visible and this scenario failed nightly from
-# 2026-07-31 with no change on our side. That is the canary working: it caught
-# drift in Claude Code, which is what it exists for.
-grep -q "hookSpecificOutput" s3.out \
-  && bad "unbound emits no governance decision" s3.out \
-  || ok "unbound emits no governance decision"
+# 2026-07-31 with no change on our side — the canary catching drift in Claude
+# Code, which is what it exists for.
+#
+# Note the decision JSON itself is NOT observable: Claude Code consumes the
+# hook's stdout as protocol and never echoes it (`hookSpecificOutput` appears
+# nowhere in a transcript, bound or unbound), so asserting on it would pass
+# vacuously in both directions. Message text, minus the known notices, is the
+# strongest signal actually available here; filesystem truth above remains
+# primary.
+[ -z "$(rmacd_decisions s3.out)" ] \
+  && ok "unbound emits no governance decision" \
+  || bad "unbound emits no governance decision" s3.out
 
 printf '\n== RESULT: %d passed, %d failed\n' "$PASS" "$FAIL"
 [ "$FAIL" -eq 0 ]

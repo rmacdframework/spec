@@ -16,6 +16,16 @@ on:
   schedule:
     - cron: "17 6 * * *"
   workflow_dispatch:
+    inputs:
+      upload_transcripts:
+        description: >-
+          Upload the UAT session transcripts as an artifact on failure.
+          Off by default, and never set on the nightly schedule: the
+          transcripts are full Claude Code sessions (model output, file
+          contents, repo paths) and an artifact is readable by anyone with
+          repo access. Turn it on deliberately when diagnosing.
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -52,9 +62,27 @@ jobs:
 
       - name: Run E2E UAT (marketplace mode)
         if: steps.guard.outputs.has_token == 'true'
-        run: ./tests-e2e/uat.sh --marketplace
+        # --keep only when we intend to upload: it suppresses the workspace
+        # cleanup so the transcripts still exist when the upload step runs.
+        run: ./tests-e2e/uat.sh --marketplace ${{ inputs.upload_transcripts && '--keep' || '' }}
 
-      - name: Upload transcripts on failure
-        if: failure() && steps.guard.outputs.has_token == 'true'
+      - name: Upload transcripts
+        if: failure() && steps.guard.outputs.has_token == 'true' && inputs.upload_transcripts
+        uses: actions/upload-artifact@v4
+        with:
+          name: uat-transcripts-${{ github.run_id }}
+          # Only the session transcripts and the bound profile. Never $UAT_WORK
+          # wholesale — it contains the throwaway venv (tens of MB of wheels).
+          path: |
+            ${{ env.UAT_WORK }}/s*.out
+            ${{ env.UAT_WORK }}/.claude/
+          retention-days: 7
+          if-no-files-found: warn
+
+      - name: How to get transcripts
+        if: failure() && steps.guard.outputs.has_token == 'true' && !inputs.upload_transcripts
         run: |
-          echo "Canary failed — re-run locally with: ./tests-e2e/uat.sh --marketplace --keep"
+          echo "::notice::Transcripts were not captured (upload_transcripts is off by default)."
+          echo "Re-run this workflow with them enabled:"
+          echo "  gh workflow run canary-e2e.yml -R ${{ github.repository }} -f upload_transcripts=true"
+          echo "Or reproduce locally:  ./tests-e2e/uat.sh --marketplace --keep"
