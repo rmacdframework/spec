@@ -1,22 +1,40 @@
 # RMACD framework adapters
 
-**Companion to:** `runtime-patterns.md` (this doc is the framework-specific
-cookbook). Targets SDK ≥ 0.8.0 (registry-backed `enforce_tool_call`);
-the MCP auto-classification section targets ≥ 0.10.0; Governance Packs
-(`load_packs`, see below) target ≥ 0.11.0; the MCP policy-server section
-targets ≥ 0.13.0. Current release: 0.14.0.
+**Companion to:** `runtime-patterns.md` — this doc is the framework-specific
+cookbook.
+
+**Current release:** `rmacd-framework` 0.14.1
+(`pip install "rmacd-framework>=0.14"`; the import name is `rmacd`).
+
+### Version requirements
+
+| Feature | Minimum SDK |
+|---------|-------------|
+| Registry-backed `enforce_tool_call` / `evaluate_tool_call`, `ToolCapability` | 0.8.0 |
+| MCP tool auto-classification (`MCPRegistryBridge`, `llm_classifier=`) | 0.10.0 |
+| Governance Packs (`rmacd.packs`, `load_packs`) | 0.11.0 |
+| RMACD as an MCP policy server (`rmacd mcp-serve`, `[mcp]` extra) | 0.13.0 |
+
+Everything else in this doc — `PolicyEnforcer`, `enforce`, `@guard`, and the
+exception hierarchy — predates 0.8.0, except `RMACDToolCapabilityError`, which
+arrived with the registry in 0.8.0.
+
+### Runnable examples
 
 Four reference integrations ship as full runnable examples:
 
-- **Claude Agent SDK** — `spec/examples/agent-integration-claude-sdk/`
-  — uses the SDK's `PreToolUse` hook as the enforcement point.
-- **Raw Anthropic SDK** — `spec/examples/agent-integration-anthropic-sdk/`
-  — uses a hand-rolled tool-use loop; the most portable template.
+| Example | What it demonstrates |
+|---------|----------------------|
+| `spec/examples/agent-integration-claude-sdk/` | Claude Agent SDK agent governed at the SDK's `PreToolUse` hook |
+| `spec/examples/agent-integration-anthropic-sdk/` | Hand-rolled tool-use loop on the raw `anthropic` SDK — the most portable template |
+| `spec/examples/governance-packs-quickstart/` | Building the enforcer's registry from built-in packs (`load_packs`), plus pack compile and sign/verify |
+| `spec/examples/dc2d-customer-support/` | DC2D redaction and egress controls (no LLM, no network) |
 
-This doc shows how to wire `PolicyEnforcer` into three other widely-used
-agent frameworks (LangChain, AutoGen, CrewAI) as concrete snippets you
-can drop into your codebase. The RMACD-side wiring is identical across
-all of them — what changes is *where* the enforcement call lands.
+This doc shows how to wire `PolicyEnforcer` into five other widely-used agent
+frameworks (OpenAI Agents SDK, Microsoft Agent Framework, LangChain, AutoGen,
+CrewAI) as concrete snippets you can drop into your codebase. The RMACD-side
+wiring is identical across all of them — what changes is *where* the
+enforcement call lands.
 
 > **Use Governance Packs to skip the classifier code.** Every snippet below
 > that hand-writes a classifier or `classifier=` lambda can instead get its
@@ -43,7 +61,9 @@ all of them — what changes is *where* the enforcement call lands.
 
 ## Contents
 
+- [Enforcement points at a glance](#enforcement-points-at-a-glance)
 - [The pattern](#the-pattern)
+- [Exceptions to handle](#exceptions-to-handle)
 - [Registry-backed enforcement (recommended)](#registry-backed-enforcement-recommended)
 - [OpenAI Agents SDK](#openai-agents-sdk)
 - [Microsoft Agent Framework](#microsoft-agent-framework)
@@ -52,6 +72,32 @@ all of them — what changes is *where* the enforcement call lands.
 - [CrewAI](#crewai)
 - [Generic dispatch-site pattern](#generic-dispatch-site-pattern)
 - [RMACD as an MCP server](#rmacd-as-an-mcp-server)
+
+---
+
+## Enforcement points at a glance
+
+The RMACD-side wiring never changes; only the interception seam does. Pick the
+row for your framework and jump to that section.
+
+| Framework | Where the enforcement call lands | Mechanism for a denial |
+|-----------|----------------------------------|------------------------|
+| Claude Agent SDK | The SDK's `PreToolUse` hook | Hook returns a deny decision; the tool body never runs |
+| Raw Anthropic SDK | Your own tool-use loop, between decoding a `tool_use` block and invoking the handler | Return a `tool_result` with `is_error=True` |
+| OpenAI Agents SDK | Tool guardrail (`@tool_guardrail`), plus `needs_approval` for HITL routing | `ToolGuardrailFunctionOutput.reject_content(reason)`; approvals pause the run |
+| Microsoft Agent Framework | `FunctionMiddleware` in the agent (or chat-client) pipeline | Short-circuit: set `context.result` and never call `next()` |
+| LangChain (A) | `@enforcer.guard` on the tool function or `BaseTool._run` | The decorator raises an `RMACD*Error` |
+| LangChain (B) | `BaseCallbackHandler.on_tool_start` | Raise; the executor surfaces it as a tool error |
+| AutoGen (v0.4+) | Decorator wrapping the `FunctionTool` body | Raise; AutoGen surfaces it back to the model |
+| CrewAI | `BaseTool._run` override | Return the denial string as the tool result |
+| Anything else | The dispatch site — earliest point where name + args are known and the body has not run | Whatever error shape the framework expects |
+
+Common to every row:
+
+- One shared `PolicyEnforcer`, built once at agent startup.
+- One classification source — a governance pack, the tools registry, or a
+  hand-written `classify` function.
+- One call: `enforce_tool_call(...)` (registry-backed) or `enforce(...)`.
 
 ---
 
@@ -76,9 +122,11 @@ from rmacd import (
     PolicyEnforcer,
     ProfileLoader,
     RMACDApprovalDeniedError,
+    RMACDApprovalRequiredError,
     RMACDApprovalTimeoutError,
     RMACDConstraintError,
     RMACDPermissionDeniedError,
+    RMACDPolicyError,
     RMACDProhibitedError,
 )
 
@@ -100,32 +148,69 @@ def enforce_or_explain(enforcer: PolicyEnforcer, tool_name: str, tool_args: dict
         return f"RMACD: profile does not grant {op} on {tier}. {exc}"
     except RMACDApprovalDeniedError as exc:
         return f"RMACD: approver denied {op} on {target}. {exc}"
-    except RMACDApprovalTimeoutError as exc:
+    except RMACDApprovalTimeoutError:
         return f"RMACD: approval for {op} on {target} timed out."
+    except RMACDApprovalRequiredError as exc:
+        # Approval-gated but no ApprovalGateway wired up — a deployment bug,
+        # not an agent decision. Fail closed and make it loud.
+        return f"RMACD: approval required but no gateway is configured. {exc}"
     except RMACDConstraintError as exc:
         return f"RMACD: constraint blocked operation: {exc}"
+    except RMACDPolicyError as exc:  # any future policy failure: fail closed
+        return f"RMACD: blocked. {exc}"
 ```
 
-Every adapter below uses `enforce_or_explain` as its enforcement primitive.
-The differences are purely in *how* each framework lets you intercept the
-tool-dispatch point.
+Every adapter below uses `enforce_or_explain(enforcer, tool_name, tool_args)`
+as its enforcement primitive — same signature everywhere. The differences are
+purely in *how* each framework lets you intercept the tool-dispatch point.
+
+---
+
+## Exceptions to handle
+
+All of these derive from `RMACDPolicyError` (itself an `RMACDError`), and all
+carry the underlying `PolicyDecision` on `.decision`, so a single
+`except RMACDPolicyError` is a safe fail-closed catch-all — the individual
+types exist so a call site can render *why*.
+
+| Exception | Raised when | What it means for the caller |
+|-----------|-------------|------------------------------|
+| `RMACDPermissionDeniedError` | The agent's profile does not grant this (operation, tier). Also raised by `enforce_tool_call` / `evaluate_tool_call` for an **unregistered tool** (fail-closed) | Profile-scoped: a broader profile could do this |
+| `RMACDProhibitedError` | The autonomy matrix marks the combination Prohibited — including the §12.5 immutable floor (no Add/Change/Delete on Restricted) | No agent may do this autonomously; a human must |
+| `RMACDToolCapabilityError` | The *tool's own* capability ceiling forbids the resolved (operation, tier). `enforce_tool_call` only, independent of the profile | This tool may never represent that operation |
+| `RMACDConstraintError` | An environment, time-window, or quota/rate constraint blocked the call | Possibly retryable later or in another environment |
+| `RMACDApprovalRequiredError` | Approval is required but no `ApprovalGateway` was configured — or the gateway itself raised | Deployment bug: wire a gateway. Never a silent allow |
+| `RMACDApprovalDeniedError` | The human approver said no. Extra attributes: `approver`, `note` | Final denial for this call |
+| `RMACDApprovalTimeoutError` | The approval request went unanswered. Extra attribute: `timeout_seconds` | Treat as a denial; optionally re-request |
+| `RMACDEgressBlockedError` | A DC2D `egress_controls` rule blocked the destination (raised by callers of `check_egress`) | The **data flow** was blocked, not the tool call; inspect `destination`, `tier`, `matched_rule` (`.decision` is `None` here) |
+
+`RMACDToolCapabilityError` is not in the `enforce_or_explain` above because
+that version calls `enforce()`; the registry-backed version below can raise it,
+which is one more reason its handler is a catch-all.
 
 ---
 
 ## Registry-backed enforcement (recommended)
 
 Hand-writing a `classify` lambda per integration is the drift-prone part. The
-**tools registry** is the first-class home for that mapping: register each tool
-once with its RMACD operation, an optional dynamic classifier (args →
-operation/tier/target), and an optional capability ceiling, then call the
-single method `enforcer.enforce_tool_call(tool_name, args)`. It resolves the
-call through the registry and enforces **profile ∩ tool capability** with the
-§12.5 safety floor — no per-site `classify`/`enforce` glue.
+**tools registry** is the first-class home for that mapping. Register each tool
+once with:
+
+- its RMACD **operation** (the static default, `rmacd_level`);
+- an optional **dynamic classifier** — `args → (operation, tier, target)`, any
+  element of which may be `None` to fall back to the static value;
+- an optional **capability ceiling** (`ToolCapability`) — what this tool may
+  *ever* do, regardless of who calls it.
+
+Then call the single method `enforcer.enforce_tool_call(tool_name, args)`. It
+resolves the call through the registry and enforces **profile ∩ tool
+capability** with the §12.5 safety floor — no per-site `classify`/`enforce`
+glue.
 
 ```python
 from rmacd import PolicyEnforcer, ProfileLoader
 from rmacd.registry import ToolsRegistry, ToolDefinition, ToolCapability
-from rmacd.models import Operation, DataClassification
+from rmacd.models import Operation
 
 registry = ToolsRegistry("my-agent")
 registry.register_tool(ToolDefinition(
@@ -145,8 +230,12 @@ enforcer = PolicyEnforcer(
     registry=registry,
 )
 
-def enforce_or_explain(tool_name: str, tool_args: dict) -> str | None:
-    """Return None if allowed, or a denial message if blocked."""
+def enforce_or_explain(enforcer: PolicyEnforcer, tool_name: str, tool_args: dict) -> str | None:
+    """Return None if allowed, or a denial message if blocked.
+
+    Drop-in replacement for the classifier-based version above: same
+    signature, so every adapter below is unchanged.
+    """
     try:
         enforcer.enforce_tool_call(tool_name, tool_args)
         return None
@@ -154,22 +243,40 @@ def enforce_or_explain(tool_name: str, tool_args: dict) -> str | None:
         return f"RMACD: {exc}"
 ```
 
-`enforcer.evaluate_tool_call(tool_name, args)` is the side-effect-free dry run
-(no audit, no approval) used by the OpenAI `needs_approval` callback below.
+Two related surfaces:
+
+- `enforcer.enforce_tool_call(tool_name, args)` — the enforcing call: audits,
+  routes approvals, raises on denial, returns the `PolicyDecision` on allow.
+- `enforcer.evaluate_tool_call(tool_name, args)` — the side-effect-free dry run
+  (no audit, no approval, no raise except for an unregistered tool). Returns
+  the `PolicyDecision` the call *would* get; used by the OpenAI
+  `needs_approval` callback below.
 
 ### Classifying `bash` commands
 
 `bash` is the hard case: one tool, any command. `make_bash_classifier()` parses
-the command line — binary, subcommand, flags, pipes/`&&`/`;`, redirects, `sudo`,
-`$(...)`, process substitution `<(...)`, and shell control keywords (so
-`for f in *; do rm "$f"; done` classifies as the Delete it is, not as an
-unknown `do`) — and returns the **maximum** RMACD operation, failing closed
-(Change) on an unrecognised binary. Switch-level distinctions are honoured: `sed -n` is a
-Read but `sed -i` is a Change; `pico`/`nano`/`vim` edit (Change) but `pico -v`
-/ `vim -R` view (Read); `nslookup` is all-Read while `nsupdate` is a Change;
-`--help`/`--version` is always Read; a `>` redirect makes any command at least a
-Change. Flag meaning is scoped per binary — `pico -v` (view) is not treated like
-`cp -v` / `rm -v` (verbose).
+the command line and returns the **maximum** RMACD operation across everything
+it finds, failing closed (`default=Operation.CHANGE`) on an unrecognised binary.
+
+What it parses:
+
+- binary and subcommand (`git log` vs `git push`);
+- flags, scoped **per binary** — `pico -v` (view) is not treated like
+  `cp -v` / `rm -v` (verbose);
+- composition: pipes, `&&`, `;`, `sudo`, `$(...)`, process substitution `<(...)`;
+- redirects — a `>` makes any command at least a Change;
+- shell control keywords, so `for f in *; do rm "$f"; done` classifies as the
+  Delete it is, rather than as an unknown `do`.
+
+Switch-level distinctions it honours:
+
+| Command | Operation | Why |
+|---------|-----------|-----|
+| `sed -n …` / `sed -i …` | Read / Change | `-i` edits in place |
+| `pico` `nano` `vim` | Change | An editor invocation mutates by default |
+| `pico -v` / `vim -R` | Read | Explicit view / read-only mode |
+| `nslookup` / `nsupdate` | Read / Change | Query vs. DNS record update |
+| any `--help`, `--version`, `--dry-run` | Read | Print-and-exit or simulate |
 
 ```python
 from rmacd.registry import ToolsRegistry, ToolDefinition, make_bash_classifier
@@ -220,10 +327,13 @@ enforcement stays deterministic (§12.5 floor, profile, capability ceiling).
 
 ## OpenAI Agents SDK
 
-Two complementary hooks. A **tool guardrail** is the synchronous deny gate; the
-**`needs_approval`** callable maps an RMACD `approval`/`elevated_approval`
-decision onto the SDK's built-in human-in-the-loop pause
-(`RunState.approve()` / `reject()`).
+Two complementary hooks:
+
+- **Tool guardrail** — the synchronous deny gate, and the authoritative
+  allow/deny.
+- **`needs_approval`** — maps an RMACD `approval` / `elevated_approval`
+  decision onto the SDK's built-in human-in-the-loop pause
+  (`RunState.approve()` / `RunState.reject()`).
 
 ```python
 from agents import function_tool
@@ -232,7 +342,7 @@ from agents.guardrail import tool_guardrail, ToolGuardrailFunctionOutput
 # 1) Deny gate — reject the call before the tool body runs.
 @tool_guardrail
 def rmacd_guardrail(context, tool, args) -> ToolGuardrailFunctionOutput:
-    reason = enforce_or_explain(tool.name, args)
+    reason = enforce_or_explain(enforcer, tool.name, args)
     if reason is not None:
         return ToolGuardrailFunctionOutput.reject_content(reason)   # model sees the denial
     return ToolGuardrailFunctionOutput.allow()
@@ -269,7 +379,7 @@ middleware pipeline — the same seam the Agent Governance Toolkit's
 from agent_framework import FunctionInvocationContext  # MAF function middleware context
 
 async def rmacd_middleware(context: FunctionInvocationContext, next):
-    reason = enforce_or_explain(context.function.name, dict(context.arguments))
+    reason = enforce_or_explain(enforcer, context.function.name, dict(context.arguments))
     if reason is not None:
         # Short-circuit: don't call next() — the tool body never runs.
         context.result = f"BLOCKED by RMACD: {reason}"
@@ -292,9 +402,13 @@ true, mirroring the OpenAI `needs_approval` pattern above.
 
 ## LangChain
 
-LangChain offers two viable hook surfaces. Pick based on whether you want
-enforcement at the tool boundary (cleanest) or at the agent executor
-boundary (broader visibility).
+LangChain offers two viable hook surfaces:
+
+- **Option A — per-tool decorator.** Enforcement at the tool boundary. Cleanest;
+  declared where the tool is defined, so it runs no matter who invokes it.
+- **Option B — `BaseCallbackHandler`.** Enforcement at the agent-executor
+  boundary. Broader visibility; the way to retrofit enforcement onto a
+  third-party tool library you don't own.
 
 ### Option A: per-tool decorator (recommended)
 
@@ -372,10 +486,10 @@ class RMACDCallbackHandler(BaseCallbackHandler):
 agent_executor.callbacks = [RMACDCallbackHandler(enforcer)]
 ```
 
-**Trade-off**: the decorator form is the cleaner integration (declared at
-the tool, runs no matter who invokes it), while the callback handler is
-better when you want to retrofit enforcement onto a third-party tool
-library you don't own.
+**Trade-off**: the decorator declares policy at the tool and cannot be bypassed
+by another call path; the callback handler covers tools you cannot edit, at the
+cost of being wired on the executor (and therefore skippable if someone builds
+a second executor without it).
 
 ---
 
@@ -385,47 +499,43 @@ AutoGen 0.4 reorganized around `BaseChatAgent` and tool-calling
 middlewares. The natural integration is a **function-call interceptor**:
 
 ```python
+import functools
+import inspect
 from typing import Any, Callable
+
 from autogen_core.tools import FunctionTool
 
 
-def rmacd_guarded(
-    enforcer: PolicyEnforcer,
-    operation: str,
-    classifier: Callable[[dict[str, Any]], tuple[str, str | None]],
-):
-    """Decorator that wraps an AutoGen function-tool body with RMACD."""
+def rmacd_guarded(enforcer: PolicyEnforcer):
+    """Decorator that wraps an AutoGen function-tool body with RMACD.
+
+    Classification comes from the registry/pack (or the shared ``classify``),
+    keyed on the tool name — so the decorator needs no per-tool arguments.
+    """
 
     def decorator(fn: Callable[..., Any]) -> Callable[..., Any]:
-        async def wrapper(*args: Any, **kwargs: Any) -> Any:
-            target, tier = classifier(kwargs)
-            denial = enforce_or_explain(
-                enforcer,
-                tool_name=fn.__name__,
-                tool_args=kwargs,
-            )
+        @functools.wraps(fn)
+        async def async_wrapper(*args: Any, **kwargs: Any) -> Any:
+            denial = enforce_or_explain(enforcer, fn.__name__, kwargs)
             if denial is not None:
                 # AutoGen surfaces raised exceptions back to the model.
                 raise RuntimeError(denial)
-            return await fn(*args, **kwargs) if _is_async(fn) else fn(*args, **kwargs)
+            return await fn(*args, **kwargs)
 
-        return wrapper
+        @functools.wraps(fn)
+        def sync_wrapper(*args: Any, **kwargs: Any) -> Any:
+            denial = enforce_or_explain(enforcer, fn.__name__, kwargs)
+            if denial is not None:
+                raise RuntimeError(denial)
+            return fn(*args, **kwargs)
+
+        return async_wrapper if inspect.iscoroutinefunction(fn) else sync_wrapper
 
     return decorator
 
 
-import inspect
-
-def _is_async(fn):
-    return inspect.iscoroutinefunction(fn)
-
-
 # Usage:
-@rmacd_guarded(
-    enforcer,
-    operation="C",
-    classifier=lambda kw: (f"server://{kw['server_id']}", "internal"),
-)
+@rmacd_guarded(enforcer)
 async def update_config(*, server_id: str, key: str, value: str) -> str:
     ...
 
@@ -433,9 +543,15 @@ async def update_config(*, server_id: str, key: str, value: str) -> str:
 update_config_tool = FunctionTool(update_config, description="Update a config key.")
 ```
 
-For AssistantAgent-style classes with `register_for_llm` /
-`register_for_execution`, register the wrapped function rather than the
-raw one. The interceptor runs at execution time, before the tool body.
+Notes:
+
+- An `async def` tool needs an `async def` wrapper. A plain `def` wrapper only
+  returns the coroutine, so enforcement would still run before the body — but
+  any wrapper that also *records* the outcome would record it before the tool
+  had run. `enforcer.guard` makes the same split internally.
+- For AssistantAgent-style classes with `register_for_llm` /
+  `register_for_execution`, register the **wrapped** function rather than the
+  raw one. The interceptor runs at execution time, before the tool body.
 
 ---
 
@@ -450,17 +566,17 @@ from crewai.tools import BaseTool
 
 
 class RMACDGuardedTool(BaseTool):
-    """Mix-in base that calls enforcer.enforce before the tool body runs.
+    """Mix-in base that enforces RMACD before the tool body runs.
 
-    Subclasses provide ``_rmacd_classify`` (returns op/target/tier) and
-    implement ``_run`` as usual; this base interposes the enforcement
-    check.
+    Subclasses implement ``_run_impl`` instead of ``_run``; this base
+    interposes the enforcement check. Classification is resolved from the
+    tool name by the registry/pack (or the shared ``classify``), so
+    subclasses declare no policy of their own.
     """
 
     enforcer: PolicyEnforcer  # set on the class or instance
 
     def _run(self, *args: Any, **kwargs: Any) -> Any:
-        op, target, tier = self._rmacd_classify(*args, **kwargs)
         denial = enforce_or_explain(self.enforcer, self.name, kwargs)
         if denial is not None:
             # CrewAI surfaces the return value to the LLM as the tool
@@ -468,10 +584,7 @@ class RMACDGuardedTool(BaseTool):
             return denial
         return self._run_impl(*args, **kwargs)
 
-    # Subclasses implement these:
-    def _rmacd_classify(self, *args: Any, **kwargs: Any) -> tuple[str, str, str | None]:
-        raise NotImplementedError
-
+    # Subclasses implement this:
     def _run_impl(self, *args: Any, **kwargs: Any) -> Any:
         raise NotImplementedError
 
@@ -481,16 +594,19 @@ class UpdateConfigTool(RMACDGuardedTool):
     description: str = "..."
     enforcer: PolicyEnforcer = enforcer
 
-    def _rmacd_classify(self, server_id: str, key: str, value: str):
-        return ("C", f"server://{server_id}", "internal")
-
     def _run_impl(self, server_id: str, key: str, value: str) -> str:
         ...
 ```
 
-The `_run` override ensures every CrewAI tool execution path
-(including agent-initiated calls, task-driven calls, and direct calls)
-goes through the enforcer.
+Why `_run` is the right seam: it is the single execution path every CrewAI
+invocation goes through — agent-initiated calls, task-driven calls, and direct
+calls alike — so there is no route to the tool body that skips the enforcer.
+
+One binding rule: `self.name` must match the tool's registry/pack `tool_id`
+(which the registry normalizes to lower case with spaces as underscores). That
+string is the join between the CrewAI tool and its RMACD classification; an
+unregistered name fails closed with `RMACDPermissionDeniedError`, whose message
+is returned to the model as the tool result.
 
 ---
 
@@ -554,7 +670,7 @@ The server (name `rmacd`, stdio transport) exposes six **read-only** tools:
 
 | Tool | Purpose |
 |------|---------|
-| `rmacd_evaluate` | Policy decision for (operation, target, classification, environment) — same code path as `PolicyEnforcer.evaluate_only` |
+| `rmacd_evaluate` | Policy decision for (operation, target, classification, environment) — the same `PolicyEvaluator.evaluate` code path that `PolicyEnforcer.evaluate_only` wraps |
 | `rmacd_validate_profile` | Schema-validate a profile file or JSON string → `{valid, errors[]}` |
 | `rmacd_matrix` | Effective autonomy matrix (same data as `rmacd matrix`) |
 | `rmacd_list_packs` | Built-in governance packs: names, versions, rule counts |
@@ -575,9 +691,20 @@ Design notes:
 - **Advisory classification.** `rmacd_classify_bash` is the deterministic
   keyword heuristic from `rmacd.registry.bash`; like all classification it is
   advisory input — the bound profile and the §12.5 floor decide.
-- Without the extra installed, `rmacd mcp-serve` prints the
-  `pip install 'rmacd-framework[mcp]'` hint and the rest of the SDK/CLI is
-  unaffected (the `mcp` dependency is imported lazily).
+- **The extra is optional and lazily imported.** Without it, `rmacd mcp-serve`
+  prints the `pip install 'rmacd-framework[mcp]'` hint and the rest of the
+  SDK/CLI is unaffected. The extra resolves `mcp>=1.0,<2`: the server targets
+  the 1.x FastMCP API, and `mcp` 2.0.0 removed `mcp.server.fastmcp`.
+
+Other optional extras, for reference:
+
+| Extra | Enables |
+|-------|---------|
+| `[llm]` | `LLMToolClassifier` (`anthropic`) — advisory classification at registration time |
+| `[mcp]` | `rmacd mcp-serve`, the read-only MCP policy server |
+| `[sign]` | Governance-pack signing and verification (`sign_pack` / `verify_pack`) |
+| `[yaml]` | Reading and writing governance packs authored as YAML |
+| `[dev]` | Test/lint toolchain for working on the SDK itself |
 
 ---
 
@@ -585,7 +712,10 @@ Design notes:
 
 - Governing a **Claude Code session itself** (PreToolUse hook, `/rmacd:status`,
   managed-settings rollout): `claude-code.md`
-- Full runnable references: `spec/examples/agent-integration-claude-sdk/`
-  and `spec/examples/agent-integration-anthropic-sdk/`
+- Governance packs — authoring, composition, signing: `docs/governance-packs/`
+- Full runnable references: `spec/examples/agent-integration-claude-sdk/`,
+  `spec/examples/agent-integration-anthropic-sdk/`, and
+  `spec/examples/governance-packs-quickstart/`
 - DC2D runtime: `runtime-patterns.md` §8 and `spec/examples/dc2d-customer-support/`
+- Audit evidence produced by these integrations: `audit-evidence.md`
 - SDK source: `spec/sdk/python/rmacd/`

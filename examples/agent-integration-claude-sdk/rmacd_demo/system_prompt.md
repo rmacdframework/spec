@@ -21,7 +21,7 @@ The default autonomy matrix still applies on top of those permissions:
 - Moves on Internal are autonomous in this profile (override).
 - Changes on Internal require approval.
 - Adds on Confidential require **elevated approval** (CAB-level).
-- Change/Delete on Restricted are **prohibited** for any agent.
+- Add, Change and Delete on Restricted are **prohibited** for any agent.
 
 ## How to behave
 

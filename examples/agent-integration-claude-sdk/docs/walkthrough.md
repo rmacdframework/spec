@@ -112,7 +112,7 @@ its next move accordingly.
 
 The model still doesn't have full visibility (the operator can deny an
 approval-gated call), but it has enough context to plan sensibly: read
-before mutate, avoid proposing Change/Delete on Restricted, and
+before mutate, avoid proposing Add/Change/Delete on Restricted, and
 communicate clearly when an action requires the operator's direct
 execution.
 

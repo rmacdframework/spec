@@ -11,18 +11,39 @@ for Governing Autonomous AI Agents in Enterprise IT Operations
 Version 1.4.0 | June 2026
 **Author: Kash Kashyap** ([ORCID: 0009-0005-0127-6265](https://orcid.org/0009-0005-0127-6265))
 
-*Version 1.2 Update: Added Python Tools Registry reference implementation for automated tool governance.*
-*Version 1.2.1 Update: Corrected governance matrix defaults in SDK, fixed Appendix B profile schemas.*
-*Version 1.3.0 Update: Added Appendix D introducing the Data-Classification Two-Dimensional variant (DC2D), with accompanying schema, example profile, and SDK support (rmacd 0.3.0).*
-*Version 1.3.1 Update: Published SDK enforcement layer (PolicyEnforcer, ApprovalGateway, AuditLogger, RMACDError hierarchy) in rmacd 0.4.0; added DC2D runtime controls (Redactor, EgressGate) in rmacd 0.5.0; added programmatic agent prompt construction (`build_system_prompt`) in rmacd 0.6.0; shipped runnable reference integrations for Claude Agent SDK and the raw Anthropic SDK, and a DC2D redaction/egress demo. Two companion docs joined `docs/`: `runtime-patterns.md` and `framework-adapters.md`. A runtime-architecture draw.io diagram joined `docs/`.*
+## **Revision history**
 
-*Version 1.3.2 Update: Hardened enforcement of the §12.5 safety boundary in rmacd 0.7.0 — Add/Change/Delete on Restricted data is now rejected both by `profile-3d.schema.json` (at profile-authoring time) and by an immutable runtime floor in the evaluator (at decision time), closing a gap where an `autonomy_overrides` entry could previously raise a prohibited cell. Also fixed time-window midnight wraparound, an egress allow-list substring-match bypass and scheme-less host handling, MCP keyword misclassification, and redaction-pattern issues; expanded the SDK test suite from 60 to 148 tests. See CHANGELOG.*
+| Spec | Change |
+|------|--------|
+| 1.2 | Added the Python Tools Registry reference implementation for automated tool governance. |
+| 1.2.1 | Corrected the governance-matrix defaults in the SDK; fixed the Appendix B profile schemas. |
+| 1.3.0 | Added **Appendix D**, the Data-Classification 2D variant (DC2D), with schema, example profile and SDK support. |
+| 1.3.1 | Published the SDK enforcement layer and the DC2D runtime controls; added `runtime-patterns.md`, `framework-adapters.md` and the runtime-architecture diagram. |
+| 1.3.2 | Hardened the **§12.5** boundary: Add/Change/Delete on Restricted is now rejected both at authoring time by `profile-3d.schema.json` and at decision time by an immutable evaluator floor, closing a gap where an `autonomy_overrides` entry could raise a prohibited cell. |
+| 1.4.0 | Made the Tools Registry a first-class policy layer (§9.4–9.5); added **session governance** (§9.7), **audit evidence** (§9.8) and the **MCP policy server** (§9.9). Renamed v1.3 → v1.4 per the minor-release convention. |
 
-*Version 1.4.0 SDK updates (June 2026): rmacd 0.9.1 single-sourced the package version and bundled the three profile JSON schemas into the wheel. rmacd 0.10.0 added **LLM-assisted tool classification** — an optional `LLMToolClassifier` (install extra `rmacd-framework[llm]`) that has a Claude model classify ambiguous tool definitions into RMACD terms with a rationale and confidence score, wired into `MCPRegistryBridge` as a fallback (or replacement) for the keyword heuristic. Every auto-classified MCP tool now carries a capability ceiling capped at its inferred operation and classification provenance metadata, with a `low_confidence_tools()` human-review queue; the bridge registers into an existing enforcer registry and accepts raw MCP `tools/list` responses. The bash classifier learned shell control keywords, process substitution, and additional destructive binaries; registry denials are now audited. LLM classification is advisory input at registration time — runtime enforcement (the §12.5 floor, the agent profile, the capability ceiling) remains deterministic. rmacd 0.11.0 added **Governance Packs** (`rmacd.packs`) — declarative, reusable, signable packs that map a tool call to RMACD terms `(operation, data tier, target)` as data instead of hand-written classifiers, with 19 built-in packs, an AI-compile authoring workflow (`rmacd classify`), and Ed25519 signing/drift detection (`rmacd pack sign|verify|diff`). Packs are an SDK capability (not normative); runtime classification stays deterministic. rmacd 0.12.0 added 3 cloud-identity packs (`aws-iam`, `az-identity`, `gcp-iam`) and promoted `CLIApprovalGateway` into the SDK so an approval-gated agent is testable straight from `pip install`. rmacd 0.13.0 added **session governance** (§9.7) — a `PreToolUse` hook and Claude Code plugin that bind an interactive coding session to a profile — plus **audit evidence** tooling (§9.8, `rmacd audit summarize`) and the read-only **MCP policy server** (§9.9, `rmacd mcp-serve`), reaching **34 built-in packs**. rmacd 0.14.0 was a security release closing nine under-enforcement bypasses, and corrected the §3.1 matrix: Add on Restricted is **Prohibited**, not Elevated Approval. See `docs/governance-packs/`, `docs/claude-code.md`, `docs/audit-evidence.md`, and CHANGELOG.*
+### SDK releases behind this revision
 
-*Version 1.4.0 SDK updates (July 2026): rmacd 0.13.0 added **session governance for Claude Code** (`rmacd.claude_code`) — a deterministic `PreToolUse` hook (`python3 -m rmacd.claude_code.hook`) that binds a profile to a Claude Code session and evaluates the session's own Bash/file/MCP tool calls against it before they run (unbound sessions pass through; bound sessions fail closed; approval-level autonomy maps to Claude Code's permission prompt), shipped with a **Claude Code plugin** (`plugins/rmacd/`, installed via `/plugin marketplace add rmacdframework/spec`) carrying the `rmacd-integrate` skill, `/rmacd:init`, and `/rmacd:status`. The built-in pack catalog grew from 22 to **34 packs** (developer toolchain: `git`, `gh`, `docker`, `terraform`, `npm`, `pip-uv`, `make`; enterprise operations: `helm`, `vault`, `ssh-transfer`, `stripe`, `servicenow`), and **pack composition** (`rmacd.packs.composition`) lets multiple packs govern the same tool name — most-specific claim wins, severity breaks ties fail-closed, each match carries its own pack's capability ceiling. An optional **MCP server** (`rmacd.mcp_server`, install extra `rmacd-framework[mcp]`, CLI `rmacd mcp-serve`) exposes read-only policy tools (evaluate, validate, matrix, pack info, bash classification) to any MCP client. **Audit evidence** arrived as `rmacd audit summarize` (text/json/markdown reports with an operation×tier matrix and §12.5-floor hits) plus `docs/audit-evidence.md` (SIEM shipping and SOC 2 / ISO 27001 / GDPR mapping via §10). All additive and deterministic — the §12.5 floor, profile, and capability ceiling remain the runtime gates. See `docs/claude-code.md` and CHANGELOG.*
+| SDK | Added |
+|-----|-------|
+| 0.4.0–0.6.0 | `PolicyEnforcer`, `ApprovalGateway`, `AuditLogger` and the `RMACDError` hierarchy; DC2D `Redactor` / `EgressGate`; `build_system_prompt`; runnable reference integrations. |
+| 0.7.0 | The immutable §12.5 runtime floor (see spec 1.3.2); time-window, egress and redaction fixes. |
+| 0.8.0 | **Tools Registry as a policy layer.** Each tool registers an operation, an optional dynamic classifier (args → operation/tier/target) and an optional capability ceiling; `enforce_tool_call(tool, args)` enforces **profile ∩ tool capability** with the §12.5 floor. The standalone `tools-registry/` was folded into `rmacd.registry`. |
+| 0.9.1 | Single-sourced the package version; bundled the three profile schemas into the wheel. |
+| 0.10.0 | Optional **LLM-assisted tool classification** (`LLMToolClassifier`, extra `[llm]`) wired into `MCPRegistryBridge`; capability ceilings and provenance on auto-classified MCP tools; a `low_confidence_tools()` review queue. |
+| 0.11.0 | **Governance Packs** (`rmacd.packs`) — declarative, reusable, signable tool → `(operation, tier, target)` mappings as data; AI-compile authoring (`rmacd classify`); Ed25519 signing and drift detection. 19 built-in packs. |
+| 0.12.0 | Three cloud-identity packs (`aws-iam`, `az-identity`, `gcp-iam`); `CLIApprovalGateway` promoted into the SDK. 22 packs. |
+| 0.13.0 | **Session governance** (§9.7): a deterministic `PreToolUse` hook binding a Claude Code session to a profile, plus the `plugins/rmacd/` plugin. **Audit evidence** (§9.8, `rmacd audit summarize`). Read-only **MCP policy server** (§9.9, `rmacd mcp-serve`, extra `[mcp]`). Pack composition. 34 packs. |
+| 0.14.0 | Security release closing nine under-enforcement bypasses; corrected §3.1 — **Add on Restricted is Prohibited**, not Elevated Approval. |
+| 0.14.1 | Closed the remaining session fail-open: a bound session whose SDK cannot be imported now denies every tool call instead of running ungoverned. |
 
-*Version 1.4.0 Update: Made the Tools Registry a first-class RMACD policy layer in rmacd 0.8.0. Each tool registers its RMACD operation, an optional dynamic classifier (args → operation/tier/target), and an optional capability ceiling; `PolicyEnforcer.enforce_tool_call(tool, args)` classifies a call through the registry and enforces **profile ∩ tool capability** with the §12.5 floor, returning an audited allow/deny/approve at the tool-call boundary. This is the universal hook for a Claude Agent SDK `PreToolUse` hook, an OpenAI Agents SDK tool guardrail / `needs_approval`, or a Microsoft Agent Framework `FunctionMiddleware` (see `docs/framework-adapters.md`). The previously-standalone `tools-registry/` directory was folded into `rmacd.registry` and removed. The specification document was renamed `v1.3` → `v1.4` per the minor-release convention. See CHANGELOG.*
+Standing constraints, unchanged by any release above:
+
+- **LLM classification is advisory**, at authoring and registration time only.
+  Runtime enforcement — the §12.5 floor, the agent profile, the capability
+  ceiling — is deterministic, with no model in the decision path.
+- **Governance Packs are an SDK capability, not normative.**
+- Every addition above is **additive**: the runtime gates are unchanged.
 
 # **Abstract**
 
@@ -456,7 +477,7 @@ RMACD integrates naturally with existing ITIL change management — termed **cha
 | Change | Normal change | Normal change (CAB) | Human authority only¹ |
 | Delete | Normal change | Normal change (CAB) | Human authority only¹ |
 
-¹ Change/Delete on Restricted is **prohibited for autonomous agents** by the §12.5 immutable safety floor — these are never issued as an automated change and always require a human change authority.
+¹ Add/Change/Delete on Restricted is **prohibited for autonomous agents** by the §12.5 immutable safety floor — these are never issued as an automated change and always require a human change authority.
 
 Higher-risk cells escalate the **change authority** — from delegated or automated approval for low-risk normal changes up to the Change Advisory Board (CAB) for high-risk ones — consistent with ITIL 4's risk-based authorization model. RMACD's **emergency-escalation** controls correspond directly to ITIL's **Emergency change** type: a time-boxed, expedited path with heightened logging and mandatory post-hoc review.
 
@@ -861,6 +882,15 @@ implementation MUST therefore detect "a profile is configured but governance
 cannot run" and deny, rather than relying on the hook process itself to be
 present and healthy.
 
+One residual fail-open cannot be closed from inside the hook: if the host
+imposes a **timeout** and the hook exceeds it, a host that treats a failed hook
+as non-blocking proceeds ungoverned. Fail-closed logic covers everything the
+hook can observe; it cannot cover never returning an answer. Implementations
+SHOULD keep the decision path free of network and disk latency — it needs only
+the profile and an in-memory evaluation — and deployments SHOULD set the
+timeout with margin for cold caches and loaded hosts. Conforming
+implementations MUST document this gap rather than claim fail-closed is total.
+
 Where autonomy resolves to approval, the hook SHOULD surface the host's own
 permission prompt rather than blocking on an out-of-band gateway: the hook
 process is short-lived and has no interactive input.
@@ -884,6 +914,25 @@ Where a runtime offers separate pre- and post-execution interception (§9.7),
 the decision is recorded before the call and the outcome after it, joined by a
 call identifier.
 
+The outcome record MUST carry forward the classification and autonomy level the
+**decision** computed. It MUST NOT recompute them. Two failures follow from
+recomputing, both observed in the reference implementation before this rule was
+stated:
+
+- **The classification is not a pure function of the call.** Whether writing to
+  a path is an Add or a Change depends on whether the path exists — which the
+  call itself has just changed. Re-deriving after execution filed every file
+  creation as `Add` in its decision and `Change` in its outcome: two records
+  that join on the same identifier and disagree about what the agent did.
+- **The autonomy level is a property of the decision, not the execution.** An
+  outcome record that asserts its own autonomy will claim `autonomous` for a
+  call a human explicitly approved. The decision row holds the truth, but an
+  outcome row read on its own — which is how "what did this agent do without
+  asking?" is answered — then states the opposite.
+
+Carrying the decision forward also keeps the post-execution path cheap: it needs
+no profile, no registry, and no re-evaluation.
+
 Records MAY carry an `extra` block for context outside the C.6 shape — session
 and call identifiers, and the agent identity when the call originated in a
 subagent. Consumers MUST tolerate its absence.
@@ -896,10 +945,16 @@ id and, where applicable, the approval id and approver, so a decision can be
 traced to the policy that produced it and the human who authorized it.
 
 `immutable_logging` in a profile's audit requirements signals a WORM
-destination. **Conformance note (SDK ≤ 0.14.0):** the reference
+destination. **Conformance note (SDK ≤ 0.14.1):** the reference
 `JSONLAuditLogger` writes plain lines with no hash chain, sequence number, or
 signature, and `pii_masking` is not applied to audit fields. An implementation
 claiming tamper-evidence MUST supply it at the sink.
+
+**Conformance note (session governance):** the reference implementation writes
+the session trail best-effort — an unwritable sink emits a diagnostic and the
+governance decision stands unchanged. This is deliberate: an audit failure must
+not take down a working session. It does mean the trail is not itself evidence
+of completeness, so a deployment that must prove no gaps MUST monitor the sink.
 
 ## **9.9 MCP Policy Server**
 
@@ -1180,7 +1235,7 @@ Certain permission escalations are **never** granted through the exception proce
 
 | Prohibition | Rationale |
 |-------------|-----------|
-| Change or Delete on Restricted data | Fundamental safety boundary; requires human execution |
+| Add, Change or Delete on Restricted data | Fundamental safety boundary; requires human execution |
 | Removal of audit logging | Compliance and forensic requirements are non-negotiable |
 | Cross-environment exceptions (prod profile in dev) | Environment isolation must be maintained |
 | Indefinite or open-ended duration | All exceptions must have explicit expiration |

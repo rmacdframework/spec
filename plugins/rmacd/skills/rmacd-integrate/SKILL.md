@@ -151,7 +151,7 @@ Autonomy applied when a granted `(operation, tier)` cell has no profile override
 
 > **Warning (§12.5):** the Restricted-row prohibitions (and Add on Restricted) are hard
 > safety boundaries. No profile, override, emergency escalation, or exception request
-> can lift Change/Delete on Restricted for an autonomous agent. Surface
+> can lift Add/Change/Delete on Restricted for an autonomous agent. Surface
 > `RMACDProhibitedError` to the user as "a human must do this directly".
 
 Exception types to handle: `RMACDProhibitedError` (hard stop),

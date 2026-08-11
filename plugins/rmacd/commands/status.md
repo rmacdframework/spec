@@ -55,7 +55,7 @@ packs, classification map, audit sink, and how approvals/unknown tools are route
   `.claude/rmacd-profile.json` in the project root. Hooks load at session start, so a
   new binding takes effect after restarting Claude Code.
 - **BOUND** — summarise the matrix in one or two sentences (what runs autonomously,
-  what will prompt for approval via "ask", and that Change/Delete on restricted is
+  what will prompt for approval via "ask", and that Add/Change/Delete on restricted is
   prohibited by the §12.5 immutable floor — no exception process can grant it).
 - **BOUND BUT BROKEN** — the hook is denying all tool calls (fail-closed). Help the
   user fix the reported cause, or unbind and restart the session.

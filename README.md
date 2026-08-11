@@ -12,11 +12,13 @@
 
 ## Overview
 
-The **RMACD Framework** (Read, Move, Add, Change, Delete) is a governance model for autonomous AI agents in enterprise IT operations. It integrates:
+The **RMACD Framework** (Read, Move, Add, Change, Delete) is a governance model for autonomous AI agents in enterprise IT operations. It integrates three axes:
 
-- **Operational Permissions** — Five graduated tiers (R→M→A→C→D) based on risk
-- **Human-in-the-Loop Controls** — Six autonomy levels from fully autonomous to prohibited
-- **Data Classification** — Optional integration with enterprise data sensitivity tiers
+| Axis | What it controls | Values |
+|------|------------------|--------|
+| **Operational Permissions** | What kind of action the agent may take | Five graduated tiers by risk, cumulative: R → M → A → C → D |
+| **Human-in-the-Loop Controls** | How much oversight each action needs | Six autonomy levels, fully autonomous through prohibited |
+| **Data Classification** | How sensitive the data being acted on is | Four tiers — optional; omit it for the 2D shape |
 
 RMACD answers the fundamental governance question: *"What can this agent do, to what data, with what oversight?"*
 
@@ -40,12 +42,22 @@ then, inside a session:
 Install the SDK into the Python environment your session's `python3` resolves to (the `[mcp]` extra is optional — it adds the `rmacd mcp-serve` policy server for MCP clients):
 
 ```bash
-pip install "rmacd-framework[mcp]"
+pip install "rmacd-framework[mcp]>=0.14"
 ```
 
-Beyond scaffolding governance for agents you build, the plugin governs the **Claude Code session itself**: a deterministic `PreToolUse` hook (`python3 -m rmacd.claude_code.hook`) classifies every Bash, file-edit, and MCP tool call into RMACD terms and evaluates it against a bound profile before the tool runs. With the read-only `observer-3d` profile bound, reads pass through untouched while a `rm -rf` is refused with a decision that cites the operation, tier, rule, and profile — `RMACD: Delete on internal target 'bash:rm' denied — Operation D not permitted for this profile. Rule: bash classifier: rm. Profile: rmacd-3d-observer-v1.` Unbound sessions are zero-friction; bound sessions fail closed, and approval-level autonomy maps to Claude Code's own permission prompt.
+Beyond scaffolding governance for agents you build, the plugin governs the **Claude Code session itself**: a deterministic `PreToolUse` hook (`python3 -m rmacd.claude_code.hook`) classifies every Bash, file-edit, and MCP tool call into RMACD terms and evaluates it against a bound profile before the tool runs. With the read-only `observer-3d` profile bound, reads pass through untouched while a `rm -rf` is refused with a decision that cites the operation, tier, rule, and profile — `RMACD: Delete on internal target 'bash:rm' denied — Operation D not permitted for this profile. Rule: bash classifier: rm. Profile: rmacd-3d-observer-v1.`
 
-See [docs/claude-code.md](docs/claude-code.md) for setup, enterprise managed-settings rollout, and configuration, and the [plugin README](plugins/rmacd/README.md) for what's inside (`/rmacd:init`, `/rmacd:status`, `/rmacd:bug-setup`, skills, hook).
+What the session gets, at a glance:
+
+| Hook | What it does |
+|------|--------------|
+| `SessionStart` | States the governance state once, up front — which profile bound the session, or that none did |
+| `PreToolUse` | Classifies and decides before the tool runs: `allow`, `deny` with a cited reason, or `ask` (approval-level autonomy maps to Claude Code's own permission prompt), and records the decision |
+| `PostToolUse` | Records the execution outcome for calls that ran, joined to its decision by `tool_use_id` |
+
+Bound sessions **fail closed** — including when a profile is configured but the SDK cannot be imported, in which case a stdlib-only wrapper denies every tool call and names the fix. Unbound sessions stay zero-friction: no decision is emitted and Claude Code's own permission flow is untouched. A bound session writes its audit trail to `.claude/rmacd-audit.jsonl` beside the profile.
+
+See [docs/claude-code.md](docs/claude-code.md) for setup, enterprise managed-settings rollout, the normative fail-mode table, and configuration, and the [plugin README](plugins/rmacd/README.md) for what's inside (`/rmacd:init`, `/rmacd:status`, `/rmacd:bug-setup`, skills, hooks).
 
 ---
 
@@ -97,11 +109,13 @@ What we've built, from the standard up to running agents. Each layer links to it
 
 ### Implementation Models
 
-| Model | Dimensions | Best For |
-|-------|-----------|----------|
-| **Three-Dimensional** | RMACD × HITL × Data Classification | Default. Regulated industries, mature data governance. |
-| **Two-Dimensional (Operational)** | RMACD × HITL | Organizations without formal data classification tiers. |
-| **Two-Dimensional (Data-Classification, DC2D)** | Data Classification × HITL | Organizations whose primary governance lever is data sensitivity; operations governed by an upstream IAM/RBAC or DLP layer. See [Appendix D](docs/RMACD_Framework_v1.4.md#appendix-d-the-data-classification-two-dimensional-variant-dc2d). |
+| Model | Dimensions | Profile ID pattern | Best for |
+|-------|-----------|--------------------|----------|
+| **Three-Dimensional** (default) | RMACD × HITL × Data Classification | `rmacd-3d-*` | Regulated industries and mature data governance — the full matrix, including the §12.5 immutable floor. |
+| **Two-Dimensional (Operational)** | RMACD × HITL | `rmacd-2d-*` | Organizations without formal data classification tiers, or a fast pilot. |
+| **Two-Dimensional (Data-Classification, DC2D)** | Data Classification × HITL | `rmacd-dc2d-*` | Organizations whose primary governance lever is data sensitivity; operations governed by an upstream IAM/RBAC or DLP layer. Redaction and egress are the enforcement surfaces. See [Appendix D](docs/RMACD_Framework_v1.4.md#appendix-d-the-data-classification-two-dimensional-variant-dc2d). |
+
+All three shapes have a JSON Schema in [`schemas/`](schemas/) and worked profiles in [`schemas/examples/`](schemas/examples/); the SDK detects the shape from the profile and enforces accordingly.
 
 ---
 
@@ -115,40 +129,63 @@ What we've built, from the standard up to running agents. Each layer links to it
 | **Change** | Approve | Approve | Elevated | **Prohibited** |
 | **Delete** | Approve | Elevated | Elevated | **Prohibited** |
 
+**Add, Change and Delete on Restricted are prohibited for autonomous agents** — all three, not just Change and Delete. This is the §12.5 immutable floor: it cannot be granted through the exception process, and the SDK enforces it twice (in the `profile-3d` schema and again as a runtime floor in the evaluator that no profile can override).
+
 ---
 
 ## Documentation
 
-- [Full Specification (Markdown)](docs/RMACD_Framework_v1.4.md) — Recommended for reading on GitHub
-- [Full Specification (Word)](docs/RMACD_Framework_v1.4.docx) — Original document format
-- [Framework Diagram (PNG)](docs/RMACD_Framework_Diagram.drawio.png) — Conceptual model (R/M/A/C/D × HITL)
-- [Framework Diagram (draw.io)](docs/RMACD_Framework_Diagram.drawio) — Editable conceptual source
-- [Runtime Architecture Diagram (draw.io)](docs/RMACD_Runtime_Architecture.drawio) — PDP/PEP/Audit/Approval with SDK class overlay
-- [Governance Packs Diagram (PNG)](docs/RMACD_Governance_Packs.drawio.png) — how packs are authored (AI-assisted, signed) and enforced deterministically
-- [Implementation Guide](docs/implementation.md)
-- [Runtime Patterns](docs/runtime-patterns.md) — How an agent runtime consumes RMACD: profile binding, classification lookup, approval-wait, error contract, agent self-restriction
-- [Python SDK](sdk/python/) — `rmacd-framework` on PyPI; `PolicyEvaluator`, `PolicyEnforcer`, profiles, audit, approval
-- [Claude Agent SDK integration example](examples/agent-integration-claude-sdk/) — Runnable RMACD-governed agent (PreToolUse hook)
-- [Raw Anthropic SDK integration example](examples/agent-integration-anthropic-sdk/) — Runnable RMACD-governed agent (manual tool-use loop)
-- [DC2D customer-support example](examples/dc2d-customer-support/) — Redaction + egress controls demo (DC2D variant)
-- [Framework adapters](docs/framework-adapters.md) — registry-backed `enforce_tool_call` for OpenAI Agents SDK, Microsoft Agent Framework, Claude Agent SDK, LangChain, AutoGen, CrewAI — plus RMACD as an MCP server
-- [Claude Code integration](docs/claude-code.md) — *New in SDK 0.13.0:* session governance (`rmacd.claude_code` PreToolUse hook), the `rmacd` plugin, and enterprise managed-settings rollout
-- [Audit evidence](docs/audit-evidence.md) — `rmacd audit summarize` reports, SIEM shipping recipes, SOC 2 / ISO 27001 / GDPR mapping
-- [Python Tools Registry](sdk/python/rmacd/registry/) — First-class tool→RMACD classifier + capability ceiling, consulted by `PolicyEnforcer.enforce_tool_call`; MCP auto-classification (`MCPRegistryBridge`) with optional Claude-powered classification (`LLMToolClassifier`, `pip install rmacd-framework[llm]`)
-- [Governance Packs](docs/governance-packs/) — *New in SDK 0.11.0 (`rmacd.packs`):* declarative, reusable, signable packs that map a tool surface to RMACD terms (operation/tier/target) so agents are governed off the shelf — `load_packs(["aws", "kubectl", "jira"])` — plus an AI-compile authoring workflow and 34 built-in packs ([overview](docs/governance-packs/README.md), [design](docs/governance-packs/design.md), [roadmap](docs/governance-packs/roadmap.md), [authoring guide](docs/governance-packs/authoring-guide.md))
-- [JSON Schema Templates](schemas/)
-- [Website](https://rmacd-framework.org)
+### Specification and diagrams
+
+| Document | What it is |
+|----------|-----------|
+| [Full Specification (Markdown)](docs/RMACD_Framework_v1.4.md) | The authoritative spec — recommended for reading on GitHub |
+| [Full Specification (Word)](docs/RMACD_Framework_v1.4.docx) | The same content, generated from the Markdown |
+| [Framework Diagram](docs/RMACD_Framework_Diagram.drawio.png) ([source](docs/RMACD_Framework_Diagram.drawio)) | Conceptual model — R/M/A/C/D × HITL |
+| [Runtime Architecture Diagram](docs/RMACD_Runtime_Architecture.drawio.png) ([source](docs/RMACD_Runtime_Architecture.drawio)) | PDP / PEP / Audit / Approval, with the SDK class overlay |
+| [Governance Packs Diagram](docs/RMACD_Governance_Packs.drawio.png) ([source](docs/RMACD_Governance_Packs.drawio)) | How packs are authored (AI-assisted, signed) and enforced deterministically |
+| [JSON Schema Templates](schemas/) | `profile-2d`, `profile-3d`, `profile-dc2d` + [example profiles](schemas/examples/) |
+
+### Guides and runtime reference
+
+| Document | What it covers |
+|----------|----------------|
+| [Implementation Guide](docs/implementation.md) | Step-by-step adoption: choose a shape, define profiles, wire enforcement, approvals, rollout |
+| [Runtime Patterns](docs/runtime-patterns.md) | How an agent runtime consumes RMACD: profile binding, classification lookup, approval-wait, error contract, agent self-restriction, DC2D |
+| [Framework adapters](docs/framework-adapters.md) | Registry-backed `enforce_tool_call` for OpenAI Agents SDK, Microsoft Agent Framework, Claude Agent SDK, LangChain, AutoGen, CrewAI — plus RMACD as an MCP server |
+| [Claude Code integration](docs/claude-code.md) | Governing the Claude Code session itself: `SessionStart` notice, `PreToolUse` decision hook, `PostToolUse` audit trail (`.claude/rmacd-audit.jsonl`), fail-closed behaviour when a profile is bound but the SDK is missing, the `rmacd` plugin, and enterprise managed-settings rollout |
+| [Audit evidence](docs/audit-evidence.md) | `rmacd audit summarize` reports, SIEM shipping recipes, SOC 2 / ISO 27001 / GDPR mapping |
+| [Governance Packs](docs/governance-packs/) | Declarative, reusable, signable packs (`rmacd.packs`) that map a tool surface to RMACD terms (operation / tier / target) so agents are governed off the shelf — `load_packs(["aws", "kubectl", "jira"])` — with an AI-compile authoring workflow and **34 built-in packs**: [overview](docs/governance-packs/README.md) · [catalog](docs/governance-packs/catalog.md) · [design](docs/governance-packs/design.md) · [authoring guide](docs/governance-packs/authoring-guide.md) · [roadmap](docs/governance-packs/roadmap.md) |
+
+### Code
+
+| Component | What it is |
+|-----------|-----------|
+| [Python SDK](sdk/python/) | `rmacd-framework` on PyPI (import name `rmacd`) — `PolicyEvaluator`, `PolicyEnforcer`, profiles, audit, approval, redaction, egress |
+| [Tools Registry](sdk/python/rmacd/registry/) | First-class tool→RMACD classifier + capability ceiling, consulted by `PolicyEnforcer.enforce_tool_call`; MCP auto-classification (`MCPRegistryBridge`) with optional Claude-powered classification (`LLMToolClassifier`, `pip install "rmacd-framework[llm]"`) |
+| [Claude Agent SDK example](examples/agent-integration-claude-sdk/) | Runnable RMACD-governed agent via a `PreToolUse` hook |
+| [Anthropic SDK example](examples/agent-integration-anthropic-sdk/) | Runnable RMACD-governed agent via a manual tool-use loop — the most portable template |
+| [DC2D customer-support example](examples/dc2d-customer-support/) | Redaction + egress controls demo, no LLM required |
+| [Governance packs quickstart](examples/governance-packs-quickstart/) | Building an enforcer's registry from packs |
+| [GitHub Action / pre-commit hook](integrations/github-action/) | CI validation of profile JSON on every push and PR |
+| [Website](https://rmacd-framework.org) | Profile Generator and Validator, plus the published spec |
 
 ---
 
 ## Installation
 
-RMACD is a governance specification, not a software package. To implement:
+RMACD is first a governance specification; the SDK is the optional enforcement half. Adopting it:
 
 1. **Assess** your organization's data classification maturity
-2. **Select** the Two-Dimensional or Three-Dimensional model
-3. **Define** permission profiles for your agent types
-4. **Integrate** with your agent runtime/orchestration platform
+2. **Select** a deployment shape — 3D, 2D Operational, or DC2D
+3. **Define** permission profiles for your agent types (start from [`schemas/examples/`](schemas/examples/))
+4. **Integrate** with your agent runtime, either directly or through the SDK:
+
+   ```bash
+   pip install "rmacd-framework>=0.14"
+   ```
+
+   Optional extras: `[mcp]` (policy MCP server), `[llm]` (Claude-assisted tool classification), `[sign]` (Ed25519 pack signing), `[yaml]` (YAML governance packs and tool-source files).
 
 See the [Implementation Guide](docs/implementation.md) for details.
 

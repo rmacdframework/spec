@@ -13,8 +13,11 @@ LLM tool-call timeout, what exception contract the SDK exposes, or what an
 agent should be told about its own profile so it can self-restrict.
 
 This document fills those gaps by describing the runtime patterns the
-`rmacd-framework` SDK (≥ 0.4.0) implements and the reference Claude Agent
-SDK integration (`spec/examples/agent-integration-claude-sdk/`) demonstrates.
+`rmacd-framework` SDK implements and the reference Claude Agent SDK
+integration (`spec/examples/agent-integration-claude-sdk/`) demonstrates.
+Everything below is written against the supported floor,
+`pip install "rmacd-framework>=0.14"`; per-feature version markers are
+therefore omitted unless a capability is newer than that.
 
 ## Contents
 
@@ -32,13 +35,14 @@ SDK integration (`spec/examples/agent-integration-claude-sdk/`) demonstrates.
 
 ## 1. Two layers: evaluator vs enforcer
 
-The SDK provides two distinct call surfaces, each appropriate for a
-different consumer:
+The SDK provides two distinct classes — and, on the enforcer, a third call
+surface for callers that are bound but must not cause side effects:
 
-| Surface | Class | Returns | Side effects | Typical caller |
+| Surface | Call | Returns | Side effects | Typical caller |
 |---|---|---|---|---|
-| Pure decision | `PolicyEvaluator` | `PolicyDecision` | None | Dry-run UIs, batch policy analysis, profile linters |
-| Decide + act | `PolicyEnforcer` | `PolicyDecision` or raises | Approval round-trip, audit emission, exception on denial | Agent runtimes (this is the layer all framework integrations hit) |
+| Pure decision | `PolicyEvaluator.evaluate(...)` | `PolicyDecision` | None | Dry-run UIs, batch policy analysis, profile linters |
+| Decide + act | `PolicyEnforcer.enforce(...)` / `.enforce_tool_call(...)` | `PolicyDecision` or raises | Approval round-trip, audit emission, exception on denial | Agent runtimes (this is the layer all framework integrations hit) |
+| Decide, bound, no side effects | `PolicyEnforcer.evaluate_only(...)` | `PolicyDecision` | None | An already-bound enforcer that must decide without an approval round-trip — e.g. a short-lived hook process with no interactive stdin |
 
 ```python
 # Decision-only: "would this be allowed?"
@@ -57,7 +61,7 @@ enforcer = PolicyEnforcer(
 )
 enforcer.enforce(operation="C", target="server://web-01", classification="internal")
 # → raises RMACDApprovalDeniedError if the human says no
-# → raises RMACDProhibitedError on Change/Restricted
+# → raises RMACDProhibitedError on Add/Change/Delete against Restricted
 # → returns a PolicyDecision otherwise
 ```
 
@@ -66,6 +70,20 @@ the round-trip (a profile-coverage report, an offline policy linter, a UI
 that shows "this would require approval" before the user commits). The
 enforcer wraps the evaluator and adds the side effects every real agent
 runtime needs: approval routing, audit emission, exception classification.
+
+### What each autonomy level does at runtime
+
+The decision's `autonomy_level` is what the two layers disagree about: the
+evaluator only reports it, the enforcer acts on it.
+
+| `AutonomyLevel` | `enforce()` behaviour | Audit result | Caller still owes |
+|---|---|---|---|
+| `autonomous` | Returns the decision immediately | `ALLOW` | — |
+| `logged` | Returns immediately | `ALLOW` | Nothing, if your `AuditLogger` is the log of record |
+| `notification` | Returns immediately with `decision.requires_notification == True` | `ALLOW` | Sending the notification — the SDK sets the flag, it does not dispatch alerts |
+| `approval` | Calls `ApprovalGateway.request(...)` and blocks on the outcome | `QUEUED`, then `APPROVED` + `ALLOW`, or `REJECTED` (denied) / `DENY` (timeout) | A gateway wired to a real approver |
+| `elevated_approval` | Same round-trip; the level travels in the `ApprovalRequest` | Same as `approval` | Routing the elevated level to a higher authority |
+| `prohibited` | Raises `RMACDProhibitedError` — never reaches a gateway | `DENY` | Telling the user only a human can do this |
 
 ---
 
@@ -98,9 +116,19 @@ process. This is the form used in the reference Claude Agent SDK example.
 ```python
 # At process startup
 enforcer = PolicyEnforcer.from_env()
-# Reads RMACD_AGENT_ID, RMACD_PROFILE_PATH, optionally RMACD_ENVIRONMENT.
 # Raises ValueError with a clear message if either required var is missing.
 ```
+
+| Variable | Required | Meaning |
+|---|---|---|
+| `RMACD_PROFILE_PATH` | Yes | Path to the profile JSON this process binds |
+| `RMACD_AGENT_ID` | Yes | The audit identity attributed to every decision |
+| `RMACD_ENVIRONMENT` | No | Deployment environment fed to the profile's `constraints.environments` check |
+
+(The variable names are themselves parameters — `from_env(agent_id_var=...,
+profile_var=..., environment_var=...)` — for deployments whose conventions
+differ. A governed Claude Code *session* reads a larger, separate set of
+`RMACD_*` variables; see [`claude-code.md`](claude-code.md).)
 
 Right for container deployments where the runtime injects identity and
 profile path via env vars. The same pattern composes with Kubernetes
@@ -249,20 +277,20 @@ recoverable; false negatives on the permissive side are not.
 
 The patterns above classify a *call*. A separate classification problem is
 onboarding the *tool itself* — assigning a default RMACD level to each of an
-MCP server's advertised tools. The SDK ships two engines for this
-(SDK ≥ 0.10.0): a deterministic keyword heuristic and an optional
-Claude-backed `LLMToolClassifier` for the ambiguous tail, both via
-`MCPRegistryBridge` with capability ceilings and provenance recorded per
-tool. See `framework-adapters.md` → *Auto-classifying MCP tools*. Both are
-advisory inputs at registration time; runtime enforcement stays
-deterministic.
+MCP server's advertised tools. The SDK ships two engines for this: a
+deterministic keyword heuristic and an optional Claude-backed
+`LLMToolClassifier` for the ambiguous tail, both via `MCPRegistryBridge` with
+capability ceilings and provenance recorded per tool. See
+`framework-adapters.md` → *Auto-classifying MCP tools*. Both are advisory
+inputs at registration time; runtime enforcement stays deterministic.
 
-**Governance Packs (SDK ≥ 0.11.0)** package this classification as reusable,
-signable data: `load_packs([...])` builds the enforcer's registry from built-in
-or authored packs so onboarding is configuration, not per-integration classifier
-code. The runtime classifier a pack compiles to is fully deterministic — the LLM
-is used only at authoring time (`rmacd classify`). See
-[`governance-packs/`](governance-packs/).
+**Governance Packs** package this classification as reusable, signable data:
+`load_packs([...])` builds the enforcer's registry from built-in or authored
+packs so onboarding is configuration, not per-integration classifier code.
+34 packs ship built in. The runtime classifier a pack compiles to is fully
+deterministic — the LLM is used only at authoring time (`rmacd classify`).
+Composition is safe in one direction only: adding a pack can make a call look
+more dangerous, never less. See [`governance-packs/`](governance-packs/).
 
 ---
 
@@ -302,7 +330,7 @@ Implementations can:
 | Sub-second | In-process gateway (rare) | Tool call resolves normally |
 | Seconds to ~minute | Synchronous gateway (Slack, CLI prompt) | Tool call sits idle for the duration; safe up to whatever the LLM transport tolerates |
 | Minutes to hours | Asynchronous handoff: tool returns a "pending approval" response to the LLM, agent surfaces it to the user, work resumes on a fresh agent turn once approval lands | Use the `pending` content type or an out-of-band channel |
-| Days | Out of scope for a single agent session entirely; route through a workflow system, not the agent |
+| Days | Out of scope for a single agent session entirely; route through a workflow system, not the agent | N/A — the agent session is long gone |
 
 ### Asynchronous handoff pattern (long-running approvals)
 
@@ -347,9 +375,11 @@ RMACDError                          base for everything
     ├── RMACDPermissionDeniedError  profile does not grant this (op, tier)
     ├── RMACDProhibitedError        autonomy matrix prohibits — never granted
     ├── RMACDConstraintError        env / time window / quota blocked it
+    ├── RMACDToolCapabilityError    the tool's own ceiling forbids this (op, tier)
     ├── RMACDApprovalRequiredError  approval needed and no gateway was wired up
     ├── RMACDApprovalDeniedError    human approver said no
-    └── RMACDApprovalTimeoutError   approval request timed out
+    ├── RMACDApprovalTimeoutError   approval request timed out
+    └── RMACDEgressBlockedError     DC2D egress rule blocked the destination (§8)
 ```
 
 Every `RMACDPolicyError` carries the underlying `PolicyDecision` so
@@ -366,9 +396,11 @@ react differently to each failure mode:
 | `RMACDPermissionDeniedError` | Surface to the LLM as a recoverable tool error. The agent may try a lower-risk alternative or recommend filing a §12 exception request. |
 | `RMACDProhibitedError` | Hard stop. Tell the user the operation requires their direct execution (§12.5: cannot be granted via exceptions). |
 | `RMACDConstraintError` | Tell the user the constraint that fired (e.g., "outside production change window") and offer to retry inside the window. |
+| `RMACDToolCapabilityError` | The *tool* may never do this, whatever the agent's profile says. Pick a different tool; widening the profile will not help. |
 | `RMACDApprovalDeniedError` | The human said no. Respect it. Do not retry the same operation. |
 | `RMACDApprovalTimeoutError` | The human never answered. The agent may retry once, then escalate. |
-| `RMACDApprovalRequiredError` | Deployment bug — no gateway wired up. Surface to ops, not to the user. |
+| `RMACDApprovalRequiredError` | Deployment bug — no gateway wired up (or the gateway itself raised). Surface to ops, not to the user. |
+| `RMACDEgressBlockedError` | DC2D only: the destination is not permitted for this tier. Redact, choose an allowed destination, or stop. |
 
 ### Distinguishing profile-denied from matrix-prohibited
 
@@ -423,8 +455,9 @@ The minimum information that lets an agent self-restrict productively:
 3. **Expected autonomy stance per cell** — which calls are autonomous,
    which are logged, which trigger notifications, which require approval,
    which are prohibited.
-4. **Hard prohibitions** — Change/Delete on Restricted is prohibited for
-   any agent; an exception request cannot lift this.
+4. **Hard prohibitions** — Add, Change and Delete on Restricted are
+   prohibited for any agent (all three, not just Change and Delete); an
+   exception request cannot lift this (§12.5).
 5. **Behaviour-on-denial** — do not retry denied operations; choose a
    lower-risk alternative or surface to the user.
 
@@ -449,7 +482,7 @@ Default autonomy stance applies on top of those permissions:
 - Reads on Confidential are logged; reads on Restricted notify the operator.
 - Changes on Internal require approval.
 - Adds on Confidential require elevated approval (CAB).
-- Change/Delete on Restricted are prohibited for any agent.
+- Add, Change and Delete on Restricted are prohibited for any agent.
 
 ## Behaviour
 
@@ -465,11 +498,17 @@ Default autonomy stance applies on top of those permissions:
 See `examples/agent-integration-claude-sdk/rmacd_demo/system_prompt.md`
 for the version used in the reference integration.
 
-For programmatic generation, use `rmacd.build_system_prompt(profile)`
-(SDK 0.6.0+), which renders the prompt fragment directly from a loaded
-profile — supports 2D / 3D / DC2D, includes the autonomy table for 3D,
-surfaces redaction and egress controls for DC2D, and lists hard
-prohibitions from the autonomy matrix:
+For programmatic generation, use `build_system_prompt(profile)` (exported
+from `rmacd`, defined in `rmacd.prompts`), which renders the prompt fragment
+directly from a loaded profile:
+
+| Profile shape | What the generated fragment includes |
+|---|---|
+| 2D | Profile id, permitted operations, an autonomy-stance table per operation, and the behaviour rules |
+| 3D | Profile id, permitted operations per tier, the full autonomy table across (operation × tier), an explicit **Hard prohibitions** section naming Add / Change / Delete on Restricted as human-only under §12.5, and the behaviour rules |
+| DC2D | Profile id, an access-stance table per tier, the redaction and egress controls in force, and the behaviour rules |
+
+An optional `title=` overrides the fragment's heading.
 
 ```python
 from rmacd import ProfileLoader, build_system_prompt
@@ -517,8 +556,9 @@ result = enforcer.apply_redaction(
     "Customer email: jane@example.com, SSN 123-45-6789",
     tier="confidential",
 )
-# result.content        → "Customer email: [TOKEN_email_a1b2c3d4], SSN [TOKEN_ssn_ef567890]"
+# result.content        → "Customer email: [TOKEN_email_8c87b489], SSN [TOKEN_ssn_01a54629]"
 # result.redactions_applied → ["email", "ssn"]
+# result.tier           → DataClassification.CONFIDENTIAL
 ```
 
 Three knobs in `RedactionPolicy`:
@@ -595,7 +635,7 @@ know about either.
 The demo at `examples/dc2d-customer-support/demo.py` shows the full
 pipeline: load a DC2D profile, attempt to read records at four tiers,
 apply redaction to allowed reads, then check egress to four destinations.
-It's a 130-line self-contained script with no LLM integration — the data
+It's a short self-contained script with no LLM integration — the data
 flows are deterministic so the surfaces are easy to inspect.
 
 ---
@@ -612,7 +652,7 @@ list to audit a new integration:
 | 3 | Dynamic verb selection | Classifier inspects payload / target state | §4 |
 | 4 | Approval routing | `ApprovalGateway` implementation matched to expected latency | §5 |
 | 5 | Audit emission | `AuditLogger` implementation (default `NullAuditLogger`, use real sink in prod) | §1, Appendix C.6 |
-| 6 | Exception handling | Catch the six `RMACDPolicyError` subclasses and surface per-subclass reactions | §6 |
+| 6 | Exception handling | Catch the eight `RMACDPolicyError` subclasses and surface per-subclass reactions | §6 |
 | 7 | Agent self-restriction | System prompt that summarises the profile | §7 |
 | 8 | Identity attestation | Derive `agent_id` from workload identity (not a hardcoded string in production) | §2 |
 | 9 | Emergency escalation | `EvaluationContext.emergency_active` + profile's `emergency_escalation` block | Appendix C.3 |
@@ -621,6 +661,7 @@ list to audit a new integration:
 | 12 | Multi-environment routing | Different profile per environment (dev/staging/production), bound via the same mechanism in §2 | §9.2 |
 | 13 | DC2D redaction | `PolicyEnforcer.apply_redaction(content, tier)` after each read; plug in real PII detector for production | §8 |
 | 14 | DC2D egress controls | `PolicyEnforcer.check_egress(tier, destination)` before each outbound send | §8 |
+| 15 | Tool classification at onboarding | `load_packs([...])` for the 34 built-in governance packs, or `MCPRegistryBridge` for an MCP server's `tools/list` | §4 |
 
 ### What the SDK provides vs what integrators provide
 
@@ -633,6 +674,7 @@ list to audit a new integration:
 | `RMACDError` hierarchy | ✅ | — |
 | Profile loader (filesystem) | ✅ | Central policy-store client (HTTPS / mTLS / signature verification) |
 | Tools Registry (static tool classification) | ✅ | Tool-to-RMACD-operation mapping for tools not in the catalog |
+| Governance packs — 34 built in, plus the authoring/signing CLI | ✅ | Review and signature before production trust; packs for your in-house tool surfaces |
 | Resource classifier | — (pattern only) | Lookup against catalog / tag registry / DLP product |
 | Workload identity attestation | — | Kubernetes ServiceAccount / IAM role / SPIFFE SVID → `agent_id` |
 | Rate limit runtime | — (schema validation only) | External rate limiter |
@@ -648,7 +690,13 @@ itself.
 
 ## Pointers
 
-- SDK source: `spec/sdk/python/rmacd/`
-- Reference integration: `spec/examples/agent-integration-claude-sdk/`
-- Canonical spec: `spec/docs/RMACD_Framework_v1.4.md` (Appendices C and D)
-- Issue tracker: `https://github.com/rmacdframework/spec/issues`
+| | Where |
+|---|---|
+| SDK source | `spec/sdk/python/rmacd/` |
+| Reference integration | `spec/examples/agent-integration-claude-sdk/` |
+| DC2D demo | `spec/examples/dc2d-customer-support/` |
+| Canonical spec | `spec/docs/RMACD_Framework_v1.4.md` (Appendices C and D) |
+| Framework adapters | [`framework-adapters.md`](framework-adapters.md) |
+| Governing a Claude Code session | [`claude-code.md`](claude-code.md) |
+| Audit evidence and control mapping | [`audit-evidence.md`](audit-evidence.md) |
+| Issue tracker | `https://github.com/rmacdframework/spec/issues` |

@@ -34,7 +34,7 @@ Copy the nearest one and trim; do not start from an empty file.
 
 ## Invariants (the validator and runtime both enforce these)
 
-- **§12.5 immutable floor** — Change/Delete on Restricted is prohibited for autonomous
+- **§12.5 immutable floor** — Add/Change/Delete on Restricted is prohibited for autonomous
   agents. The profile-3d schema rejects `C`/`D` in `permissions.restricted`, and the
   evaluator applies the same floor at runtime regardless of what a profile says. The
   exception process cannot grant it. Add on Restricted is likewise PROHIBITED in the
