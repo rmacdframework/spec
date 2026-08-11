@@ -15,6 +15,7 @@ deny with ``RMACD_UNKNOWN_TOOL=ask`` override, malformed stdin.
 
 from __future__ import annotations
 
+import io
 import json
 import os
 import subprocess
@@ -573,6 +574,47 @@ def test_decide_restricted_read_is_allowed_with_notification(tmp_path: Path) -> 
     out = _decision(binding, "Read", {"file_path": "/data/secret/report.txt"})
     # restricted.R defaults to 'notification' -> allowed, no approval prompt.
     assert out["permissionDecision"] == "allow"
+
+
+# ---------------------------------------------------------------------------
+# direct: the one-time unbound notice
+# ---------------------------------------------------------------------------
+
+
+def test_unbound_notice_is_emitted_once_per_session(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(hook.tempfile, "gettempdir", lambda: str(tmp_path))
+    event = {"session_id": "sess-notice"}
+
+    first, second = io.StringIO(), io.StringIO()
+    hook._emit_unbound_notice_once(event, first)
+    hook._emit_unbound_notice_once(event, second)
+
+    assert "unbound" in first.getvalue()
+    assert second.getvalue() == ""
+
+
+def test_unbound_notice_marker_does_not_follow_a_symlink(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The marker lives in a shared temp dir, so the path may not be ours.
+
+    Without O_NOFOLLOW a symlink planted at the marker path redirects the write
+    to any file the user can write, truncating it.
+    """
+    monkeypatch.setattr(hook.tempfile, "gettempdir", lambda: str(tmp_path))
+    event = {"session_id": "sess-symlink"}
+    victim = tmp_path / "victim"
+    victim.write_text("precious")
+    Path(hook._notice_marker_path(event)).symlink_to(victim)
+
+    err = io.StringIO()
+    hook._emit_unbound_notice_once(event, err)
+
+    assert victim.read_text() == "precious"
+    # The notice still has to reach the user; a hostile marker must not silence it.
+    assert "unbound" in err.getvalue()
 
 
 # ---------------------------------------------------------------------------

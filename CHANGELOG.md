@@ -78,6 +78,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   binding matrix — drift would mean a governed session running unenforced, so it
   fails the build instead.
 
+- **The SessionStart banner could contradict the hook governing the session.**
+  It resolved the session directory from `CLAUDE_PROJECT_DIR` alone while the
+  PreToolUse guard uses the event's `cwd`, so a monorepo subdirectory carrying
+  its own profile was announced as "ungoverned" while every call in it was in
+  fact governed. It now reads the event, like the guard. This matters more than
+  it reads: the guard short-circuits unbound sessions before the SDK loads, so
+  this banner is the only statement of governance state a plugin user sees.
+  Running the script by hand with no event still reports rather than hanging.
+
+- **Hardened the one-time unbound-notice marker.** It lives in a shared temp
+  directory and was created with a plain `open(..., "w")` after a separate
+  existence check — a symlink planted at the path redirected the write to any
+  file the user could write, and the check/create gap let concurrent calls
+  double-notify. It now uses `O_CREAT|O_EXCL|O_NOFOLLOW` at mode `0600`, making
+  the create itself the lock. A symlink found at the path is treated as not-ours
+  and does not suppress the notice: a repeated notice is a nuisance, a silently
+  ungoverned session is the thing being prevented.
+
 - **Documented the hook-timeout fail-open.** Fail-closed is enforced inside the
   hook and cannot cover a hook that never answers: on timeout Claude Code treats
   the error as non-blocking and the call proceeds ungoverned. The margin is wide

@@ -8,17 +8,48 @@ missing, which is the case that would otherwise run silently ungoverned.
 
 Stdlib-only for the same reason as ``rmacd_guard.py``: it has to work in exactly
 the situation where the SDK does not import.
+
+The session's directory is taken from the event, the same source the PreToolUse
+guard uses. Resolving it from ``CLAUDE_PROJECT_DIR`` alone — as this did before —
+disagreed with the guard whenever a subdirectory carried its own profile: the
+banner announced an ungoverned session while every tool call in it was in fact
+being governed. That matters more now than it reads, because the guard
+short-circuits unbound sessions before the SDK loads, so this notice is the only
+statement of governance state a plugin user ever sees.
 """
 
 from __future__ import annotations
 
+import contextlib
+import json
 import sys
+from typing import Any
 
 from rmacd_guard import INSTALL_HINT, event_cwd, profile_source
 
 
+def read_event() -> dict[str, Any] | None:
+    """The hook event on stdin, or None if there isn't a usable one.
+
+    Never blocks on an interactive terminal: this script is also run by hand
+    when diagnosing a session, and a bare ``read()`` against a tty would hang
+    instead of reporting anything.
+    """
+    stream = sys.stdin
+    if stream is None:
+        return None
+    with contextlib.suppress(Exception):
+        if stream.isatty():
+            return None
+    try:
+        parsed = json.loads(stream.read())
+    except Exception:  # noqa: BLE001 - any unreadable event just falls back
+        return None
+    return parsed if isinstance(parsed, dict) else None
+
+
 def main() -> int:
-    source = profile_source(event_cwd(None))
+    source = profile_source(event_cwd(read_event()))
 
     try:
         import rmacd  # noqa: F401

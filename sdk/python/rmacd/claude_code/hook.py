@@ -39,6 +39,7 @@ a cruder channel than a structured deny reason).
 
 from __future__ import annotations
 
+import contextlib
 import json
 import os
 import sys
@@ -277,14 +278,35 @@ def _notice_marker_path(event: dict[str, Any] | None) -> str:
 
 
 def _emit_unbound_notice_once(event: dict[str, Any] | None, stderr: TextIO) -> None:
+    """Say it once per session, using the marker's creation as the lock.
+
+    ``O_EXCL`` makes "has this session been told?" and "record that it has" one
+    atomic step, so concurrent tool calls cannot both slip past a separate
+    existence check. ``O_NOFOLLOW`` matters because the marker lives in a shared
+    temp directory: without it a symlink planted at this path would redirect the
+    write to whatever file the user can write.
+
+    Suppression is closed as well as redirection. Our own marker is always a
+    regular file, so anything else occupying the path is not ours and must not
+    be allowed to silence the notice — a repeated notice is a nuisance, a
+    silently ungoverned session is the failure this exists to prevent.
+    """
     marker = _notice_marker_path(event)
-    if os.path.exists(marker):
-        return
     try:
-        with open(marker, "w", encoding="utf-8") as fh:
-            fh.write("notified\n")
+        fd = os.open(marker, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
+    except FileExistsError:
+        if not os.path.islink(marker):
+            return  # our own marker: already announced for this session
+        print(_UNBOUND_NOTICE, file=stderr)
+        return
     except OSError:
-        pass  # notice may repeat; never let bookkeeping break the hook
+        # Bookkeeping is unavailable (unwritable temp dir, something in the way).
+        # Repeating the notice beats withholding it: the point is that nobody
+        # discovers an ungoverned session by accident.
+        print(_UNBOUND_NOTICE, file=stderr)
+        return
+    with contextlib.suppress(OSError), os.fdopen(fd, "w", encoding="utf-8") as fh:
+        fh.write("notified\n")
     print(_UNBOUND_NOTICE, file=stderr)
 
 

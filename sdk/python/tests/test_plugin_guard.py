@@ -295,6 +295,50 @@ def test_bound_session_still_imports_the_sdk(bound_dir: Path) -> None:
     assert _sdk_was_imported(GUARD, bound_dir) is True
 
 
+def test_session_start_reads_cwd_from_the_event(bound_dir: Path) -> None:
+    """The banner must agree with the guard about which session it describes.
+
+    Resolving from CLAUDE_PROJECT_DIR alone reported "ungoverned" whenever the
+    profile lived in a subdirectory the session was working in — while the guard,
+    which uses the event's cwd, governed every call in it.
+    """
+    deep = bound_dir / "packages" / "api"
+    deep.mkdir(parents=True)
+    outside = bound_dir.parent / "elsewhere"
+    outside.mkdir(exist_ok=True)
+
+    result = subprocess.run(
+        [sys.executable, str(SESSION_START)],
+        input=json.dumps({"hook_event_name": "SessionStart", "cwd": str(deep)}),
+        capture_output=True,
+        text=True,
+        # Deliberately points away from the profile: only the event's cwd finds it.
+        env={"PATH": "/usr/bin:/bin", "HOME": str(outside), "CLAUDE_PROJECT_DIR": str(outside)},
+        timeout=60,
+    )
+    assert result.returncode == 0
+    assert "governance active" in result.stderr
+    assert "ungoverned" not in result.stderr
+
+
+def test_session_start_without_an_event_still_reports(unbound_dir: Path) -> None:
+    """Run by hand with no stdin JSON, it falls back instead of hanging or crashing."""
+    result = subprocess.run(
+        [sys.executable, str(SESSION_START)],
+        input="",
+        capture_output=True,
+        text=True,
+        env={
+            "PATH": "/usr/bin:/bin",
+            "HOME": str(unbound_dir),
+            "CLAUDE_PROJECT_DIR": str(unbound_dir),
+        },
+        timeout=60,
+    )
+    assert result.returncode == 0
+    assert "no profile bound" in result.stderr
+
+
 def test_session_start_warns_when_sdk_missing_but_bound(
     bound_dir: Path, broken_sdk_path: str
 ) -> None:
