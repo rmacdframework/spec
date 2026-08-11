@@ -93,7 +93,14 @@ def run(stdin: TextIO, stdout: TextIO, stderr: TextIO) -> int:
     status, error = _execution_status(event)
 
     try:
-        SessionAuditor(Path(audit_path), stderr).execution(
+        tags = decision.get("compliance_tags")
+        SessionAuditor(
+            Path(audit_path),
+            stderr,
+            compliance_tags=[t for t in tags if isinstance(t, str)]
+            if isinstance(tags, list)
+            else None,
+        ).execution(
             agent_id=str(decision.get("agent_id") or "claude-code"),
             profile_id=str(decision.get("profile_id") or "unknown"),
             operation=_enum(Operation, decision.get("operation"), Operation.READ),

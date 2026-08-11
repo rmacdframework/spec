@@ -722,3 +722,117 @@ class TestEmergencyTriggerRequired:
             "C", "public", EvaluationContext(emergency_active=True)
         )
         assert decision.allowed is True
+
+
+class TestCumulativePermissions:
+    """Spec §3: granting an operation grants every lower one (D ⊃ C ⊃ A ⊃ M ⊃ R).
+
+    This is the framework's headline invariant and it was documented but never
+    implemented: the evaluator tested plain set membership, so a profile
+    granting only `D` denied Read. It failed in the safe direction — less
+    access than asked for — but contradicted the normative spec, and the
+    shipped example profiles all enumerate every operation, which is why
+    nothing in the repo tripped it.
+    """
+
+    @staticmethod
+    def _profile_3d(perms: dict[DataClassification, list[Operation]]) -> Profile3D:
+        return Profile3D(
+            profile_id="rmacd-3d-cumulative-v1",
+            profile_name="Cumulative test",
+            model="three-dimensional",
+            version="1.0",
+            permissions=perms,
+        )
+
+    @pytest.mark.parametrize(
+        "operation", [Operation.READ, Operation.MOVE, Operation.ADD, Operation.CHANGE]
+    )
+    def test_delete_grant_implies_every_lower_operation(self, operation: Operation) -> None:
+        ev = PolicyEvaluator(
+            self._profile_3d({DataClassification.PUBLIC: [Operation.DELETE]})
+        )
+        assert ev.evaluate(
+            operation=operation, data_classification=DataClassification.PUBLIC
+        ).allowed
+
+    def test_grant_does_not_imply_higher_operations(self) -> None:
+        """Cumulative runs downward only — Change must not confer Delete."""
+        ev = PolicyEvaluator(
+            self._profile_3d({DataClassification.INTERNAL: [Operation.CHANGE]})
+        )
+        assert ev.evaluate(
+            operation=Operation.CHANGE, data_classification=DataClassification.INTERNAL
+        ).allowed
+        assert not ev.evaluate(
+            operation=Operation.DELETE, data_classification=DataClassification.INTERNAL
+        ).allowed
+
+    def test_read_grant_confers_nothing_else(self) -> None:
+        ev = PolicyEvaluator(
+            self._profile_3d({DataClassification.CONFIDENTIAL: [Operation.READ]})
+        )
+        assert ev.evaluate(
+            operation=Operation.READ, data_classification=DataClassification.CONFIDENTIAL
+        ).allowed
+        for op in (Operation.MOVE, Operation.ADD, Operation.CHANGE, Operation.DELETE):
+            assert not ev.evaluate(
+                operation=op, data_classification=DataClassification.CONFIDENTIAL
+            ).allowed, op
+
+    def test_empty_grant_confers_nothing(self) -> None:
+        ev = PolicyEvaluator(self._profile_3d({DataClassification.PUBLIC: []}))
+        assert not ev.evaluate(
+            operation=Operation.READ, data_classification=DataClassification.PUBLIC
+        ).allowed
+
+    def test_cumulative_applies_to_2d_profiles(self) -> None:
+        ev = PolicyEvaluator(
+            Profile2D(
+                profile_id="rmacd-2d-cumulative-v1",
+                profile_name="Cumulative 2D",
+                model="two-dimensional",
+                version="1.0",
+                permissions=[Operation.ADD],
+            )
+        )
+        assert ev.evaluate(operation=Operation.READ).allowed
+        assert ev.evaluate(operation=Operation.MOVE).allowed
+        assert ev.evaluate(operation=Operation.ADD).allowed
+        assert not ev.evaluate(operation=Operation.CHANGE).allowed
+
+    def test_cumulative_cannot_breach_the_12_5_floor(self) -> None:
+        """Widening permissions must not open a path through the safety floor.
+
+        A Move grant on Restricted now implies Read, but Add/Change/Delete stay
+        prohibited — those are the floor, not a permission question.
+        """
+        ev = PolicyEvaluator(
+            self._profile_3d({DataClassification.RESTRICTED: [Operation.MOVE]})
+        )
+        assert ev.evaluate(
+            operation=Operation.READ, data_classification=DataClassification.RESTRICTED
+        ).allowed
+        for op in (Operation.ADD, Operation.CHANGE, Operation.DELETE):
+            decision = ev.evaluate(operation=op, data_classification=DataClassification.RESTRICTED)
+            assert not decision.allowed, op
+            assert decision.autonomy_level == AutonomyLevel.PROHIBITED, op
+
+    def test_emergency_escalation_is_also_cumulative(self) -> None:
+        profile = self._profile_3d({DataClassification.INTERNAL: [Operation.READ]})
+        profile.emergency_escalation = EmergencyEscalation3D(
+            enabled=True,
+            trigger_conditions=[TriggerCondition.MANUAL_AUTHORIZATION],
+            escalated_permissions={DataClassification.INTERNAL: [Operation.DELETE]},
+        )
+        ev = PolicyEvaluator(profile)
+        ctx = EvaluationContext(
+            emergency_active=True,
+            emergency_trigger=TriggerCondition.MANUAL_AUTHORIZATION,
+        )
+        # Escalating to Delete must also confer the lower operations.
+        assert ev.evaluate(
+            operation=Operation.CHANGE,
+            data_classification=DataClassification.INTERNAL,
+            context=ctx,
+        ).allowed

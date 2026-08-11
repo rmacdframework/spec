@@ -1,5 +1,6 @@
 """Pydantic models for RMACD Framework profiles and policy decisions."""
 
+from collections.abc import Iterable
 from datetime import datetime, timezone
 from enum import Enum
 from typing import Literal
@@ -15,6 +16,32 @@ class Operation(str, Enum):
     ADD = "A"
     CHANGE = "C"
     DELETE = "D"
+
+
+#: Operation risk ordering: R < M < A < C < D.
+#:
+#: Permissions are **cumulative** (spec §3): granting an operation grants every
+#: lower one, because the higher-risk operations require the lower-risk ones as
+#: prerequisites — an agent that may Change a record must be able to Read it.
+#: This is the single definition; the evaluator applies it to profile
+#: permissions and the registry to tool capability ceilings.
+OPERATION_ORDER: dict[Operation, int] = {
+    Operation.READ: 0,
+    Operation.MOVE: 1,
+    Operation.ADD: 2,
+    Operation.CHANGE: 3,
+    Operation.DELETE: 4,
+}
+
+
+def permits_operation(granted: Iterable[Operation], requested: Operation) -> bool:
+    """Whether a set of granted operations covers *requested*, cumulatively.
+
+    ``{D}`` covers every operation; ``{R}`` covers only Read. Callers that need
+    plain set membership should test it directly — this is the policy rule, not
+    a containment check.
+    """
+    return any(OPERATION_ORDER[g] >= OPERATION_ORDER[requested] for g in granted)
 
 
 class DataClassification(str, Enum):

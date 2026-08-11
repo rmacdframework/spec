@@ -49,6 +49,7 @@ import sys
 import tempfile
 from typing import Any, TextIO
 
+from rmacd.audit import compliance_tags_for
 from rmacd.claude_code import handoff, mapping, session
 from rmacd.claude_code.audit import SessionAuditor, resolve_audit_path, session_context
 from rmacd.evaluator import IMMUTABLE_PROHIBITIONS
@@ -189,6 +190,7 @@ def decide(
                 "target": target,
                 "classification": tier.value if tier is not None else None,
                 "autonomy_level": level.value,
+                "compliance_tags": compliance_tags_for(binding.profile),
                 "requires_approval": bool(
                     decision.requires_approval if decision is not None else result == "QUEUED"
                 ),
@@ -366,7 +368,11 @@ def run(stdin: TextIO, stdout: TextIO, stderr: TextIO) -> int:
         )
         return 0
 
-    auditor = SessionAuditor(resolve_audit_path(binding.profile_path), stderr)
+    auditor = SessionAuditor(
+        resolve_audit_path(binding.profile_path),
+        stderr,
+        compliance_tags=compliance_tags_for(binding.profile),
+    )
 
     try:
         output = decide(event, binding, auditor)

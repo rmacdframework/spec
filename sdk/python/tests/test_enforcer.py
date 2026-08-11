@@ -24,7 +24,9 @@ from rmacd import (
     ApprovalOutcome,
     ApprovalRequest,
     AutoApproveGateway,
+    DataClassification,
     JSONLAuditLogger,
+    Operation,
     PolicyEnforcer,
     Profile3D,
     ProfileLoader,
@@ -321,3 +323,53 @@ def test_evaluate_only_is_side_effect_free(admin_profile, buf):
     decision = enforcer.evaluate_only("R", "doc://public/readme", "public")
     assert decision.allowed
     assert buf.getvalue() == ""  # no audit emitted
+
+
+def test_execution_record_carries_the_decision_autonomy(admin_profile, buf):
+    """A human-approved call must not be filed as having run autonomously.
+
+    `_audit_execution` used to synthesise its own decision with
+    `autonomy_level=AUTONOMOUS, requires_approval=False`, so the EXECUTED row
+    contradicted the QUEUED/APPROVED rows it sits beside. An execution row read
+    on its own is how "what did this agent do without being asked?" gets
+    answered, so it asserted precisely the wrong thing. Same defect the session
+    hooks had; this is the `@guard` path.
+    """
+    enforcer = make_enforcer(admin_profile, gateway=AutoApproveGateway(), audit_sink=buf)
+
+    @enforcer.guard(
+        operation=Operation.CHANGE,
+        classifier=lambda *a, **k: ("cfg.yaml", DataClassification.INTERNAL),
+    )
+    def change_config() -> str:
+        return "done"
+
+    change_config()
+
+    records = [json.loads(line) for line in buf.getvalue().splitlines() if line.strip()]
+    executed = [r for r in records if r["policy_decision"]["result"] == "EXECUTED"]
+    assert len(executed) == 1
+    # internal.C is approval-gated in the default matrix; the gateway approved it.
+    assert executed[0]["policy_decision"]["autonomy_level"] == "approval"
+    assert executed[0]["execution"]["status"] == "SUCCESS"
+
+
+def test_execution_record_of_an_autonomous_call_still_says_autonomous(admin_profile, buf):
+    """The counterpart: the fix must not relabel genuinely autonomous work."""
+    enforcer = make_enforcer(admin_profile, audit_sink=buf)
+
+    @enforcer.guard(
+        operation=Operation.READ,
+        classifier=lambda *a, **k: ("doc://public/readme", DataClassification.PUBLIC),
+    )
+    def read_doc() -> str:
+        return "ok"
+
+    read_doc()
+
+    executed = [
+        json.loads(line)
+        for line in buf.getvalue().splitlines()
+        if line.strip() and json.loads(line)["policy_decision"]["result"] == "EXECUTED"
+    ]
+    assert executed[0]["policy_decision"]["autonomy_level"] == "autonomous"

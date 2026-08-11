@@ -99,9 +99,19 @@ def session_context(event: dict[str, Any]) -> dict[str, Any]:
 class SessionAuditor:
     """Best-effort audit sink for one hook invocation."""
 
-    def __init__(self, path: Path | None, stderr: TextIO | None = None) -> None:
+    def __init__(
+        self,
+        path: Path | None,
+        stderr: TextIO | None = None,
+        compliance_tags: list[str] | None = None,
+    ) -> None:
         self._path = path
         self._stderr = stderr
+        #: The bound profile's `audit_requirements.compliance_tags` (§10.4).
+        #: Without these a session trail cannot be sliced per regulation, which
+        #: is the whole premise of "one unified log per framework" — session
+        #: records shipped an empty list even when the profile declared tags.
+        self._compliance_tags = compliance_tags or []
         self._logger: JSONLAuditLogger | None = None
 
     @property
@@ -177,6 +187,7 @@ class SessionAuditor:
                 decision=decision,
                 result=result,
                 extra=context or None,
+                compliance_tags=self._compliance_tags,
             )
         )
 
@@ -227,6 +238,7 @@ class SessionAuditor:
                 result="EXECUTED",
                 execution=AuditExecution(status=status, error=error),
                 extra=context or None,
+                compliance_tags=self._compliance_tags,
             )
         )
 

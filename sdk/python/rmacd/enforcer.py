@@ -51,6 +51,7 @@ from rmacd.audit import (
     AuditLogger,
     NullAuditLogger,
     build_audit_record,
+    compliance_tags_for,
 )
 from rmacd.egress import EgressDecision, EgressGate, PolicyDrivenEgressGate
 from rmacd.evaluator import DEFAULT_AUTONOMY_3D, AnyProfile, PolicyEvaluator
@@ -566,7 +567,7 @@ class PolicyEnforcer:
                 @functools.wraps(fn)
                 async def async_wrapper(*args: Any, **kwargs: Any) -> Any:
                     target, tier = classifier(*args, **kwargs)
-                    self.enforce(
+                    decision = self.enforce(
                         operation=op,
                         target=target,
                         classification=tier,
@@ -582,6 +583,7 @@ class PolicyEnforcer:
                             operation=op,
                             target=target,
                             classification=_tier(tier),
+                            decision=decision,
                             status="FAILURE",
                             duration_ms=int((time.perf_counter() - start) * 1000),
                             error=str(exc),
@@ -591,6 +593,7 @@ class PolicyEnforcer:
                         operation=op,
                         target=target,
                         classification=_tier(tier),
+                        decision=decision,
                         status="SUCCESS",
                         duration_ms=int((time.perf_counter() - start) * 1000),
                     )
@@ -601,7 +604,7 @@ class PolicyEnforcer:
             @functools.wraps(fn)
             def wrapper(*args: Any, **kwargs: Any) -> Any:
                 target, tier = classifier(*args, **kwargs)
-                self.enforce(
+                decision = self.enforce(
                     operation=op,
                     target=target,
                     classification=tier,
@@ -616,6 +619,7 @@ class PolicyEnforcer:
                         operation=op,
                         target=target,
                         classification=_tier(tier),
+                        decision=decision,
                         status="FAILURE",
                         duration_ms=int((time.perf_counter() - start) * 1000),
                         error=str(exc),
@@ -625,6 +629,7 @@ class PolicyEnforcer:
                     operation=op,
                     target=target,
                     classification=_tier(tier),
+                    decision=decision,
                     status="SUCCESS",
                     duration_ms=int((time.perf_counter() - start) * 1000),
                 )
@@ -792,29 +797,33 @@ class PolicyEnforcer:
         classification: DataClassification | None,
         status: str,
         duration_ms: int,
+        decision: PolicyDecision,
         error: str | None = None,
     ) -> None:
+        """Record that a guarded call ran, under the decision that allowed it.
+
+        ``decision`` is the one :meth:`enforce` returned, not a fresh one. It
+        used to be synthesised here as ``autonomy_level=AUTONOMOUS,
+        requires_approval=False``, which meant an operation a human had
+        explicitly approved through a gateway was filed as one the agent
+        performed on its own. The decision row held the truth, but the
+        execution row — which is what answers "what did this agent do without
+        being asked?" — asserted the opposite. Same defect, and same fix, as
+        the session hooks in ``rmacd.claude_code``.
+        """
         try:
             execution = AuditExecution(
                 status=status,
                 duration_ms=duration_ms,
                 error=error,
             )
-            # Build a synthetic allow-decision so the schema is uniform.
             record = build_audit_record(
                 agent_id=self.agent_id,
                 profile_id=self._profile_id(),
                 operation=operation,
                 target=target,
                 classification=classification,
-                decision=PolicyDecision(
-                    allowed=True,
-                    operation=operation,
-                    data_classification=classification,
-                    autonomy_level=AutonomyLevel.AUTONOMOUS,
-                    requires_approval=False,
-                    requires_notification=False,
-                ),
+                decision=decision,
                 result="EXECUTED",
                 execution=execution,
                 compliance_tags=self._compliance_tags,
@@ -828,9 +837,7 @@ class PolicyEnforcer:
 
     @staticmethod
     def _extract_compliance_tags(profile: AnyProfile) -> list[str]:
-        if profile.audit_requirements and profile.audit_requirements.compliance_tags:
-            return [t.value for t in profile.audit_requirements.compliance_tags]
-        return []
+        return compliance_tags_for(profile)
 
 
 __all__ = ["PolicyEnforcer"]

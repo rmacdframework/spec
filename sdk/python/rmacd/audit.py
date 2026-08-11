@@ -107,6 +107,18 @@ class NullAuditLogger:
         return None
 
 
+def compliance_tags_for(profile: object) -> list[str]:
+    """The profile's declared compliance tags, or an empty list.
+
+    Every audit record should carry these so a trail can be sliced per
+    regulation (§10.4). Kept here rather than on the enforcer because the
+    Claude Code session auditor needs it too and does not construct one.
+    """
+    requirements = getattr(profile, "audit_requirements", None)
+    tags = getattr(requirements, "compliance_tags", None) if requirements else None
+    return [t.value for t in tags] if tags else []
+
+
 class JSONLAuditLogger:
     """Writes audit records as JSON Lines.
 

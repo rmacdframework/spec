@@ -13,6 +13,7 @@ from rmacd.models import (
     Profile2D,
     Profile3D,
     ProfileDC2D,
+    permits_operation,
 )
 
 AnyProfile = Profile2D | Profile3D | ProfileDC2D
@@ -156,10 +157,10 @@ class PolicyEvaluator:
             assert isinstance(self.profile, Profile3D)
             assert data_classification is not None
             classification_perms = self.profile.permissions.get(data_classification, [])
-            has_permission = operation in classification_perms
+            has_permission = permits_operation(classification_perms, operation)
         else:
             assert isinstance(self.profile, Profile2D)
-            has_permission = operation in self.profile.permissions
+            has_permission = permits_operation(self.profile.permissions, operation)
 
         if not has_permission:
             # Check emergency escalation
@@ -474,11 +475,11 @@ class PolicyEvaluator:
                 assert isinstance(self.profile, Profile3D)
                 if isinstance(escalation.escalated_permissions, dict):
                     perms = escalation.escalated_permissions.get(data_classification, [])
-                    return operation in perms
+                    return permits_operation(perms, operation)
             else:
                 # 2D: escalated_permissions is list[operation]
                 if isinstance(escalation.escalated_permissions, list):
-                    return operation in escalation.escalated_permissions
+                    return permits_operation(escalation.escalated_permissions, operation)
 
         return False
 

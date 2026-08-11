@@ -335,6 +335,46 @@ def test_unwritable_sink_does_not_break_the_hook(
 # --- helpers -----------------------------------------------------------------
 
 
+def test_records_carry_the_profile_compliance_tags(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Both record kinds must be sliceable per regulation (§10.4).
+
+    Session records shipped `compliance_tags: []` even when the profile
+    declared them, which breaks the "one unified log per framework" premise.
+    The execution record gets them via the handoff, since PostToolUse
+    deliberately loads no profile.
+    """
+    import io
+
+    claude = tmp_path / ".claude"
+    claude.mkdir()
+    tagged = dict(PROFILE, audit_requirements={"compliance_tags": ["SOX", "ISO27001"]})
+    (claude / "rmacd-profile.json").write_text(json.dumps(tagged))
+    monkeypatch.chdir(tmp_path)
+    for var in ("RMACD_AUDIT", "RMACD_AUDIT_PATH", "RMACD_PROFILE_PATH"):
+        monkeypatch.delenv(var, raising=False)
+
+    event = {
+        "tool_name": "Bash",
+        "tool_input": {"command": "cat README.md"},
+        "cwd": str(tmp_path),
+        "session_id": "sess-tags",
+        "tool_use_id": "tu-tags",
+    }
+    hook.run(io.StringIO(json.dumps(event)), io.StringIO(), io.StringIO())
+    post_hook.run(
+        io.StringIO(json.dumps({**event, "tool_response": {"ok": True}})),
+        io.StringIO(),
+        io.StringIO(),
+    )
+
+    records = _audit_lines(tmp_path)
+    assert [r["policy_decision"]["result"] for r in records] == ["ALLOW", "EXECUTED"]
+    for record in records:
+        assert record["compliance_tags"] == ["SOX", "ISO27001"], record["policy_decision"]["result"]
+
+
 def test_handoff_round_trip_is_single_use() -> None:
     """Taking a sidecar consumes it, so it cannot be replayed onto a later call."""
     assert handoff.store("sess-rt", "tu-rt", {"v": 1, "target": "/x"}) is True

@@ -36,7 +36,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from rmacd.models import AutonomyLevel, DataClassification, Operation
+from rmacd.models import OPERATION_ORDER, AutonomyLevel, DataClassification, Operation
 
 logger = logging.getLogger(__name__)
 
@@ -56,13 +56,8 @@ _TIER_ORDER: dict[DataClassification, int] = {
 }
 # Operation risk ordering: R < M < A < C < D. Permissions are cumulative
 # (D ⊃ C ⊃ A ⊃ M ⊃ R) — granting a higher operation implies all lower ones.
-_OP_ORDER: dict[Operation, int] = {
-    Operation.READ: 0,
-    Operation.MOVE: 1,
-    Operation.ADD: 2,
-    Operation.CHANGE: 3,
-    Operation.DELETE: 4,
-}
+# Single definition in models, shared with the evaluator's profile check.
+_OP_ORDER = OPERATION_ORDER
 
 
 # Risk metadata for operations

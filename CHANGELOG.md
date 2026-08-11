@@ -47,6 +47,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Fixed
 
+- **Permissions are now actually cumulative (D ⊃ C ⊃ A ⊃ M ⊃ R).** The
+  framework's headline invariant — spec §3, "an agent granted 'Change'
+  implicitly possesses 'Add', 'Move', and 'Read'" — was documented but never
+  implemented. The evaluator tested plain set membership, so a profile granting
+  only `D` **denied Read**. It failed in the safe direction, and every shipped
+  example profile enumerates all five operations, which is why nothing in the
+  repo tripped it — but a profile written against the documented model got a
+  more restrictive agent than it asked for, and the spec and the evaluator
+  disagreed about the model's central rule.
+
+  Applied at all four permission checks (3D, 2D, and both emergency-escalation
+  paths). The §12.5 floor is unaffected and pinned by a test: a Move grant on
+  Restricted now implies Read, while Add/Change/Delete stay prohibited. The
+  ordering had existed all along in `registry/tools.py`, where its comment
+  states the cumulative rule verbatim and applies it to *tool capability
+  ceilings*; it is now a single definition in `models.py` shared by both.
+
+- **The autonomy-misfiling bug is fixed on the `@guard` path too.** `31dc926`
+  fixed it for the session hooks; `PolicyEnforcer._audit_execution` still
+  synthesised `autonomy_level=autonomous, requires_approval=False` on every
+  `EXECUTED` record. That is the path integrators use for their own agents, so
+  an operation a human approved through a gateway was filed as one the agent
+  performed alone. Both guard wrappers already had the real decision from
+  `enforce()` and discarded it; they now pass it through.
+
+- **Session audit records carry the profile's `compliance_tags`.** They shipped
+  `[]` even when the profile declared them, so a session trail could not be
+  sliced per regulation — the premise of "one unified log per framework". The
+  enforcer already threaded them; the session auditor did not. Tags now reach
+  the execution record through the handoff sidecar, since `PostToolUse`
+  deliberately loads no profile. Extraction is one shared helper
+  (`audit.compliance_tags_for`) rather than two copies.
+
 - **The nightly E2E canary had been failing for 11 days on a stale assertion.**
   Diagnosed by re-running it: 10 of 11 checks passed — bound status, allow,
   deny (verified by filesystem truth) and approval gating are all healthy — and
