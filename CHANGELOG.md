@@ -47,6 +47,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Fixed
 
+- **The nightly E2E canary had been failing for 11 days on a stale assertion.**
+  Diagnosed by re-running it: 10 of 11 checks passed — bound status, allow,
+  deny (verified by filesystem truth) and approval gating are all healthy — and
+  the single failure was scenario 3's `unbound emits no RMACD messages`.
+  Nothing regressed on our side; `rmacd_session_start.py` is byte-identical
+  since 0.14.1. **Claude Code changed**: it now emits
+  `{"type": "system", "subtype": "hook_response", …}` stream events carrying
+  hook `stderr` verbatim, where exit-0 hook stderr was previously `--debug`-only.
+  That made the SessionStart "no profile bound" notice visible to a blanket
+  `grep RMACD:`, which had conflated *"governance interfered"* with *"a hook
+  said anything"*.
+
+  The canary was doing its job — catching drift in Claude Code is why it exists.
+  The assertion now tests the real invariant: an unbound session emits no
+  `hookSpecificOutput`, i.e. no governance **decision**, leaving Claude Code's
+  own permission flow untouched. It deliberately no longer demands silence,
+  since that notice is the only signal an unbound user gets. A positive
+  counterpart was added to the bound scenario, so a hook that silently stopped
+  deciding can no longer masquerade as a clean passthrough.
+
+  `hook.py` and `docs/claude-code.md` both asserted stderr was `--debug`-only;
+  corrected, since that reasoning is load-bearing in a normative fail-mode table.
+
 - **CI was red on an upstream warning, not on our code.** `pydantic-settings`
   2.15 warns that it cannot resolve FastMCP's generically-typed `lifespan`
   field, and the suite pins `filterwarnings = ["error"]`, so three

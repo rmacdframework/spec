@@ -23,9 +23,12 @@ Fail modes (normative):
   unchanged, plus a one-time stderr notice per session. Emitting
   ``permissionDecision: "allow"`` here would be wrong — it would suppress
   Claude Code's own prompts and auto-approve everything, turning "not
-  configured" into "wide open". Claude Code ignores hook stderr on exit 0
-  (it is only surfaced in ``--debug``), so the notice cannot corrupt the
-  JSON protocol, which reads stdout only.
+  configured" into "wide open". The notice cannot corrupt the decision
+  protocol, which reads stdout only — but do not assume it is *invisible*:
+  since 2026-07-31 Claude Code emits ``{"type": "system", "subtype":
+  "hook_response", ...}`` events carrying hook ``stderr`` verbatim under
+  ``--output-format stream-json``, where it was previously ``--debug``-only.
+  Assume only that stderr stays off the stdout channel.
 - **Bound but broken/erroring** → fail closed: deny with a diagnostic reason.
   This covers binding failures (bad profile/pack/map), malformed stdin, and
   any unexpected exception while deciding.

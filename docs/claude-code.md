@@ -194,8 +194,12 @@ permission prompts and auto-approve everything. "Unbound" must mean
 | SDK missing (plugin without pip install), profile bound | **Fail closed** — the plugin's stdlib-only wrapper denies every tool call and names the profile source, the interpreter, and the install command. A `SessionStart` notice says so once, up front |
 | SDK missing, no profile bound | Passthrough. An unbound session is an explicit zero-friction passthrough; installing the plugin without configuring it must not block anything |
 
-Stderr is safe in all cases: with exit code 0 Claude Code reads only stdout
-for the JSON decision and shows stderr only in `--debug` mode.
+Stderr is safe in all cases: with exit code 0 Claude Code reads only stdout for
+the JSON decision, so a notice can never corrupt a decision. It is not hidden,
+though — since 2026-07-31 Claude Code emits
+`{"type": "system", "subtype": "hook_response", …}` events carrying hook
+`stderr` verbatim under `--output-format stream-json`, where it was previously
+visible only under `--debug`. Write notices that are safe to be read.
 
 ### The one gap: hook timeout
 

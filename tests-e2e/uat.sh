@@ -139,6 +139,12 @@ grep -q "UAT-SENTINEL-42" s2.out && ok "Read allowed (sentinel returned)" || bad
 # Delete denied: FILESYSTEM TRUTH — the file must still exist.
 [ -f scratch/junk.txt ] && ok "Delete denied (scratch/junk.txt intact)" || bad "Delete denied (scratch/junk.txt intact)" s2.out
 grep -q "RMACD:" s2.out && ok "deny reason cites RMACD" || bad "deny reason cites RMACD" s2.out
+# Positive counterpart to scenario 3's invariant: a *bound* session must emit
+# decisions. Without this, a hook that silently stopped deciding would still
+# pass scenario 3 and look like a clean unbound passthrough.
+grep -q "hookSpecificOutput" s2.out \
+  && ok "bound session emits governance decisions" \
+  || bad "bound session emits governance decisions" s2.out
 
 # Change gated on approval: FILESYSTEM TRUTH — no commit may exist
 # (headless sessions cannot approve, so the 'ask' resolves to not-run).
@@ -152,7 +158,26 @@ note "scenario 3: unbound session leaves Claude Code untouched"
 rm .claude/rmacd-profile.json
 run_claude "Run this bash command via the Bash tool and paste its exact raw output: cat README.md" s3.out
 grep -q "UAT-SENTINEL-42" s3.out && ok "unbound read works" || bad "unbound read works" s3.out
-grep -q "RMACD:" s3.out && bad "unbound emits no RMACD messages" s3.out || ok "unbound emits no RMACD messages"
+
+# What "leaves Claude Code untouched" actually means: no governance *decision*.
+# Every decision the hook makes is a `hookSpecificOutput` object on stdout, so
+# its total absence is the precise invariant — an unbound session is a
+# passthrough, and Claude Code's own permission flow is left to run unchanged.
+#
+# It deliberately does NOT assert silence. The SessionStart notice tells the
+# user the plugin is installed but idle, and since the guard short-circuits
+# unbound sessions before importing the SDK, that notice is the only signal they
+# get that RMACD is present and doing nothing.
+#
+# The old assertion here was a blanket `grep RMACD:`, which passed only because
+# hook stderr used to be invisible outside --debug. Claude Code now emits
+# `{"type":"system","subtype":"hook_response",...}` events carrying `stderr`
+# verbatim, so the notice became visible and this scenario failed nightly from
+# 2026-07-31 with no change on our side. That is the canary working: it caught
+# drift in Claude Code, which is what it exists for.
+grep -q "hookSpecificOutput" s3.out \
+  && bad "unbound emits no governance decision" s3.out \
+  || ok "unbound emits no governance decision"
 
 printf '\n== RESULT: %d passed, %d failed\n' "$PASS" "$FAIL"
 [ "$FAIL" -eq 0 ]
