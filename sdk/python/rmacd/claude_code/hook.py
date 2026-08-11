@@ -45,10 +45,10 @@ import sys
 import tempfile
 from typing import Any, TextIO
 
-from rmacd.claude_code import mapping, session
+from rmacd.claude_code import handoff, mapping, session
 from rmacd.claude_code.audit import SessionAuditor, resolve_audit_path, session_context
 from rmacd.evaluator import IMMUTABLE_PROHIBITIONS
-from rmacd.models import DataClassification, Operation, PolicyDecision
+from rmacd.models import AutonomyLevel, DataClassification, Operation, PolicyDecision
 
 HOOK_EVENT = "PreToolUse"
 
@@ -151,6 +151,7 @@ def decide(
         tier: DataClassification | None,
         decision: PolicyDecision | None = None,
         blocked_reason: str | None = None,
+        autonomy_level: AutonomyLevel | None = None,
     ) -> None:
         if auditor is None:
             return
@@ -164,6 +165,30 @@ def decide(
             result=result,
             blocked_reason=blocked_reason,
             context=context,
+        )
+        if not auditor.enabled or result not in ("ALLOW", "QUEUED"):
+            # A denied call never runs, so it will never reach PostToolUse and
+            # needs nothing handed forward. QUEUED does: the user may approve it.
+            return
+        level = autonomy_level or (
+            decision.autonomy_level if decision is not None else AutonomyLevel.APPROVAL
+        )
+        handoff.store(
+            event.get("session_id"),
+            event.get("tool_use_id"),
+            {
+                "v": 1,
+                "audit_path": str(auditor.path),
+                "agent_id": binding.agent_id,
+                "profile_id": binding.profile_id,
+                "operation": operation.value,
+                "target": target,
+                "classification": tier.value if tier is not None else None,
+                "autonomy_level": level.value,
+                "requires_approval": bool(
+                    decision.requires_approval if decision is not None else result == "QUEUED"
+                ),
+            },
         )
 
     try:

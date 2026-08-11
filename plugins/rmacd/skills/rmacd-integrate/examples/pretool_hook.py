@@ -13,7 +13,7 @@ Copy ``make_pretool_hook`` into your agent and wire it via ``ClaudeAgentOptions`
         ])]},
     )
 
-Requires ``pip install "rmacd-framework>=0.13"`` (import name: ``rmacd``).
+Requires ``pip install "rmacd-framework>=0.14"`` (import name: ``rmacd``).
 Run this file directly for an offline demo (no Claude SDK, no API key needed):
 
     python3 pretool_hook.py

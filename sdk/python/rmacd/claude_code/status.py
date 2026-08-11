@@ -2,8 +2,13 @@
 
 ``python3 -m rmacd.claude_code.status`` renders, for the current directory's
 session: the bound profile (id, shape, source path), the effective autonomy
-matrix, bound governance packs, the classification map, and how approvals and
-unknown tools are routed.
+matrix, bound governance packs, the classification map, the audit sink, and how
+approvals and unknown tools are routed.
+
+The audit line reports the resolved sink *and* whether it is writable. A sink
+that cannot be written degrades silently by design — auditing is best-effort and
+never fails a decision — so an unwritable path would otherwise be invisible until
+someone went looking for evidence that was never recorded.
 
 The matrix table mirrors ``rmacd matrix`` (``rmacd.cli.cmd_matrix``). That CLI
 code path is an ``argparse`` command that loads its own file and prints
@@ -15,9 +20,11 @@ data, so both surfaces render identical values.
 
 from __future__ import annotations
 
+import os
 import sys
 
 from rmacd.claude_code import session
+from rmacd.claude_code.audit import ENV_AUDIT, ENV_AUDIT_PATH, resolve_audit_path
 from rmacd.evaluator import AnyProfile, PolicyEvaluator
 
 _TIERS = ["public", "internal", "confidential", "restricted"]
@@ -52,6 +59,28 @@ def _render_matrix(profile: AnyProfile) -> list[str]:
             value = matrix.get(op)
             if isinstance(value, str):
                 lines.append(f"{op:<12} {value:<20}")
+    return lines
+
+
+def _audit_lines(binding: session.SessionBinding) -> list[str]:
+    """Where this session's evidence lands, and whether it can be written."""
+    path = resolve_audit_path(binding.profile_path)
+    if path is None:
+        return [
+            f"Audit trail:        DISABLED ({ENV_AUDIT} is off) — this session records "
+            f"no evidence",
+        ]
+
+    lines = [f"Audit trail:        {path} (relocate with {ENV_AUDIT_PATH})"]
+    # Probe the file when it exists, otherwise the directory it would be created
+    # in — os.access on a non-existent path is always False and would misreport a
+    # perfectly good sink that simply has not been written to yet.
+    probe = path if path.exists() else path.parent
+    if not os.access(probe, os.W_OK):
+        lines.append(
+            "                    WARNING: not writable — records are dropped with a "
+            "stderr note; decisions themselves are unaffected."
+        )
     return lines
 
 
@@ -111,6 +140,7 @@ def render_status(cwd: str | None = None) -> str:
         f"(unmapped targets; {session.ENV_DEFAULT_TIER})",
         f"Unknown tools:      {binding.unknown_tool_decision} "
         f"({session.ENV_UNKNOWN_TOOL}=ask|deny)",
+        *_audit_lines(binding),
         "",
         "Approval routing:   approval-level autonomy returns permissionDecision \"ask\" —",
         "                    Claude Code's own permission prompt is the human-in-the-loop",

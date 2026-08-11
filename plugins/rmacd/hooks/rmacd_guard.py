@@ -23,6 +23,18 @@ in search order. It only needs to answer "did the user intend governance here?",
 so it checks for the *presence* of a profile source rather than parsing it —
 a malformed profile is the real hook's problem, and that path already fails
 closed on its own.
+
+That same answer also decides whether to import the SDK at all. An unbound
+session is a passthrough either way, and importing ``rmacd`` costs ~0.3s of
+interpreter and pydantic startup **per tool call** — paid, before this
+short-circuit, by every session that installed the plugin and never configured
+a profile, purely to discover there was nothing to do. Zero-friction has to mean
+zero cost, or the passthrough is a tax on people who never opted in.
+
+Because that check now gates enforcement and not just the wording of a denial,
+drift from ``resolve_profile_path`` would mean silently *skipping* governance
+rather than merely warning oddly. ``test_plugin_guard.py`` pins the two
+implementations to the same answer across the binding matrix; keep them in step.
 """
 
 from __future__ import annotations
@@ -89,18 +101,21 @@ def main() -> int:
     raw = sys.stdin.read()
 
     try:
+        event = json.loads(raw)
+    except Exception:  # noqa: BLE001 - a bound session still has to fail closed
+        event = None
+
+    source = profile_source(event_cwd(event))
+    if source is None:
+        # Unbound: passthrough, exactly as the real hook would do — and without
+        # importing the SDK to reach the same conclusion. The real hook's
+        # one-time "installed but unbound" stderr notice is not lost:
+        # SessionStart already reports that state once per session.
+        return 0
+
+    try:
         import rmacd.claude_code.hook as real_hook
     except Exception as exc:  # noqa: BLE001 - any import failure must fail closed
-        try:
-            event = json.loads(raw)
-        except Exception:  # noqa: BLE001
-            event = None
-
-        source = profile_source(event_cwd(event))
-        if source is None:
-            # Unbound: passthrough, exactly as the real hook would do.
-            return 0
-
         print(
             json.dumps(
                 deny(

@@ -1,6 +1,6 @@
 ---
 description: Show the RMACD governance status of this Claude Code session
-allowed-tools: Bash(python3 -m rmacd.claude_code.status:*)
+allowed-tools: Bash("${RMACD_PYTHON:-python3}" -m rmacd.claude_code.status:*), Bash(python3 -m rmacd.claude_code.status:*)
 ---
 
 Report the RMACD governance status of the current session.
@@ -8,27 +8,41 @@ Report the RMACD governance status of the current session.
 ## 1. Run the status renderer
 
 ```bash
-python3 -m rmacd.claude_code.status
+"${RMACD_PYTHON:-python3}" -m rmacd.claude_code.status
 ```
 
+Run it with exactly that expansion — **not** a bare `python3`. The plugin's hooks are
+invoked as `"${RMACD_PYTHON:-python3}"`, so this is the only spelling that reports the
+state of the interpreter actually governing the session. A bare `python3` will report a
+different environment whenever `RMACD_PYTHON` is set (the usual case when the SDK lives
+in a project venv), and can claim the session is ungoverned while it is governed, or
+clean while the hook is denying every call.
+
 Show the user its output verbatim (profile id, shape, effective autonomy matrix, bound
-packs, classification map, and how approvals/unknown tools are routed).
+packs, classification map, audit sink, and how approvals/unknown tools are routed).
 
 ## 2. If the command fails
 
 - **`ModuleNotFoundError: No module named 'rmacd'`** — the `rmacd-framework` SDK is not
-  installed in the Python environment this session uses. Explain that the plugin is
-  markdown + a hook config only ("thin plugin, fat SDK") and the session hook cannot
-  govern anything until the SDK is installed:
+  importable by this interpreter. Explain that the plugin ships stdlib-only hook shims
+  and that all governance logic lives in the SDK ("thin plugin, fat SDK"):
 
   ```bash
-  pip install "rmacd-framework>=0.13"
+  pip install "rmacd-framework>=0.14"
   ```
 
   The PyPI distribution is `rmacd-framework`; the import name is `rmacd` (never
-  `pip install rmacd`). While the SDK is missing, the PreToolUse hook command fails and
-  Claude Code treats a failed hook as a non-blocking error — the session is
-  **ungoverned**, not broken.
+  `pip install rmacd`). What happens meanwhile depends on whether a profile is bound:
+
+  - **A profile is bound** (`RMACD_PROFILE_PATH` or `.claude/rmacd-profile.json`) — the
+    PreToolUse shim fails **closed**: every tool call in the session is DENIED with a
+    reason naming the interpreter that could not import the SDK. SessionStart says so
+    once at the top of the session. This is the intended behaviour — a bound session
+    never runs ungoverned. Fix it by installing the SDK, or by setting `RMACD_PYTHON`
+    to the interpreter that already has it (e.g. a project venv's `python3`).
+  - **No profile is bound** — the session passes through untouched and silently. An
+    unconfigured session is a deliberate zero-friction passthrough; someone who
+    installed the plugin without opting into governance is not blocked by it.
 - **Any other error** — show the error and suggest re-running after fixing it; if a
   profile is configured (`RMACD_PROFILE_PATH` or `.claude/rmacd-profile.json`), warn
   that the session hook is failing closed (denying tool calls) until it is fixed.

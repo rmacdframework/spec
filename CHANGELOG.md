@@ -37,7 +37,79 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Auditing is best-effort: an unwritable sink notes to stderr and the
   governance decision stands unchanged.
 
+- **`/rmacd:status` now reports the audit sink.** The status surface listed packs,
+  the classification map and routing but said nothing about where evidence is
+  written — the one question an auditor asks. It now shows the resolved sink,
+  `DISABLED` when `RMACD_AUDIT` is off, and a warning when the path is not
+  writable. That last case matters because auditing is best-effort by design: an
+  unwritable sink degrades silently, so it would otherwise stay invisible until
+  someone went looking for records that were never made.
+
 #### Fixed
+
+- **Execution records claimed every call ran autonomously.** The `PostToolUse`
+  record hardcoded `autonomy_level: autonomous`, so a call a human had explicitly
+  approved through the `ask` prompt was filed as one the agent made on its own.
+  The decision row held the truth, but an execution row read alone — which is how
+  "what did this agent do without asking?" gets answered — asserted the opposite.
+  It now carries the autonomy level the decision computed.
+
+- **Decision and execution records could contradict each other.** `PostToolUse`
+  re-derived the RMACD mapping instead of reusing the decision's, and the mapping
+  is not a pure function of the tool call: `Write` is **Add** when the path does
+  not exist and **Change** when it does. By the time `PostToolUse` ran, the file
+  existed — so every file creation produced a decision saying `Add` and an
+  execution saying `Change`, two rows that join on `tool_use_id` and disagree
+  about what happened. The decision is now handed forward in a short-lived
+  sidecar (`rmacd.claude_code.handoff`) and the execution record is written from
+  it. `PostToolUse` no longer loads a profile or builds a registry at all.
+
+- **An unbound session paid ~0.7s of governance overhead per tool call to govern
+  nothing.** Both hook shims imported the SDK — roughly 0.3s of interpreter and
+  pydantic startup each — before discovering no profile was bound and passing the
+  call through. That is the default state for anyone who installs the plugin
+  without configuring it, and "zero-friction passthrough" was the one thing it
+  was documented to be. The shims now answer the bound/unbound question with the
+  stdlib check they already had, and import the SDK only when a profile is
+  actually bound: measured 71ms per tool call for both hooks, down from ~680ms.
+
+  Because that check now gates enforcement rather than only the wording of a
+  denial, `test_plugin_guard.py` pins it to `resolve_profile_path` across the
+  binding matrix — drift would mean a governed session running unenforced, so it
+  fails the build instead.
+
+- **Documented the hook-timeout fail-open.** Fail-closed is enforced inside the
+  hook and cannot cover a hook that never answers: on timeout Claude Code treats
+  the error as non-blocking and the call proceeds ungoverned. The margin is wide
+  in practice, but `docs/claude-code.md` now names the gap and the environments
+  that can narrow it.
+
+- **`/rmacd:status` ran the wrong interpreter.** The command invoked a bare
+  `python3` while the hooks run `"${RMACD_PYTHON:-python3}"`. Whenever
+  `RMACD_PYTHON` was set — the usual case when the SDK lives in a project venv,
+  and exactly the situation the variable exists for — the one diagnostic surface
+  reported a *different* environment than the one governing the session: it could
+  claim the SDK was missing on a fully governed session, or report clean while the
+  hook denied every call. It now uses the same expansion as the hooks.
+
+- **Two docs still described the pre-0.14.1 fail-open behaviour.** `/rmacd:status`
+  troubleshooting and the managed-deployment notes in `docs/claude-code.md` both
+  said a missing SDK left the session "ungoverned, not broken" because Claude Code
+  treats a failed hook as non-blocking. 0.14.1 inverted that: a bound session with
+  an unimportable SDK now denies every tool call. Both now describe what the
+  software does, split by whether a profile is bound.
+
+- **Documented SDK floor unified to `>=0.14`.** `hooks.json` and the guard shim
+  required `>=0.14` while every surface a user actually reads — the plugin README,
+  `/rmacd:init`, `/rmacd:status`, the `rmacd-integrate` skill, `pretool_hook.py`,
+  `check_setup.sh` (`MIN_VERSION`) and `docs/claude-code.md` — still said `>=0.13`.
+  Following the instructions installed a version predating the 0.14.0 security
+  release, and `check_setup.sh` then passed it.
+
+- **The plugin README claimed it ships "markdown and reference material only".**
+  It ships three hook shims, and the README documented neither them nor session
+  governance, `/rmacd:status`, or the audit trail — the plugin's whole reason to
+  exist as more than a docs bundle.
 
 - **`build_audit_record(extra=...)` no longer discards its argument.** It was
   documented as "reserved ... so callers can pre-emptively include metadata"

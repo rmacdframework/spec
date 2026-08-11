@@ -2,8 +2,8 @@
 # check_setup.sh — verify an RMACD integration is wired correctly.
 #
 # Checks (in order, continues past failures, exits non-zero if any failed):
-#   1. rmacd is importable                (pip install "rmacd-framework>=0.13")
-#   2. SDK version >= RMACD_MIN_VERSION  (default 0.13)
+#   1. rmacd is importable                (pip install "rmacd-framework>=0.14")
+#   2. SDK version >= RMACD_MIN_VERSION  (default 0.14)
 #   3. RMACD_AGENT_ID is set
 #   4. RMACD_PROFILE_PATH is set, the file exists, and `rmacd validate` passes
 #
@@ -16,7 +16,7 @@
 set -u
 
 PY="${PYTHON:-python3}"
-MIN_VERSION="${RMACD_MIN_VERSION:-0.13}"
+MIN_VERSION="${RMACD_MIN_VERSION:-0.14}"
 FAILURES=0
 
 pass() { printf 'ok:   %s\n' "$1"; }

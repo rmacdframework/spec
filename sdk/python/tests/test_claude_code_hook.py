@@ -593,6 +593,41 @@ def test_status_bound_lists_profile_matrix_and_packs(
     assert "prohibited" in text  # restricted row of the matrix
     assert "shell, filesystem" in text
     assert '"ask"' in text
+    # The audit sink is part of the posture: a status that omits it cannot answer
+    # "where is this session's evidence going?".
+    assert str(profile_path.parent / "rmacd-audit.jsonl") in text
+
+
+def test_status_reports_disabled_audit(
+    tmp_path: Path, profile_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    for key in list(os.environ):
+        if key.startswith("RMACD_"):
+            monkeypatch.delenv(key, raising=False)
+    monkeypatch.setenv(session.ENV_PROFILE_PATH, str(profile_path))
+    monkeypatch.setenv("RMACD_AUDIT", "off")
+    text = status.render_status(cwd=str(tmp_path))
+    assert "DISABLED" in text
+    assert "records no evidence" in text
+
+
+@pytest.mark.skipif(
+    hasattr(os, "geteuid") and os.geteuid() == 0,
+    reason="root bypasses the permission bits this test relies on",
+)
+def test_status_warns_when_the_audit_sink_is_unwritable(
+    tmp_path: Path, profile_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """An unwritable sink degrades silently at runtime, so status must say so."""
+    for key in list(os.environ):
+        if key.startswith("RMACD_"):
+            monkeypatch.delenv(key, raising=False)
+    monkeypatch.setenv(session.ENV_PROFILE_PATH, str(profile_path))
+    sealed = tmp_path / "sealed"
+    sealed.mkdir(mode=0o500)
+    monkeypatch.setenv("RMACD_AUDIT_PATH", str(sealed / "audit.jsonl"))
+    text = status.render_status(cwd=str(tmp_path))
+    assert "WARNING: not writable" in text
 
 
 def test_status_unbound_explains_binding(

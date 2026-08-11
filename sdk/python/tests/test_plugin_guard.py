@@ -10,7 +10,9 @@ The wrapper is run as a real subprocess, the way Claude Code runs it.
 
 from __future__ import annotations
 
+import importlib.util
 import json
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -187,6 +189,110 @@ def test_malformed_event_with_bound_profile_still_denies(
     assert result.returncode == 0
     decision = json.loads(result.stdout)["hookSpecificOutput"]
     assert decision["permissionDecision"] == "deny"
+
+
+def _guard_module():
+    """Import the wrapper in-process to call its detection directly."""
+    spec = importlib.util.spec_from_file_location("rmacd_guard_under_test", GUARD)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+@pytest.mark.parametrize(
+    "layout",
+    ["none", "in_cwd", "in_parent", "via_env", "via_env_missing_file", "via_project_dir"],
+)
+def test_bound_detection_agrees_with_the_sdk_resolver(
+    layout: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The wrapper and ``resolve_profile_path`` must never disagree on boundness.
+
+    The wrapper skips importing the SDK entirely when it reads a session as
+    unbound, so a drift where it says "unbound" and the SDK would have said
+    "bound" is not a cosmetic mismatch — it is a governed session running with
+    no enforcement at all. This pins the two to the same answer.
+    """
+    from rmacd.claude_code import session
+
+    for key in list(os.environ):
+        if key.startswith(("RMACD_", "CLAUDE_")):
+            monkeypatch.delenv(key, raising=False)
+
+    root = tmp_path / "root"
+    cwd = root / "sub" / "deeper"
+    cwd.mkdir(parents=True)
+
+    def write_profile(at: Path) -> Path:
+        (at / ".claude").mkdir(parents=True, exist_ok=True)
+        target = at / ".claude" / "rmacd-profile.json"
+        target.write_text(json.dumps(PROFILE))
+        return target
+
+    if layout == "in_cwd":
+        write_profile(cwd)
+    elif layout == "in_parent":
+        write_profile(root)
+    elif layout == "via_env":
+        explicit = write_profile(tmp_path / "elsewhere")
+        monkeypatch.setenv("RMACD_PROFILE_PATH", str(explicit))
+    elif layout == "via_env_missing_file":
+        # Configured-but-broken is *bound*: it must fail closed, not pass through.
+        monkeypatch.setenv("RMACD_PROFILE_PATH", str(tmp_path / "gone.json"))
+    elif layout == "via_project_dir":
+        project = tmp_path / "project"
+        write_profile(project)
+        monkeypatch.setenv("CLAUDE_PROJECT_DIR", str(project))
+
+    guard = _guard_module()
+    wrapper_unbound = guard.profile_source(str(cwd)) is None
+    sdk_unbound = session.resolve_profile_path(str(cwd), os.environ) is None
+    assert wrapper_unbound == sdk_unbound, layout
+
+
+def _sdk_was_imported(script: Path, cwd: Path) -> bool:
+    """Run a hook shim in a fresh interpreter and report whether it imported rmacd."""
+    probe = (
+        "import sys, runpy\n"
+        "try:\n"
+        f"    runpy.run_path({str(script)!r}, run_name='__main__')\n"
+        "except SystemExit:\n"
+        "    pass\n"
+        "imported = any(m == 'rmacd' or m.startswith('rmacd.') for m in sys.modules)\n"
+        "print('SDK_IMPORTED=' + str(imported), file=sys.stderr)\n"
+    )
+    event = dict(DESTRUCTIVE_EVENT, cwd=str(cwd), tool_response={"ok": True})
+    result = subprocess.run(
+        [sys.executable, "-c", probe],
+        input=json.dumps(event),
+        capture_output=True,
+        text=True,
+        env={"PATH": "/usr/bin:/bin", "HOME": str(cwd), "PYTHONPATH": str(script.parent)},
+        timeout=60,
+    )
+    assert "SDK_IMPORTED=" in result.stderr, result.stderr
+    return "SDK_IMPORTED=True" in result.stderr
+
+
+@pytest.mark.parametrize("shim", ["rmacd_guard.py", "rmacd_post.py"])
+def test_unbound_session_does_not_import_the_sdk(shim: str, unbound_dir: Path) -> None:
+    """The zero-friction path must also be zero-cost.
+
+    Importing ``rmacd`` costs roughly 0.3s, and an unbound session used to pay it
+    on *both* hooks of every tool call just to rediscover it had nothing to do.
+    Asserted structurally rather than by timing, which would be flaky in CI.
+    """
+    assert _sdk_was_imported(GUARD.parent / shim, unbound_dir) is False
+
+
+def test_bound_session_still_imports_the_sdk(bound_dir: Path) -> None:
+    """Counterpart to the above: proves the probe detects a real import.
+
+    Without this, the fast-path test would pass just as happily if the probe
+    were broken.
+    """
+    assert _sdk_was_imported(GUARD, bound_dir) is True
 
 
 def test_session_start_warns_when_sdk_missing_but_bound(

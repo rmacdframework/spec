@@ -1,6 +1,6 @@
 # RMACD session governance for Claude Code
 
-**Requires `rmacd-framework` ≥ 0.13.0** (`pip install "rmacd-framework>=0.13"`;
+**Requires `rmacd-framework` ≥ 0.14.0** (`pip install "rmacd-framework>=0.14"`;
 the import name is `rmacd`).
 
 The `rmacd.claude_code` module makes RMACD govern a **Claude Code session
@@ -35,7 +35,7 @@ few milliseconds of evaluation.
    resolves to:
 
    ```bash
-   pip install "rmacd-framework>=0.13"
+   pip install "rmacd-framework>=0.14"
    ```
 
 3. Bind a profile (either mechanism; env var wins):
@@ -86,9 +86,12 @@ which users cannot override:
 Notes for managed deployments:
 
 - Distribute the SDK in the base image / bootstrap (`pip install
-  "rmacd-framework>=0.13"`). If the SDK is missing the hook command fails and
-  Claude Code treats it as a **non-blocking** error — pair the managed hook
-  with configuration management that asserts the package is present.
+  "rmacd-framework>=0.14"`). If the SDK is missing on a machine where a profile
+  *is* bound, the plugin's stdlib-only PreToolUse shim denies every tool call
+  rather than letting the session run ungoverned — a broken rollout is loud.
+  Still pair the managed hook with configuration management that asserts the
+  package is present, or set `RMACD_PYTHON` to the interpreter that has it;
+  otherwise the failure mode users see is a fully blocked session.
 - The profile file itself should be root-owned/read-only; a bound-but-broken
   configuration fails closed (all tool calls denied), so broken rollouts are
   loud, not silent.
@@ -185,7 +188,7 @@ permission prompts and auto-approve everything. "Unbound" must mean
 
 | State | Behavior |
 |-------|----------|
-| No profile bound | Passthrough (no decision emitted; Claude Code's own permission flow unchanged); one-time stderr notice "RMACD installed but unbound" per session |
+| No profile bound | Passthrough (no decision emitted; Claude Code's own permission flow unchanged); `SessionStart` says so once per session. The plugin's shims detect this without importing the SDK, so an unconfigured session adds no measurable per-call cost |
 | Profile bound, hook errors | **Fail closed** — deny with a diagnostic reason (covers invalid profile/pack/map, malformed stdin, and unexpected exceptions) |
 | Profile bound, unknown MCP tool | Deny by default; `RMACD_UNKNOWN_TOOL=ask` routes it to the user's approval instead |
 | SDK missing (plugin without pip install), profile bound | **Fail closed** — the plugin's stdlib-only wrapper denies every tool call and names the profile source, the interpreter, and the install command. A `SessionStart` notice says so once, up front |
@@ -193,6 +196,22 @@ permission prompts and auto-approve everything. "Unbound" must mean
 
 Stderr is safe in all cases: with exit code 0 Claude Code reads only stdout
 for the JSON decision and shows stderr only in `--debug` mode.
+
+### The one gap: hook timeout
+
+Fail-closed is enforced *inside* the hook, so it covers everything the hook can
+observe. It cannot cover a hook that never returns an answer. If the process
+exceeds the configured `timeout`, Claude Code treats it as a non-blocking error
+and the tool call proceeds **ungoverned** — the same fail-open shape that the
+0.14.1 wrapper closed for a missing SDK, reachable here through latency instead.
+
+In practice the margin is wide: a governed decision is a Python start plus a
+profile load and an in-memory evaluation, and the plugin ships a 10s timeout.
+It is worth knowing about anyway on machines where that assumption can break —
+cold NFS home directories, heavily oversubscribed CI runners, a profile or
+classification map on a network mount. If that is your environment, raise the
+`timeout` in the hook configuration rather than leaving it near the edge, and
+keep the profile and map on local disk.
 
 ## Audit trail
 
@@ -208,6 +227,22 @@ Appendix C.6 format. Two hooks write it:
 **Decisions are recorded at `PreToolUse` on purpose.** A denied call never
 runs, so it never reaches `PostToolUse`; a trail assembled only from executions
 would omit every denial — precisely the evidence that shows the boundary held.
+
+The execution record is written from the decision, not recomputed. `PreToolUse`
+hands its result forward in a short-lived sidecar under the system temp
+directory, keyed by `(session_id, tool_use_id)`; `PostToolUse` consumes it and
+deletes it. This is what makes the two rows consistent: the mapping is not a
+pure function of the tool call — `Write` is **Add** when the path does not exist
+and **Change** when it does — so re-deriving it after the write once filed every
+file creation as `Add` in its decision and `Change` in its execution. It also
+means the execution row carries the autonomy level the decision actually
+computed, so a call a human approved is not recorded as having run
+autonomously.
+
+Sidecars are best-effort and self-cleaning (unlinked on read, TTL-swept
+otherwise). A missing one costs an execution record, never a decision record —
+denials, the evidence that matters most, are written inline by `PreToolUse` and
+never depend on the handoff.
 
 Records carry an `extra` block outside the C.6 shape with the Claude Code
 `session_id`, `tool_use_id`, `tool_name`, `cwd`, and — when the call came from

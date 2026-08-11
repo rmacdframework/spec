@@ -108,6 +108,11 @@ class SessionAuditor:
     def enabled(self) -> bool:
         return self._path is not None
 
+    @property
+    def path(self) -> Path | None:
+        """The resolved sink, so a decision can tell its execution where to write."""
+        return self._path
+
     def _sink(self) -> JSONLAuditLogger | None:
         if self._path is None:
             return None
@@ -186,8 +191,20 @@ class SessionAuditor:
         status: str,
         error: str | None = None,
         context: dict[str, Any] | None = None,
+        autonomy_level: AutonomyLevel = AutonomyLevel.AUTONOMOUS,
+        requires_approval: bool = False,
     ) -> None:
-        """Record the outcome of a call that actually ran."""
+        """Record the outcome of a call that actually ran.
+
+        ``autonomy_level`` and ``requires_approval`` are the values the
+        *decision* computed, carried forward from `PreToolUse` (see
+        :mod:`rmacd.claude_code.handoff`) rather than recomputed. They used to be
+        hardcoded to ``AUTONOMOUS``/``False``, which meant a call a human had
+        explicitly approved was filed as having run autonomously. The decision
+        row held the truth, but an execution row read on its own — which is how
+        "what did this agent actually do?" gets asked — asserted the opposite of
+        what happened.
+        """
         if not self.enabled:
             return
 
@@ -195,8 +212,8 @@ class SessionAuditor:
             allowed=True,
             operation=operation,
             data_classification=classification,
-            autonomy_level=AutonomyLevel.AUTONOMOUS,
-            requires_approval=False,
+            autonomy_level=autonomy_level,
+            requires_approval=requires_approval,
             requires_notification=False,
         )
         self._write(

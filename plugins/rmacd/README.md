@@ -23,11 +23,38 @@ Or, for local development from a checkout of this repo:
 claude --plugin-dir plugins/rmacd
 ```
 
-The plugin ships markdown and reference material only; all executable logic lives in
-the pip-installed SDK: `pip install "rmacd-framework>=0.13"`.
+The plugin ships markdown, reference material, and three small stdlib-only hook shims;
+all governance logic lives in the pip-installed SDK:
+`pip install "rmacd-framework>=0.14"`. The shims are deliberately dependency-free so
+they still work in the one case that matters — when the SDK itself cannot be imported.
 
 ## What's inside
 
+### Session governance (hooks)
+
+Once a profile is bound, the plugin governs **this Claude Code session's own** tool
+calls, not just agents you build. Bind one with `RMACD_PROFILE_PATH` or
+`.claude/rmacd-profile.json` in the project root, then restart the session.
+
+- **`SessionStart`** — states the governance posture once, up front: active (with the
+  profile source), unbound, or configured-but-broken.
+- **`PreToolUse`** — classifies every call into `(operation, tier, target)` and
+  evaluates it against the profile: `allow`, `deny`, or `ask` (Claude Code's own
+  permission prompt is the human-in-the-loop step for approval-level autonomy).
+  Records the decision — including denials, which never reach `PostToolUse`.
+- **`PostToolUse`** — records the execution outcome, joined to its decision by
+  `tool_use_id`, in `.claude/rmacd-audit.jsonl` beside the profile.
+
+Fail modes: an **unbound** session is a zero-friction passthrough. A **bound** session
+fails **closed** — if the profile is broken, the event is malformed, or the SDK cannot
+be imported, tool calls are denied rather than run ungoverned. Set `RMACD_PYTHON` to
+point the hooks at the interpreter that has the SDK (e.g. a project venv).
+
+### Commands and skills
+
+- **`/rmacd:status`** — reports the session's governance state: bound profile and
+  shape, the effective autonomy matrix, bound packs, classification map, audit sink,
+  and how approvals and unknown tools are routed.
 - **`/rmacd:init`** — scaffolds RMACD governance for the agent in the current project:
   detects the agent stack, installs the SDK, asks for a deployment shape (3D / 2D /
   DC2D) and role template, creates and validates a policy profile, builds the tools
@@ -56,14 +83,17 @@ the pip-installed SDK: `pip install "rmacd-framework>=0.13"`.
 
 ## Requirements
 
-- Python 3.10+ with `rmacd-framework>=0.13` installed in the target project
-  (`/rmacd:init` handles this).
+- Python 3.10+ with `rmacd-framework>=0.14` installed in the interpreter the hooks run
+  (`${RMACD_PYTHON:-python3}`) and in the target project (`/rmacd:init` handles the
+  latter).
 - No API keys required by the plugin itself; the optional LLM-assisted pack authoring
   (`rmacd classify --llm`) reads `ANTHROPIC_API_KEY`.
 
 ## Links
 
 - Specification and SDK source: https://github.com/rmacdframework/spec
+- Session governance reference (binding order, env vars, tool mapping, audit format):
+  [`docs/claude-code.md`](https://github.com/rmacdframework/spec/blob/main/docs/claude-code.md)
 - Website, profile generator and validator: https://rmacd-framework.org
 - PyPI: https://pypi.org/project/rmacd-framework/
 

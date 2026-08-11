@@ -24,7 +24,7 @@ Also note which MCP servers the project configures (`.mcp.json`, `mcp_servers=` 
 Ensure the SDK is installed **into the project's virtual environment** (not globally):
 
 ```bash
-pip install "rmacd-framework>=0.13"
+pip install "rmacd-framework>=0.14"
 ```
 
 The PyPI distribution is `rmacd-framework`; the import name is `rmacd`. Verify with

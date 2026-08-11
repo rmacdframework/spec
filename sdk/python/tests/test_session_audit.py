@@ -13,11 +13,13 @@ tests pin the two properties that make the trail worth having:
 from __future__ import annotations
 
 import json
+import os
+import time
 from pathlib import Path
 
 import pytest
 
-from rmacd.claude_code import hook, post_hook
+from rmacd.claude_code import handoff, hook, post_hook
 from rmacd.claude_code.audit import (
     DEFAULT_AUDIT_RELNAME,
     SessionAuditor,
@@ -187,10 +189,80 @@ def test_execution_failure_shapes(
     session_dir: Path, response: object, expected_error: str
 ) -> None:
     """Claude Code reports tool failure in several shapes; all must be caught."""
+    # The decision has to come first: an execution record is written from the
+    # decision handed forward by PreToolUse, never re-derived here.
+    _pre(session_dir, "cat missing", tool_use_id="tu-7")
     _post(session_dir, "cat missing", response, tool_use_id="tu-7")
-    execution = _audit_lines(session_dir)[0]["execution"]
+    execution = _audit_lines(session_dir)[-1]["execution"]
     assert execution["status"] == "FAILURE"
     assert expected_error in execution["error"]
+
+
+def test_execution_record_keeps_the_decision_operation(session_dir: Path) -> None:
+    """Write-to-a-new-file is Add in both records, not Add then Change.
+
+    The mapping is path-state dependent: Write maps to Add when the file does
+    not exist and Change when it does. Re-deriving in PostToolUse — after the
+    write — turned every file creation into a decision/execution pair that
+    disagreed about what the agent did.
+    """
+    import io
+
+    created = session_dir / "brand-new.txt"
+    event = {
+        "tool_name": "Write",
+        "tool_input": {"file_path": str(created), "content": "x"},
+        "cwd": str(session_dir),
+        "session_id": "sess-1",
+        "tool_use_id": "tu-write",
+    }
+    hook.run(io.StringIO(json.dumps(event)), io.StringIO(), io.StringIO())
+
+    created.write_text("x")  # the tool runs: the path now exists
+
+    post_hook.run(
+        io.StringIO(json.dumps({**event, "tool_response": {"ok": True}})),
+        io.StringIO(),
+        io.StringIO(),
+    )
+
+    decision, execution = _audit_lines(session_dir)
+    assert decision["operation"]["type"] == "A"
+    assert execution["operation"]["type"] == "A"
+
+
+def test_execution_record_carries_the_decision_autonomy(session_dir: Path) -> None:
+    """An approved call must not be filed as having run autonomously.
+
+    ``touch`` on an unmapped target is Add/internal, which the profile routes to
+    approval — the execution record has to say so, because "what did this agent
+    do without asking?" is answered by reading these rows.
+    """
+    out = _pre(session_dir, "touch newfile.txt", tool_use_id="tu-ask")
+    assert out["hookSpecificOutput"]["permissionDecision"] == "ask"
+
+    _post(session_dir, "touch newfile.txt", {"ok": True}, tool_use_id="tu-ask")
+
+    decision, execution = _audit_lines(session_dir)
+    assert decision["policy_decision"]["result"] == "QUEUED"
+    # C.6 serializes autonomy_level (not requires_approval), so this field is
+    # the whole of what an auditor reading the execution row can see.
+    assert execution["policy_decision"]["autonomy_level"] == "approval"
+    assert execution["policy_decision"]["result"] == "EXECUTED"
+
+
+def test_execution_without_a_decision_records_nothing(session_dir: Path) -> None:
+    """No handoff means the call was never governed here; inventing a row would lie."""
+    _post(session_dir, "cat README.md", {"stdout": "hi"}, tool_use_id="tu-orphan")
+    assert _audit_lines(session_dir) == []
+
+
+def test_declined_ask_leaves_no_execution_record(session_dir: Path) -> None:
+    """A user who declines the prompt never triggers PostToolUse; only the QUEUED row stands."""
+    _pre(session_dir, "touch other.txt", tool_use_id="tu-declined")
+    records = _audit_lines(session_dir)
+    assert len(records) == 1
+    assert records[0]["policy_decision"]["result"] == "QUEUED"
 
 
 def test_post_hook_emits_no_permission_decision(session_dir: Path) -> None:
@@ -261,6 +333,41 @@ def test_unwritable_sink_does_not_break_the_hook(
 
 
 # --- helpers -----------------------------------------------------------------
+
+
+def test_handoff_round_trip_is_single_use() -> None:
+    """Taking a sidecar consumes it, so it cannot be replayed onto a later call."""
+    assert handoff.store("sess-rt", "tu-rt", {"v": 1, "target": "/x"}) is True
+    assert handoff.take("sess-rt", "tu-rt") == {"v": 1, "target": "/x"}
+    assert handoff.take("sess-rt", "tu-rt") is None
+
+
+def test_handoff_requires_both_ids() -> None:
+    """Without a join key an execution record could not be correlated anyway."""
+    assert handoff.store("sess-rt", None, {"v": 1}) is False
+    assert handoff.store(None, "tu-rt", {"v": 1}) is False
+    assert handoff.take("sess-rt", None) is None
+
+
+def test_handoff_ids_cannot_escape_their_directory() -> None:
+    """Ids arrive from the hook event, so they are untrusted path components."""
+    assert handoff.store("../../etc", "../../passwd", {"v": 1}) is True
+    assert handoff.take("../../etc", "../../passwd") == {"v": 1}
+    assert not Path("/tmp/passwd.json").exists()
+
+
+def test_handoff_sweeps_expired_sidecars(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A declined `ask` leaves an orphan; the TTL sweep reclaims it."""
+    handoff.store("sess-sweep", "tu-old", {"v": 1})
+    stale = handoff._session_dir("sess-sweep") / "tu-old.json"
+    assert stale.exists()
+
+    ancient = time.time() - handoff.TTL_SECONDS - 60
+    os.utime(stale, (ancient, ancient))
+    handoff.store("sess-sweep", "tu-new", {"v": 1})  # sweeps on write
+
+    assert not stale.exists()
+    assert handoff.take("sess-sweep", "tu-new") is not None
 
 
 def test_resolve_audit_path_defaults_beside_the_profile(tmp_path: Path) -> None:

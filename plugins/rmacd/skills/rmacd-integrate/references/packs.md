@@ -15,7 +15,7 @@ from rmacd.packs import builtin_pack_names
 print(builtin_pack_names())
 ```
 
-As of SDK 0.13 there are 34 built-ins: `aws`, `aws-api-mcp`, `aws-iam`, `az`,
+As of SDK 0.14 there are 34 built-ins: `aws`, `aws-api-mcp`, `aws-iam`, `az`,
 `az-identity`, `azure-mcp`, `boto3`, `confluence`, `docker`, `filesystem`, `gcloud`,
 `gcp-iam`, `gcp-toolbox`, `gh`, `git`, `github`, `gitlab`, `google-drive`, `helm`,
 `jira`, `kubectl`, `make`, `ms365`, `npm`, `pip-uv`, `postgres`, `servicenow`,
