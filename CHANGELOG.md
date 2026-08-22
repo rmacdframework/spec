@@ -9,6 +9,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Added
 
+- **RMACD Intents — spec 1.4.1.** A second, complementary enforcement mode.
+  Where interception classifies a tool call *during* execution and requires the
+  actor to be instrumented, an intent is declared *before* execution and can be
+  submitted by anything that can make an API call. The two join in the audit
+  trail on `intent_id`, which makes "declared one thing, did another" a
+  detectable event rather than an invisible one.
+
+  - `docs/intents.md` — the capability definition: the intent ladder, the
+    production and record planes, the open type registry, the actor model, and
+    campaigns as pre-recorded approval rather than waived approval.
+  - `docs/intent-specification.md` — the normative companion (v1.0.0): 49
+    numbered requirements and a 17-item conformance table covering the
+    envelope, the adjudication contract, the shape key over which novelty is
+    computed, grants, budgets, the decision record, and reconciliation.
+  - `schemas/intent.schema.json` — one envelope, ten registered types,
+    per-type constraints via an `intent_type` discriminator.
+  - `schemas/intent-decision.schema.json` — the decision record, the first
+    record type in the framework to ship with a schema rather than prose.
+  - `schemas/examples/intents/` — six worked examples. They sit in a
+    subdirectory deliberately: CI validates `schemas/examples/*.json` with a
+    non-recursive glob that dispatches on a profile's `model` field.
+
+  Intents add no autonomy levels and no second matrix. A base level comes from
+  the §3.1 matrix; likelihood escalates it monotonically and saturates at
+  Elevated Approval, so no declared fact can ever buy *less* oversight than the
+  framework already required, and likelihood can never reach Prohibited.
+
+  **No SDK implementation ships with this revision.**
+
 - **Governed sessions now write an audit trail.** Previously a bound Claude Code
   session produced **no** audit records at all — the `PreToolUse` hook is
   side-effect-free and uses `evaluate_only`, so nothing was ever persisted. For
@@ -45,7 +74,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   unwritable sink degrades silently, so it would otherwise stay invisible until
   someone went looking for records that were never made.
 
+#### Changed
+
+- **Spec 1.4.1 — §12.4 exception template restated as an `exception` intent.**
+  Since v1.0 that template advertised
+  `https://rmacd-framework.org/schema/v1/exception.json`, which was never
+  published; anyone who copied the block got a document pointing at a 404. The
+  template now uses the intent envelope and validates against the schema it
+  cites. Approval fields moved off the request and onto the decision record —
+  an actor declares facts and never records its own approval.
+
 #### Fixed
+
+- **Spec 1.4.1 — Appendix A quick-reference card.** Add on Restricted still
+  read `ELEVATED`; the 1.4.0 correction reached §3.1 but never reached the
+  quick-reference matrix, leaving the most-copied table in the document
+  contradicting the §12.5 immutable floor that §3.1, the README, the SDK and
+  the profile schemas all enforce.
 
 - **Permissions are now actually cumulative (D ⊃ C ⊃ A ⊃ M ⊃ R).** The
   framework's headline invariant — spec §3, "an agent granted 'Change'

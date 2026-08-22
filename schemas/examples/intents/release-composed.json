@@ -1,0 +1,34 @@
+{
+  "$schema": "https://rmacd-framework.org/schema/v1/intent.json",
+  "intent_id": "int-rel-20260815-0009",
+  "intent_type": "release",
+  "submitted_at": "2026-08-15T10:02:00Z",
+  "actor": {
+    "kind": "pipeline",
+    "id": "ci-release-pipeline",
+    "authorization": "spiffe://corp/ns/ci/release-pipeline",
+    "on_behalf_of": "release-engineering@company.com"
+  },
+  "declaration": {
+    "operation": "C",
+    "target": "release://payments/2026.8.3",
+    "target_class": "release://payments/*",
+    "data_classification": "confidential",
+    "environment": "production",
+    "reversibility": {
+      "rollback_declared": true,
+      "rollback_plan": "Blue/green cutback to 2026.8.2 within the deployment window.",
+      "attested_by": "release-engineering@company.com"
+    }
+  },
+  "composes": [
+    "int-chg-20260815-0031",
+    "int-chg-20260815-0032",
+    "int-chg-20260815-0033"
+  ],
+  "justification": "Payments 2026.8.3 — connection pool fix, dependency bumps, and a schema migration.",
+  "compliance_tags": ["PCI-DSS"],
+  "metadata": {
+    "note": "The migration child (int-chg-20260815-0033) is the most severe item. Per N-11 the release inherits that level; the two benign children do not dilute it, and neither is judged more leniently for travelling with them."
+  }
+}

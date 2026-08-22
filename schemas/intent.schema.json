@@ -1,0 +1,402 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rmacd-framework.org/schema/v1/intent.json",
+  "title": "RMACD Intent",
+  "description": "A structured declaration of an action an actor wants to take, submitted for adjudication before it is taken. See docs/intent-specification.md.",
+  "type": "object",
+  "required": ["intent_id", "intent_type", "submitted_at", "actor", "declaration"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": { "type": "string" },
+    "intent_id": {
+      "type": "string",
+      "description": "Unique identifier for this intent within the issuing organization.",
+      "pattern": "^int-[a-z0-9][a-z0-9-]*$"
+    },
+    "intent_type": {
+      "$ref": "#/$defs/intentType"
+    },
+    "submitted_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "RFC 3339 UTC timestamp of submission."
+    },
+    "actor": { "$ref": "#/$defs/actor" },
+    "declaration": { "$ref": "#/$defs/declaration" },
+    "justification": {
+      "type": "string",
+      "description": "Free text for human readers. Never an adjudication input (N-2)."
+    },
+    "composes": {
+      "type": "array",
+      "description": "Intents this intent bundles. The composite inherits the most restrictive child level (N-11).",
+      "items": { "$ref": "#/$defs/intentRef" }
+    },
+    "requires": {
+      "type": "array",
+      "description": "Intents this intent depends on.",
+      "items": { "$ref": "#/$defs/intentRef" }
+    },
+    "grant_ref": {
+      "description": "A campaign or exception this intent claims coverage from. Coverage discharges approval; it never lowers the computed level (N-27).",
+      "$ref": "#/$defs/intentRef"
+    },
+    "compliance_tags": {
+      "type": "array",
+      "description": "Framework §10 compliance vocabulary.",
+      "items": {
+        "type": "string",
+        "enum": ["GDPR", "HIPAA", "PCI-DSS", "SOX", "ISO27001", "CCPA", "FedRAMP", "NIST-CSF"]
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "description": "Where this intent came from. Recorded, never an adjudication input.",
+      "additionalProperties": true,
+      "properties": {
+        "rationale_ref": { "type": "string" },
+        "produced_by": { "type": "string" },
+        "source_intent_id": { "$ref": "#/$defs/intentRef" }
+      }
+    },
+    "metadata": {
+      "type": "object",
+      "description": "Organization-local annotations. Never an adjudication input (N-2).",
+      "additionalProperties": true
+    },
+
+    "catalogue_ref": {
+      "type": "string",
+      "description": "service_request: the catalogue entry being requested."
+    },
+    "stages": {
+      "type": "array",
+      "description": "decommission: ordered retirement stages.",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["name"],
+        "additionalProperties": false,
+        "properties": {
+          "name": { "type": "string" },
+          "description": { "type": "string" },
+          "reversible": { "type": "boolean" }
+        }
+      }
+    },
+    "window": { "$ref": "#/$defs/window" },
+    "service_commitment": {
+      "type": "string",
+      "description": "maintenance_window: the SLA or service commitment the window is taken against."
+    },
+    "plan_ref": {
+      "type": "string",
+      "description": "continuity_invocation: the pre-approved continuity or DR plan being invoked."
+    },
+    "trigger": {
+      "type": "string",
+      "description": "continuity_invocation: the condition that triggered invocation."
+    },
+    "severity": {
+      "type": "string",
+      "description": "incident: record-plane severity.",
+      "enum": ["sev1", "sev2", "sev3", "sev4", "sev5"]
+    },
+    "dedup_key": {
+      "type": "string",
+      "description": "incident: deduplication key. Budgets throttle repeats of this key, never the first report of a distinct key within its window."
+    },
+    "class_predicate": { "$ref": "#/$defs/classPredicate" },
+    "caps": { "$ref": "#/$defs/grantCaps" },
+    "expires_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Grant expiry. Mandatory for every grant; indefinite grants are prohibited by framework §12.5 (N-33)."
+    },
+    "base_profile_id": {
+      "type": "string",
+      "description": "exception: the profile being temporarily widened.",
+      "pattern": "^rmacd-(2d|3d|dc2d)-[a-z0-9-]+$"
+    },
+    "exception_category": {
+      "type": "string",
+      "description": "exception: framework §12.2 category, which fixes the maximum duration and approval authority.",
+      "enum": ["emergency", "urgent", "planned", "extended"]
+    },
+    "escalated_permissions": { "$ref": "#/$defs/escalatedPermissions" },
+    "compensating_controls": { "$ref": "#/$defs/compensatingControls" },
+    "rollback_plan": {
+      "type": "string",
+      "description": "exception: how the widening is undone if it causes issues."
+    },
+    "status": {
+      "type": "string",
+      "description": "Grant lifecycle state.",
+      "enum": ["requested", "active", "expired", "revoked", "closed"]
+    }
+  },
+
+  "allOf": [
+    {
+      "if": { "properties": { "intent_type": { "const": "release" } }, "required": ["intent_type"] },
+      "then": { "required": ["composes"], "properties": { "composes": { "minItems": 1 } } }
+    },
+    {
+      "if": { "properties": { "intent_type": { "const": "deployment" } }, "required": ["intent_type"] },
+      "then": { "required": ["requires"], "properties": { "requires": { "minItems": 1, "maxItems": 1 } } }
+    },
+    {
+      "if": { "properties": { "intent_type": { "const": "service_request" } }, "required": ["intent_type"] },
+      "then": { "required": ["catalogue_ref"] }
+    },
+    {
+      "if": { "properties": { "intent_type": { "const": "decommission" } }, "required": ["intent_type"] },
+      "then": { "required": ["composes", "stages"], "properties": { "composes": { "minItems": 1 } } }
+    },
+    {
+      "if": { "properties": { "intent_type": { "const": "maintenance_window" } }, "required": ["intent_type"] },
+      "then": { "required": ["window", "service_commitment"] }
+    },
+    {
+      "if": { "properties": { "intent_type": { "const": "continuity_invocation" } }, "required": ["intent_type"] },
+      "then": { "required": ["plan_ref", "trigger"] }
+    },
+    {
+      "if": { "properties": { "intent_type": { "const": "incident" } }, "required": ["intent_type"] },
+      "then": { "required": ["severity", "dedup_key"] }
+    },
+    {
+      "if": { "properties": { "intent_type": { "const": "campaign" } }, "required": ["intent_type"] },
+      "then": { "required": ["class_predicate", "caps", "expires_at"] }
+    },
+    {
+      "if": { "properties": { "intent_type": { "const": "exception" } }, "required": ["intent_type"] },
+      "then": {
+        "required": ["base_profile_id", "exception_category", "escalated_permissions", "expires_at"]
+      }
+    },
+    {
+      "$comment": "N-8 / N-30: privilege-bearing fields belong only to grant types. A production-plane intent that carried them could otherwise imply a self-issued grant.",
+      "if": {
+        "properties": { "intent_type": { "enum": ["campaign", "exception"] } },
+        "required": ["intent_type"]
+      },
+      "else": {
+        "allOf": [
+          { "not": { "required": ["class_predicate"] } },
+          { "not": { "required": ["escalated_permissions"] } },
+          { "not": { "required": ["caps"] } },
+          { "not": { "required": ["base_profile_id"] } }
+        ]
+      }
+    }
+  ],
+
+  "$defs": {
+    "operation": {
+      "type": "string",
+      "enum": ["R", "M", "A", "C", "D"],
+      "description": "RMACD operation: R=Read, M=Move, A=Add, C=Change, D=Delete."
+    },
+    "tier": {
+      "type": "string",
+      "enum": ["public", "internal", "confidential", "restricted"],
+      "description": "RMACD data classification tier."
+    },
+    "environment": {
+      "type": "string",
+      "enum": ["development", "staging", "production", "disaster-recovery", "sandbox"],
+      "description": "Deployment environment. production and disaster-recovery raise likelihood (factor L3)."
+    },
+    "autonomyLevel": {
+      "type": "string",
+      "enum": ["autonomous", "logged", "notification", "approval", "elevated_approval", "prohibited"],
+      "description": "Framework §2.4 autonomy level. Intents add no oversight vocabulary."
+    },
+    "intentType": {
+      "type": "string",
+      "description": "A registered intent type. The registry is open; new types register against this envelope.",
+      "enum": [
+        "change",
+        "release",
+        "deployment",
+        "service_request",
+        "decommission",
+        "maintenance_window",
+        "continuity_invocation",
+        "incident",
+        "campaign",
+        "exception"
+      ]
+    },
+    "intentRef": {
+      "type": "string",
+      "pattern": "^int-[a-z0-9][a-z0-9-]*$"
+    },
+    "actor": {
+      "type": "object",
+      "description": "Who is asking. Adjudication is actor-agnostic; kind affects routing and accountability only (N-7).",
+      "required": ["kind", "id", "authorization"],
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": ["agent", "pipeline", "human"]
+        },
+        "id": { "type": "string", "minLength": 1 },
+        "authorization": {
+          "type": "string",
+          "minLength": 1,
+          "description": "A reference the implementation can resolve to verify the actor. Unresolvable authorization fails closed (N-6)."
+        },
+        "on_behalf_of": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The accountable human or team. Mandatory for agent and pipeline actors (N-5)."
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "kind": { "enum": ["agent", "pipeline"] } },
+            "required": ["kind"]
+          },
+          "then": { "required": ["on_behalf_of"] }
+        }
+      ]
+    },
+    "declaration": {
+      "type": "object",
+      "description": "The facts the engine grades. Contains no rating of any kind (N-8).",
+      "required": ["operation", "target", "environment"],
+      "additionalProperties": false,
+      "properties": {
+        "operation": { "$ref": "#/$defs/operation" },
+        "target": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The resource acted upon."
+        },
+        "target_class": {
+          "type": "string",
+          "description": "Normalized target pattern. Derived by the engine when absent; a derived value governs over a declared one (N-24)."
+        },
+        "data_classification": {
+          "description": "Required in 3D and DC2D deployments (N-3). This is the impact dimension.",
+          "$ref": "#/$defs/tier"
+        },
+        "environment": { "$ref": "#/$defs/environment" },
+        "reversibility": {
+          "type": "object",
+          "description": "An attested rollback path fails to add an escalation step; it never subtracts one (N-4).",
+          "additionalProperties": false,
+          "properties": {
+            "rollback_declared": { "type": "boolean" },
+            "rollback_plan": { "type": "string" },
+            "attested_by": {
+              "type": "string",
+              "description": "A party other than the requesting actor. Self-attestation does not satisfy factor L2."
+            }
+          }
+        },
+        "blast_radius": {
+          "type": "object",
+          "description": "Declared scope, compared against the profile's max_blast_radius_percentage (factor L5).",
+          "additionalProperties": false,
+          "properties": {
+            "scope_percentage": { "type": "number", "minimum": 0, "maximum": 100 },
+            "affected_count": { "type": "integer", "minimum": 0 }
+          }
+        },
+        "impact_basis": {
+          "type": "object",
+          "description": "An organization-declared substitute impact axis. Must map onto the four-tier ordering and be declared in the bound profile, not here (N-16).",
+          "additionalProperties": false,
+          "properties": {
+            "scheme": { "type": "string" },
+            "value": { "type": "string" }
+          }
+        }
+      }
+    },
+    "window": {
+      "type": "object",
+      "description": "maintenance_window: the planned period of unavailability.",
+      "required": ["start", "end"],
+      "additionalProperties": false,
+      "properties": {
+        "start": { "type": "string", "format": "date-time" },
+        "end": { "type": "string", "format": "date-time" }
+      }
+    },
+    "classPredicate": {
+      "type": "object",
+      "description": "The bounded class a grant covers. Matched conjunctively over a closed field set; wildcards are permitted only in target_class (N-30, N-31). A predicate that would match every intent of a type must be rejected (N-32).",
+      "minProperties": 1,
+      "additionalProperties": false,
+      "properties": {
+        "intent_type": { "$ref": "#/$defs/intentType" },
+        "operation": { "$ref": "#/$defs/operation" },
+        "data_classification": { "$ref": "#/$defs/tier" },
+        "environment": { "$ref": "#/$defs/environment" },
+        "target_class": { "type": "string", "minLength": 1 },
+        "actor_id": { "type": "string", "minLength": 1 },
+        "on_behalf_of": { "type": "string", "minLength": 1 }
+      }
+    },
+    "grantCaps": {
+      "type": "object",
+      "description": "Hard bounds on what a grant may cover. Exhausting any cap ends coverage (N-28).",
+      "required": ["max_children", "max_level"],
+      "additionalProperties": false,
+      "properties": {
+        "max_children": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Maximum number of child intents this grant may cover."
+        },
+        "max_level": {
+          "description": "The level the approving human granted at. A child computing above this level is not covered and routes individually (N-28).",
+          "allOf": [
+            { "$ref": "#/$defs/autonomyLevel" },
+            { "not": { "const": "prohibited" } }
+          ]
+        },
+        "max_blast_radius_percentage": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        }
+      }
+    },
+    "escalatedPermissions": {
+      "type": "object",
+      "description": "Temporary widening granted by an exception. Restricted is capped at R and M: Add, Change and Delete on Restricted are the framework §12.5 immutable floor and are never grantable (N-36).",
+      "additionalProperties": false,
+      "properties": {
+        "public": { "type": "array", "items": { "$ref": "#/$defs/operation" } },
+        "internal": { "type": "array", "items": { "$ref": "#/$defs/operation" } },
+        "confidential": { "type": "array", "items": { "$ref": "#/$defs/operation" } },
+        "restricted": {
+          "type": "array",
+          "description": "Read and Move only. A, C and D on Restricted cannot be granted by any mechanism.",
+          "items": { "type": "string", "enum": ["R", "M"] }
+        }
+      }
+    },
+    "compensatingControls": {
+      "type": "object",
+      "description": "Additional monitoring or restriction applied for the life of a grant. Audit logging can never be removed (framework §12.5).",
+      "additionalProperties": true,
+      "properties": {
+        "enhanced_logging": { "type": "boolean", "const": true },
+        "real_time_alerts": { "type": "boolean" },
+        "human_shadow": { "type": "string" },
+        "restricted_targets": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    }
+  }
+}

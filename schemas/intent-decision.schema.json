@@ -1,0 +1,196 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rmacd-framework.org/schema/v1/intent-decision.json",
+  "title": "RMACD Intent Decision Record",
+  "description": "The durable evidence artifact produced by every adjudication. Simultaneously the audit record and the novelty memory that feeds likelihood. See docs/intent-specification.md §9.",
+  "type": "object",
+  "required": [
+    "decision_id",
+    "intent_id",
+    "decided_at",
+    "shape_key",
+    "base_level",
+    "computed_level",
+    "escalation_factors",
+    "impact_basis",
+    "profile_id",
+    "matrix_version",
+    "likelihood_weights_version",
+    "policy_version",
+    "log_epoch"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": { "type": "string" },
+    "decision_id": {
+      "type": "string",
+      "pattern": "^dec-[a-z0-9][a-z0-9-]*$"
+    },
+    "intent_id": {
+      "type": "string",
+      "description": "The adjudicated intent. This is the join key between the adjudication and interception audit trails (N-45).",
+      "pattern": "^int-[a-z0-9][a-z0-9-]*$"
+    },
+    "decided_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "shape_key": {
+      "type": "string",
+      "description": "SHA-256 over the canonical serialization of exactly the six fields in specification §6.1.",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "base_level": {
+      "description": "The level the framework's effective matrix required, before escalation. Sourced from the §3.1 matrix as adjusted by the bound profile; never from a second matrix (N-13).",
+      "$ref": "#/$defs/autonomyLevel"
+    },
+    "computed_level": {
+      "description": "The level after escalation, composition floor and immutable floor. Never less restrictive than base_level (N-14). Escalation saturates at elevated_approval; prohibited arises only from the pinned or extended floor (N-14a).",
+      "$ref": "#/$defs/autonomyLevel"
+    },
+    "escalation_factors": {
+      "type": "array",
+      "description": "Every factor that fired, with its step contribution. Empty when the computed level equals the base level.",
+      "items": { "$ref": "#/$defs/escalationFactor" }
+    },
+    "impact_basis": {
+      "type": "object",
+      "description": "The impact axis used. Classification by default, or the organization's declared substitute (N-16).",
+      "required": ["scheme", "value"],
+      "additionalProperties": false,
+      "properties": {
+        "scheme": {
+          "type": "string",
+          "description": "'data_classification' by default.",
+          "default": "data_classification"
+        },
+        "value": { "type": "string" }
+      }
+    },
+    "profile_id": {
+      "type": "string",
+      "description": "The bound profile that supplied the permission ceiling. Adjudication never grants beyond it (N-20).",
+      "pattern": "^rmacd-(2d|3d|dc2d)-[a-z0-9-]+$"
+    },
+    "matrix_version": {
+      "type": "string",
+      "description": "Reproducibility input (N-21)."
+    },
+    "likelihood_weights_version": {
+      "type": "string",
+      "description": "Reproducibility input: the version of the effective likelihood weight table (N-18, N-21)."
+    },
+    "policy_version": {
+      "type": "string",
+      "description": "Reproducibility input (N-21)."
+    },
+    "log_epoch": {
+      "type": "string",
+      "description": "Reproducibility input: the decision-log state novelty was computed against. Adjudication is deterministic but not stateless (N-21)."
+    },
+    "grant_ref": {
+      "type": "string",
+      "description": "The grant that discharged approval, if any. A grant discharges; it never lowers computed_level (N-27).",
+      "pattern": "^int-[a-z0-9][a-z0-9-]*$"
+    },
+    "disposition": {
+      "type": "object",
+      "description": "A human decision recorded against the computed level.",
+      "required": ["outcome", "decided_at"],
+      "additionalProperties": false,
+      "properties": {
+        "outcome": {
+          "type": "string",
+          "enum": ["approved", "approved_with_modifications", "deferred", "denied"]
+        },
+        "approver": { "type": "string" },
+        "decided_at": { "type": "string", "format": "date-time" },
+        "note": { "type": "string" }
+      }
+    },
+    "prohibition_source": {
+      "type": "string",
+      "description": "Required when computed_level is prohibited. 'pinned' is the framework §12.5 floor and can never be removed or narrowed; 'extended' is an organization's own declared prohibition, which extends the floor outward but never shrinks it. Escalation is never a source: likelihood saturates at elevated_approval and cannot reach prohibited (N-14a, N-14b, N-44).",
+      "enum": ["pinned", "extended"]
+    },
+    "reconciliation": {
+      "type": "object",
+      "description": "Attached after execution. Absent means unreconciled — which must never be recorded as a match (N-49).",
+      "required": ["result"],
+      "additionalProperties": false,
+      "properties": {
+        "result": {
+          "type": "string",
+          "enum": ["matched", "divergent", "undeclared", "unexecuted"]
+        },
+        "reconciled_at": { "type": "string", "format": "date-time" },
+        "audit_record_id": {
+          "type": "string",
+          "description": "The interception-side audit record this was joined against."
+        },
+        "discrepancies": {
+          "type": "array",
+          "description": "Fields where the executed action differed from the declared intent.",
+          "items": {
+            "type": "object",
+            "required": ["field"],
+            "additionalProperties": false,
+            "properties": {
+              "field": { "type": "string" },
+              "declared": { "type": "string" },
+              "executed": { "type": "string" }
+            }
+          }
+        }
+      }
+    }
+  },
+
+  "allOf": [
+    {
+      "$comment": "N-44: a prohibited decision must say which kind of prohibition it is.",
+      "if": {
+        "properties": { "computed_level": { "const": "prohibited" } },
+        "required": ["computed_level"]
+      },
+      "then": { "required": ["prohibition_source"] }
+    }
+  ],
+
+  "$defs": {
+    "autonomyLevel": {
+      "type": "string",
+      "enum": ["autonomous", "logged", "notification", "approval", "elevated_approval", "prohibited"],
+      "description": "Framework §2.4 autonomy level. Intents add no oversight vocabulary."
+    },
+    "escalationFactor": {
+      "type": "object",
+      "required": ["factor", "steps"],
+      "additionalProperties": false,
+      "properties": {
+        "factor": {
+          "type": "string",
+          "description": "The five likelihood factors of specification §5.4, plus the fail-closed factor of N-6.",
+          "enum": [
+            "novelty",
+            "reversibility",
+            "environment",
+            "budget_standing",
+            "blast_radius",
+            "unresolved_authorization",
+            "composition_floor"
+          ]
+        },
+        "steps": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Escalation steps contributed. Never negative: no factor may reduce oversight (N-19)."
+        },
+        "cause": {
+          "type": "string",
+          "description": "Human-readable reason this factor fired."
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,37 @@
+{
+  "$schema": "https://rmacd-framework.org/schema/v1/intent.json",
+  "intent_id": "int-cmp-20260801-0002",
+  "intent_type": "campaign",
+  "submitted_at": "2026-08-01T08:00:00Z",
+  "actor": {
+    "kind": "human",
+    "id": "j.smith@company.com",
+    "authorization": "okta://company.com/users/j.smith"
+  },
+  "declaration": {
+    "operation": "C",
+    "target": "fleet://edge-nodes/*/tls-cert",
+    "target_class": "fleet://edge-nodes/*/tls-cert",
+    "data_classification": "internal",
+    "environment": "production"
+  },
+  "class_predicate": {
+    "intent_type": "change",
+    "operation": "C",
+    "data_classification": "internal",
+    "environment": "production",
+    "target_class": "fleet://edge-nodes/*/tls-cert",
+    "on_behalf_of": "platform-team@company.com"
+  },
+  "caps": {
+    "max_children": 400,
+    "max_level": "approval",
+    "max_blast_radius_percentage": 15
+  },
+  "expires_at": "2026-09-01T00:00:00Z",
+  "status": "active",
+  "justification": "Quarterly TLS certificate rotation across the edge fleet. One human decision governs the class; matching child changes adjudicate against this grant.",
+  "metadata": {
+    "note": "Coverage is discharge, not reduction (N-27). A child computing above 'approval' — say, one that lands on elevated_approval because the shape is novel and no rollback is attested — is not covered and routes to a human individually."
+  }
+}

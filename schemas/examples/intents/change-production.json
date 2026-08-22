@@ -1,0 +1,35 @@
+{
+  "$schema": "https://rmacd-framework.org/schema/v1/intent.json",
+  "intent_id": "int-chg-20260815-0031",
+  "intent_type": "change",
+  "submitted_at": "2026-08-15T09:14:00Z",
+  "actor": {
+    "kind": "agent",
+    "id": "devops-agent-007",
+    "authorization": "spiffe://corp/ns/agents/devops-agent-007",
+    "on_behalf_of": "platform-team@company.com"
+  },
+  "declaration": {
+    "operation": "C",
+    "target": "svc://payments-api/config/connection-pool",
+    "target_class": "svc://payments-api/config/*",
+    "data_classification": "confidential",
+    "environment": "production",
+    "reversibility": {
+      "rollback_declared": true,
+      "rollback_plan": "Revert to config revision cfg-20260814-2 via pipeline rollback job.",
+      "attested_by": "release-engineering@company.com"
+    },
+    "blast_radius": {
+      "scope_percentage": 4,
+      "affected_count": 2
+    }
+  },
+  "justification": "Connection pool exhaustion during peak; raise max_connections from 40 to 80.",
+  "compliance_tags": ["PCI-DSS", "SOX"],
+  "provenance": {
+    "rationale_ref": "https://wiki.company.com/incident/INC-4471#root-cause",
+    "produced_by": "triage-process",
+    "source_intent_id": "int-inc-20260815-0007"
+  }
+}

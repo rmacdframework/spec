@@ -1,0 +1,43 @@
+{
+  "$schema": "https://rmacd-framework.org/schema/v1/intent.json",
+  "intent_id": "int-exc-20260815-0001",
+  "intent_type": "exception",
+  "submitted_at": "2026-08-15T10:25:00Z",
+  "actor": {
+    "kind": "agent",
+    "id": "devops-agent-007",
+    "authorization": "spiffe://corp/ns/agents/devops-agent-007",
+    "on_behalf_of": "dba-team@company.com"
+  },
+  "declaration": {
+    "operation": "A",
+    "target": "db://prod/payments/migration",
+    "target_class": "db://prod/payments/*",
+    "data_classification": "confidential",
+    "environment": "production",
+    "reversibility": {
+      "rollback_declared": true,
+      "rollback_plan": "Restore from snapshot db-snap-20260815-pre-migration.",
+      "attested_by": "dba-team@company.com"
+    }
+  },
+  "base_profile_id": "rmacd-3d-observer-v1",
+  "exception_category": "urgent",
+  "escalated_permissions": {
+    "confidential": ["R", "M", "A"],
+    "restricted": ["R"]
+  },
+  "expires_at": "2026-08-16T11:00:00Z",
+  "compensating_controls": {
+    "enhanced_logging": true,
+    "real_time_alerts": true,
+    "human_shadow": "dba-team@company.com",
+    "restricted_targets": ["db-prod-migration-*"]
+  },
+  "rollback_plan": "Restore from snapshot db-snap-20260815-pre-migration.",
+  "status": "requested",
+  "justification": "Emergency database migration required due to storage failure.",
+  "metadata": {
+    "note": "This is the framework §12.4 exception template expressed as a registered intent type, fulfilling the schema/v1/exception.json URL that §12.4 has advertised since v1.0. Restricted cannot exceed R and M here: Add, Change and Delete on Restricted are the §12.5 immutable floor and no grant can reach them. Adjudication computes how much scrutiny this request needs; the §12.2 authority still decides whether to grant it (N-37)."
+  }
+}

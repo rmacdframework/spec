@@ -1,0 +1,25 @@
+{
+  "$schema": "https://rmacd-framework.org/schema/v1/intent.json",
+  "intent_id": "int-inc-20260815-0007",
+  "intent_type": "incident",
+  "submitted_at": "2026-08-15T08:47:00Z",
+  "actor": {
+    "kind": "agent",
+    "id": "monitoring-agent-002",
+    "authorization": "spiffe://corp/ns/agents/monitoring-agent-002",
+    "on_behalf_of": "sre-oncall@company.com"
+  },
+  "declaration": {
+    "operation": "A",
+    "target": "itsm://incidents",
+    "target_class": "itsm://incidents",
+    "data_classification": "internal",
+    "environment": "production"
+  },
+  "severity": "sev2",
+  "dedup_key": "payments-api:connection-pool-exhausted",
+  "justification": "Payments API connection pool exhausted; error rate 12% over 5 minutes.",
+  "metadata": {
+    "note": "Raising an incident is an Add on the incident record system — a real (operation, target) pair, adjudicated for a real reason: a fleet raising fifty thousand incidents is a denial-of-service on human attention. The first report of this dedup_key within its window is never delayed or gated (first-report invariant); budgets throttle repeats of the same key, not the first occurrence of a distinct one."
+  }
+}

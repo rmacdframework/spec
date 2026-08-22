@@ -8,7 +8,7 @@ for Governing Autonomous AI Agents in Enterprise IT Operations
 
 *Extending ITIL's MACD Heritage to the Agentic AI Era*
 
-Version 1.4.0 | June 2026
+Version 1.4.1 | August 2026
 **Author: Kash Kashyap** ([ORCID: 0009-0005-0127-6265](https://orcid.org/0009-0005-0127-6265))
 
 ## **Revision history**
@@ -21,6 +21,7 @@ Version 1.4.0 | June 2026
 | 1.3.1 | Published the SDK enforcement layer and the DC2D runtime controls; added `runtime-patterns.md`, `framework-adapters.md` and the runtime-architecture diagram. |
 | 1.3.2 | Hardened the **§12.5** boundary: Add/Change/Delete on Restricted is now rejected both at authoring time by `profile-3d.schema.json` and at decision time by an immutable evaluator floor, closing a gap where an `autonomy_overrides` entry could raise a prohibited cell. |
 | 1.4.0 | Made the Tools Registry a first-class policy layer (§9.4–9.5); added **session governance** (§9.7), **audit evidence** (§9.8) and the **MCP policy server** (§9.9). Renamed v1.3 → v1.4 per the minor-release convention. |
+| 1.4.1 | Introduced **RMACD Intents** (`docs/intents.md`, `docs/intent-specification.md`): declarative pre-execution adjudication complementing runtime interception. Restated the §12.4 exception template as an `exception` intent, resolving a schema URL advertised since v1.0 but never published. Corrected the Appendix A quick-reference card, where Add on Restricted still read *Elevated Approval* after the 1.4.0 correction to §3.1. |
 
 ### SDK releases behind this revision
 
@@ -1202,22 +1203,42 @@ At expiration or upon completion:
 
 ## **12.4 Exception Profile Template**
 
+An exception request is a declared, justified, time-bounded ask submitted for
+adjudication before it takes effect — which is precisely an RMACD Intent. It is
+therefore expressed as the `exception` intent type rather than as a separate
+record shape, so the framework carries one request path rather than two. See
+`docs/intent-specification.md` §7.4.
+
 ```json
 {
-  "$schema": "https://rmacd-framework.org/schema/v1/exception.json",
-  "exception_id": "exc-20260115-001",
+  "$schema": "https://rmacd-framework.org/schema/v1/intent.json",
+  "intent_id": "int-exc-20260115-001",
+  "intent_type": "exception",
+  "submitted_at": "2026-01-15T10:15:00Z",
+  "actor": {
+    "kind": "agent",
+    "id": "devops-agent-007",
+    "authorization": "spiffe://corp/ns/agents/devops-agent-007",
+    "on_behalf_of": "dba-team@company.com"
+  },
+  "declaration": {
+    "operation": "A",
+    "target": "db://prod/payments/migration",
+    "data_classification": "confidential",
+    "environment": "production",
+    "reversibility": {
+      "rollback_declared": true,
+      "rollback_plan": "Restore from snapshot db-snap-20260115-pre-migration",
+      "attested_by": "dba-team@company.com"
+    }
+  },
   "base_profile_id": "rmacd-3d-observer-v1",
   "exception_category": "urgent",
-  "requested_by": "devops-agent-007",
-  "approved_by": "j.smith@company.com",
-  "approved_at": "2026-01-15T10:30:00Z",
-  "effective_from": "2026-01-15T11:00:00Z",
-  "expires_at": "2026-01-16T11:00:00Z",
   "escalated_permissions": {
     "confidential": ["R", "M", "A"],
     "restricted": ["R"]
   },
-  "justification": "Emergency database migration required due to storage failure",
+  "expires_at": "2026-01-16T11:00:00Z",
   "compensating_controls": {
     "enhanced_logging": true,
     "real_time_alerts": true,
@@ -1225,9 +1246,17 @@ At expiration or upon completion:
     "restricted_targets": ["db-prod-migration-*"]
   },
   "rollback_plan": "Restore from snapshot db-snap-20260115-pre-migration",
-  "status": "active"
+  "status": "requested",
+  "justification": "Emergency database migration required due to storage failure"
 }
 ```
+
+Two points of shape are deliberate. The **approval fields are absent from the
+request**: who approved, when, and from what effective time are recorded as the
+*disposition* on the adjudication's decision record (`intent-decision.schema.json`),
+not asserted by the requester — an actor declares facts and never records its own
+approval. And `restricted` is capped at `R` and `M` by the schema itself, so the
+§12.5 prohibition below is enforced at authoring time and not only by process.
 
 ## **12.5 Prohibited Exceptions**
 
@@ -1469,7 +1498,7 @@ The following condensed reference captures the essential RMACD governance matrix
 |---|---|---|---|---|
 | READ | AUTO | AUTO | LOG | NOTIFY |
 | MOVE | AUTO | NOTIFY | APPROVE | ELEVATED |
-| ADD | NOTIFY | APPROVE | ELEVATED | ELEVATED |
+| ADD | NOTIFY | APPROVE | ELEVATED | PROHIBIT |
 | CHANGE | APPROVE | APPROVE | ELEVATED | PROHIBIT |
 | DELETE | APPROVE | ELEVATED | ELEVATED | PROHIBIT |
 
@@ -2030,6 +2059,13 @@ integrator wires it together at the call site:
   normative fail-mode table, tool mapping, and the plugin.
 - **`docs/audit-evidence.md`** (§9.8) — the audit record field reference and
   `rmacd audit summarize`.
+- **`docs/intents.md`** (§12.4) — the intent model: adjudication as a second,
+  out-of-band enforcement mode complementing runtime interception; the intent
+  ladder, the production and record planes, the type registry, and how
+  likelihood escalates the §3.1 matrix without introducing a second one.
+- **`docs/intent-specification.md`** — the normative companion to the above:
+  the intent envelope, the actor model, the adjudication contract, grants and
+  campaigns, the decision record, and conformance requirements.
 
 # **Appendix D: The Data-Classification Two-Dimensional Variant (DC2D)**
 
