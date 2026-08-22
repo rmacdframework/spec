@@ -987,3 +987,195 @@ def test_classify_path_handles_file_urls_without_raising(
         },
     )
     assert binding.classify_path(target) == expected
+
+
+# ---------------------------------------------------------------------------
+# current Claude Code tool surface (2026-08-11)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "tool",
+    [
+        "ToolSearch", "SendMessage", "Workflow", "ReportFindings", "ScheduleWakeup",
+        "TaskCreate", "TaskGet", "TaskList", "TaskUpdate", "EndConversation",
+    ],
+)
+def test_session_internal_tools_are_governed_not_denied(tmp_path: Path, tool: str) -> None:
+    """These orchestrate the session; hard-denying them makes it unusable.
+
+    Every one of them was falling through to the unknown-tool deny.
+    """
+    call = mapping.map_tool_call(tool, {}, make_binding(tmp_path))
+    assert call.operation == Operation.READ
+    assert call.tier == DataClassification.PUBLIC
+
+
+@pytest.mark.parametrize(
+    "tool", ["ListMcpResourcesTool", "ReadMcpResourceTool", "ReadMcpResourceDirTool"]
+)
+def test_mcp_resource_tools_map_to_read(tmp_path: Path, tool: str) -> None:
+    """The real names carry a `Tool` suffix; the old entry never matched."""
+    assert mapping.map_tool_call(tool, {}, make_binding(tmp_path)).operation == Operation.READ
+
+
+def test_mcp_resource_read_is_classified_by_its_uri(tmp_path: Path) -> None:
+    """An MCP resource read names its target in `uri`, not `file_path`.
+
+    Without that key the read had no path at all and took the session default
+    tier, so reading a restricted resource evaluated as `internal`.
+    """
+    binding = make_binding(
+        tmp_path,
+        env_overrides={
+            session.ENV_CLASSIFICATION_MAP: json.dumps({"/data/secret/*": "restricted"})
+        },
+    )
+    call = mapping.map_tool_call(
+        "ReadMcpResourceTool", {"uri": "file:///data/secret/x.txt"}, binding
+    )
+    assert call.operation == Operation.READ
+    assert call.tier == DataClassification.RESTRICTED
+
+
+def test_monitor_goes_through_the_bash_classifier(tmp_path: Path) -> None:
+    """Monitor runs a shell command — it must not ride the session-internal path.
+
+    Classified as internal it would be Read/public, so
+    `Monitor({command: "rm -rf /data/secret"})` would sail past every control
+    that `Bash` with the same string trips.
+    """
+    binding = make_binding(
+        tmp_path,
+        env_overrides={
+            session.ENV_CLASSIFICATION_MAP: json.dumps({"/data/secret/*": "restricted"})
+        },
+    )
+    call = mapping.map_tool_call("Monitor", {"command": "rm -rf /data/secret"}, binding)
+    assert call.operation == Operation.DELETE
+    assert call.tier == DataClassification.RESTRICTED
+
+
+def test_artifact_publish_is_an_outbound_flow_not_a_read(tmp_path: Path) -> None:
+    """Publishing a file to the web is Add + egress, never Read on public."""
+    binding = make_binding(
+        tmp_path,
+        env_overrides={
+            session.ENV_CLASSIFICATION_MAP: json.dumps({"/data/secret/*": "restricted"})
+        },
+    )
+    call = mapping.map_tool_call(
+        "Artifact", {"action": "publish", "file_path": "/data/secret/report.html"}, binding
+    )
+    assert call.operation == Operation.ADD
+    assert call.tier == DataClassification.RESTRICTED
+    assert call.egress_destination == "claude.ai"
+
+
+@pytest.mark.parametrize(
+    "action,expected",
+    [
+        # Inspection actions: they name a `url`, not a `file_path`.
+        ("read", Operation.READ),
+        ("list", Operation.READ),
+        ("comments", Operation.READ),
+        ("status", Operation.READ),
+        ("watch", Operation.READ),
+        ("unwatch", Operation.READ),
+        ("resolve", Operation.READ),
+        ("list_assets", Operation.READ),
+        ("read_asset", Operation.READ),
+        # Outbound actions.
+        ("publish", Operation.ADD),
+        ("reply", Operation.ADD),
+        ("upload_asset", Operation.ADD),
+        ("resume_replies", Operation.ADD),
+        ("delete_asset", Operation.DELETE),
+    ],
+)
+def test_artifact_is_classified_by_its_action(
+    tmp_path: Path, action: str, expected: Operation
+) -> None:
+    """`Artifact` multiplexes on `action`; a uniform Add over-enforces the reads."""
+    call = mapping.map_tool_call(
+        "Artifact", {"action": action, "url": "https://claude.ai/x"}, make_binding(tmp_path)
+    )
+    assert call.operation == expected
+    assert call.egress_destination == ("claude.ai" if expected is Operation.ADD else None)
+
+
+@pytest.mark.parametrize("tool_input", [{}, {"action": "teleport"}])
+def test_artifact_unknown_action_falls_back_to_add(
+    tmp_path: Path, tool_input: dict[str, Any]
+) -> None:
+    """Fail closed toward the most severe common case, so a new action is never Read."""
+    call = mapping.map_tool_call("Artifact", tool_input, make_binding(tmp_path))
+    assert call.operation == Operation.ADD
+    assert call.egress_destination == "claude.ai"
+
+
+def test_push_notification_is_an_egress_add(tmp_path: Path) -> None:
+    """A notification body can carry arbitrary session content off the machine."""
+    call = mapping.map_tool_call(
+        "PushNotification", {"message": "done"}, make_binding(tmp_path)
+    )
+    assert call.operation == Operation.ADD
+    assert call.tier is None  # session default tier — the conservative basis
+    assert call.egress_destination == "user-device"
+
+
+@pytest.mark.parametrize(
+    "tool,expected",
+    [
+        ("EnterWorktree", Operation.ADD),
+        ("ExitWorktree", Operation.DELETE),  # no action -> the destructive default
+        ("CronCreate", Operation.ADD),
+        ("CronDelete", Operation.DELETE),
+        ("CronList", Operation.READ),
+    ],
+)
+def test_effects_that_outlive_the_session_are_not_internal(
+    tmp_path: Path, tool: str, expected: Operation
+) -> None:
+    call = mapping.map_tool_call(tool, {}, make_binding(tmp_path))
+    assert call.operation == expected
+    assert call.tier == DataClassification.INTERNAL
+
+
+@pytest.mark.parametrize(
+    "action,expected",
+    [
+        ("keep", Operation.READ),
+        ("remove", Operation.DELETE),
+        ("evaporate", Operation.DELETE),  # unknown -> fail closed
+    ],
+)
+def test_exit_worktree_follows_its_action(
+    tmp_path: Path, action: str, expected: Operation
+) -> None:
+    call = mapping.map_tool_call("ExitWorktree", {"action": action}, make_binding(tmp_path))
+    assert call.operation == expected
+
+
+@pytest.mark.parametrize("tool", ["EnterWorktree", "ExitWorktree", "CronCreate"])
+def test_effect_tools_pin_a_tier_instead_of_inheriting_the_default(
+    tmp_path: Path, tool: str
+) -> None:
+    """Their target is `session://<Tool>`, not the data the default tier describes.
+
+    Inheriting a `restricted` default put them under the §12.5 immutable floor,
+    which no exception process can lift: `ExitWorktree` became Delete on
+    Restricted, so a session could enter a worktree and never leave it.
+    """
+    binding = make_binding(
+        tmp_path, env_overrides={session.ENV_DEFAULT_TIER: "restricted"}
+    )
+    assert mapping.map_tool_call(tool, {}, binding).tier == DataClassification.INTERNAL
+
+
+@pytest.mark.parametrize("tool", ["RemoteTrigger", "DesignSync"])
+def test_unclassified_outward_tools_still_fail_closed(tmp_path: Path, tool: str) -> None:
+    """Deliberately unmapped: each changes something off this machine, and
+    denying beats guessing at their semantics."""
+    with pytest.raises(mapping.UnknownToolError):
+        mapping.map_tool_call(tool, {}, make_binding(tmp_path))

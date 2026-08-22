@@ -299,6 +299,61 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   read as ~50 % "other". It now has its own line, counted separately from
   decisions so it cannot dilute the decision percentages.
 
+- **The Claude Code hook was mapping a tool surface Claude Code no longer has.**
+  `claude_code/mapping.py` knew the tool list as it stood when the plugin was
+  written, so a governed session hit a hard deny across a large part of the
+  current one: the delegation and bookkeeping tools (`SendMessage`, `Workflow`,
+  `ToolSearch`, `Task{Create,Get,List,Update}`, `ReportFindings`,
+  `ScheduleWakeup`, `EndConversation`) and every MCP-resource read fell through
+  to the unknown-tool fail mode. Fail-closed is the right default, but denying
+  `TodoWrite`-class tools adds friction without adding a control — which is the
+  pressure that gets governance switched off rather than configured.
+
+  Three of the corrections are load-bearing rather than cosmetic:
+
+  - **`Monitor` takes the `Bash` path, not the session-internal one.** It runs a
+    shell command in the background. Filing it with the other session tools —
+    the obvious way to stop it denying — would have classified
+    `Monitor({command: "rm -rf /data/secret"})` as **Read on `public`**, walking
+    it past the bash classifier, the classification map and the §12.5 floor that
+    `Bash` with the identical string trips. It now goes through
+    `classify_bash_command()`, so the two spellings of one shell command get one
+    decision.
+  - **The MCP resource tools carry a `Tool` suffix.** The mapped name was
+    `ListMcpResources`; the real names are `ListMcpResourcesTool`,
+    `ReadMcpResourceTool` and `ReadMcpResourceDirTool`, so the entry matched
+    nothing and every MCP resource call hard-denied. They now map to Read, and
+    `_map_read` accepts the resource `uri` as its target, so a restricted
+    resource is evaluated at its own tier instead of the session default.
+  - **The session-lifetime tools carry an explicit `internal` tier.**
+    `EnterWorktree` / `ExitWorktree` and `CronCreate` / `CronDelete` /
+    `CronList` are not session-internal — their effects outlive the session —
+    but letting them inherit the session default tier collided with the §12.5
+    immutable floor. Their target is `session://<Tool>`, a session-local
+    scratch resource, so a `restricted` default both misstated what was being
+    acted on and made `ExitWorktree` a Delete on Restricted: prohibited, and
+    unapprovable by anyone, so a session could enter a worktree and never leave
+    it. The tier is now pinned to the resource rather than inherited.
+
+  `Artifact` and `PushNotification` are governed for the first time — both were
+  in the hard-denying set above, so this is new coverage rather than a closed
+  leak, and both are outbound flows rather than reads. `Artifact` follows its
+  `action` argument, the way `Write` follows its path: the inspection actions
+  (`read`, `list`, `comments`, `status`, `watch`, `unwatch`, `resolve`,
+  `list_assets`, `read_asset`) are Read, `delete_asset` is Delete, and
+  everything else — including an absent or unrecognised action — is **Add**
+  carrying egress destination `claude.ai`, so a newly added action can never
+  arrive as a Read. `PushNotification` is **Add** at the session default tier
+  with destination `user-device`, since a notification body can carry arbitrary
+  session content off the machine. Both put DC2D `egress_controls` in the path,
+  and for `Artifact` the tier of the file being published is what the profile
+  evaluates. `ExitWorktree` likewise follows its `action`: `keep` is Read,
+  `remove` is Delete, and anything else keeps the destructive reading.
+  `RemoteTrigger` and `DesignSync` stay unmapped **by choice**: each reaches
+  outward to change something off this machine, and denying is the correct
+  answer until an explicit policy decision is made. `docs/claude-code.md`
+  records the mapping table this produces.
+
 ## [0.14.1] — 2026-07-30
 
 Follow-up to the 0.14.0 security release. Closes the remaining fail-open in

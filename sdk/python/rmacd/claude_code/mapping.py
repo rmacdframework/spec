@@ -21,7 +21,26 @@ against the bound profile:
 - Session-internal tools (Task, TodoWrite, AskUserQuestion, ...) → **Read**
   on ``public`` — they orchestrate the session and touch no external data,
   but they stay governed (a profile that denies Read denies them too).
+- ``Monitor`` → the **Bash** path. It runs a shell command, so treating it as
+  session-internal would let ``Monitor({command: "rm -rf /data"})`` bypass the
+  classifier entirely.
+- ``Artifact`` → classified by its ``action`` argument: the inspection actions
+  (``read``, ``list``, ``comments``, ...) are **Read**, ``delete_asset`` is
+  **Delete**, and everything else — including a missing or unrecognised action
+  — is **Add** plus an egress destination, because publishing a local file as
+  a web page is an outbound data flow, not a read.
+- ``PushNotification`` → **Add** plus an egress destination: it delivers
+  session content to the user's device, off this machine.
+- ``EnterWorktree`` / ``ExitWorktree`` → Add / (Read or Delete, by ``action``),
+  and ``CronCreate`` / ``CronDelete`` / ``CronList`` → Add / Delete / Read, all
+  at an explicit ``internal`` tier. Their effects outlive the session, so they
+  are not session-internal. Only those three ``Cron`` names are mapped; any
+  other (``CronUpdate``, ``CronGet``) falls through to the unknown-tool deny
+  below.
 - Anything else raises :class:`UnknownToolError` (fail closed by default).
+  ``RemoteTrigger`` and ``DesignSync`` are deliberately left there: each
+  reaches outward to change something off this machine in a way that needs an
+  explicit policy decision, and denying is the safe answer until one is made.
 
 Everything here is deterministic and stdlib-only beyond ``rmacd`` itself —
 no LLM, no network — so the hook adds no meaningful latency.
@@ -61,25 +80,88 @@ OP_WORDS: dict[Operation, str] = {
 # adding any governance value.
 SESSION_INTERNAL_TOOLS = frozenset(
     {
+        # Delegation and orchestration. The delegated work is itself governed
+        # call-by-call — hooks fire inside subagents — so gating the handoff
+        # would add friction without adding a control.
         "Task",
         "Agent",
+        "Workflow",
+        "SendMessage",
+        # Session bookkeeping and UI.
         "TodoWrite",
         "TodoRead",
+        "TaskCreate",
+        "TaskGet",
+        "TaskList",
+        "TaskUpdate",
         "AskUserQuestion",
         "ExitPlanMode",
         "EnterPlanMode",
         "SlashCommand",
         "Skill",
+        "ReportFindings",
+        "ScheduleWakeup",
+        "EndConversation",
+        # Shell bookkeeping — these read or stop work that Bash already gated.
         "BashOutput",
         "TaskOutput",
         "KillShell",
         "KillBash",
         "TaskStop",
-        "ListMcpResources",
+        # Discovery over tool schemas the session already has.
+        "ToolSearch",
     }
 )
 
-_READ_TOOLS = frozenset({"Read", "Glob", "Grep", "NotebookRead", "LS"})
+#: Tools whose effects reach outside the session and are therefore NOT in the
+#: set above, mapped to the RMACD verb for their worst plausible effect. The
+#: value is the fail-closed default; ``ExitWorktree`` refines it from its
+#: ``action`` argument (:data:`_EXIT_WORKTREE_OPS`).
+_EFFECT_TOOLS: dict[str, Operation] = {
+    # A worktree is a real directory: entering creates one, exiting can remove it.
+    "EnterWorktree": Operation.ADD,
+    "ExitWorktree": Operation.DELETE,
+    # A cron entry outlives the session that made it.
+    "CronCreate": Operation.ADD,
+    "CronDelete": Operation.DELETE,
+    "CronList": Operation.READ,
+}
+
+#: ``ExitWorktree`` either keeps the worktree on disk or removes it, and the
+#: gap between those is the whole difference between Read and Delete. Anything
+#: not listed here — a missing action, a newly added one — keeps the
+#: destructive default above, so a new action can never arrive as a Read.
+_EXIT_WORKTREE_OPS: dict[str, Operation] = {
+    "keep": Operation.READ,
+    "remove": Operation.DELETE,
+}
+
+#: Tier pinned on the tools above. Their target is ``session://<Tool>`` — a
+#: session-local scratch resource, not whatever data the session default tier
+#: describes — so inheriting that default both misstates what is being acted on
+#: and collides with the §12.5 immutable floor: under a `restricted` default,
+#: ``ExitWorktree`` evaluated as Delete-on-Restricted, which no exception
+#: process can grant, so a session could enter a worktree and never leave it.
+_EFFECT_TOOL_TIER = DataClassification.INTERNAL
+
+_READ_TOOLS = frozenset(
+    {
+        "Read",
+        "Glob",
+        "Grep",
+        "NotebookRead",
+        # Removed from Claude Code, kept deliberately: mapping a tool that no
+        # longer exists costs nothing, while dropping one that does would deny it.
+        "LS",
+        # MCP resource surfaces. The trailing `Tool` is part of the real names —
+        # `ListMcpResources` (without it) never matched anything, so every call
+        # fell through to the unknown-tool deny.
+        "ListMcpResourcesTool",
+        "ListMcpResources",
+        "ReadMcpResourceTool",
+        "ReadMcpResourceDirTool",
+    }
+)
 _EDIT_TOOLS = frozenset({"Write", "Edit", "MultiEdit", "NotebookEdit"})
 
 
@@ -285,7 +367,7 @@ def _map_file_edit(
 
 
 def _map_read(tool_name: str, tool_input: dict[str, Any], binding: SessionBinding) -> MappedCall:
-    path = _first_str(tool_input, "file_path", "notebook_path", "path", "pattern")
+    path = _first_str(tool_input, "file_path", "notebook_path", "path", "pattern", "uri")
     target = path or f"session://{tool_name}"
     return MappedCall(
         operation=Operation.READ,
@@ -341,6 +423,111 @@ def _arg_strings(value: Any, _depth: int = 0) -> list[str]:
     return []
 
 
+#: ``Artifact`` actions that only inspect existing state — they read a page,
+#: enumerate artifacts or assets, or flip a session-local watch subscription.
+#: They carry a ``url``, not a ``file_path``.
+_ARTIFACT_READ_ACTIONS = frozenset(
+    {
+        "read",
+        "list",
+        "comments",
+        "status",
+        "watch",
+        "unwatch",
+        "resolve",
+        "list_assets",
+        "read_asset",
+    }
+)
+
+#: The one ``Artifact`` action that destroys something (an asset in the store).
+_ARTIFACT_DELETE_ACTIONS = frozenset({"delete_asset"})
+
+
+def _map_artifact(tool_input: dict[str, Any], binding: SessionBinding) -> MappedCall:
+    """Publishing a file to the web is an outbound data flow, not a read.
+
+    ``Artifact`` renders a local file as a page hosted off this machine. Filing
+    it with the session-internal tools would classify publishing confidential
+    content as ``Read`` on ``public`` — the single most under-enforcing mapping
+    available. The publishing actions are an **Add** (a published page comes
+    into existence) carrying an egress destination, so DC2D ``egress_controls``
+    gate them and the tier of the file being published is what the profile
+    evaluates.
+
+    The tool multiplexes on ``action``, though, and most of those actions only
+    inspect (``read``, ``list``, ``comments``, ...) or delete (``delete_asset``),
+    so the verb follows the argument the way ``Write``'s does. An action that is
+    absent or unrecognised takes **Add**: it is the most severe of the common
+    cases, so a newly added action can never sneak in as a Read.
+    """
+    action = _first_str(tool_input, "action")
+    path = _first_str(tool_input, "file_path")
+    tier = binding.classify_path(path) if path else None
+    target = path or _first_str(tool_input, "url") or "artifact://unnamed"
+    if action in _ARTIFACT_READ_ACTIONS:
+        return MappedCall(
+            operation=Operation.READ,
+            tier=tier,
+            target=target,
+            rule=f"Artifact action={action} -> Read (inspects an existing artifact)",
+        )
+    if action in _ARTIFACT_DELETE_ACTIONS:
+        return MappedCall(
+            operation=Operation.DELETE,
+            tier=tier,
+            target=target,
+            rule=f"Artifact action={action} -> Delete (removes a stored asset)",
+        )
+    return MappedCall(
+        operation=Operation.ADD,
+        tier=tier,
+        target=target,
+        rule=(
+            f"Artifact action={action or 'absent'} -> Add "
+            "(publishes to the web; + egress check on DC2D)"
+        ),
+        egress_destination="claude.ai",
+    )
+
+
+def _map_push_notification() -> MappedCall:
+    """A notification leaves this machine, so it is an Add + egress, not internal.
+
+    Its body can carry arbitrary session content — there is no file to classify
+    — so the session default tier is the right conservative basis
+    (``tier=None``) and DC2D ``egress_controls`` do the real gating, the same
+    shape ``Artifact`` is wired into.
+    """
+    return MappedCall(
+        operation=Operation.ADD,
+        tier=None,  # session default tier applies
+        target="session://PushNotification",
+        rule="PushNotification -> Add (delivers off-machine; + egress check on DC2D)",
+        egress_destination="user-device",
+    )
+
+
+def _map_effect_tool(tool_name: str, tool_input: dict[str, Any]) -> MappedCall:
+    """Map a tool whose effect outlives the session, at an explicit tier.
+
+    See :data:`_EFFECT_TOOL_TIER` for why the tier is pinned rather than
+    inherited from the session default.
+    """
+    operation = _EFFECT_TOOLS[tool_name]
+    detail = "effect outlives the session"
+    if tool_name == "ExitWorktree":
+        action = _first_str(tool_input, "action")
+        operation = _EXIT_WORKTREE_OPS.get(action, operation)
+        detail = f"action={action or 'absent'}; {detail}"
+    return MappedCall(
+        operation=operation,
+        tier=_EFFECT_TOOL_TIER,
+        target=f"session://{tool_name}",
+        rule=f"{tool_name} -> {OP_WORDS[operation]} ({detail})",
+    )
+
+
 def _map_mcp(tool_name: str, tool_input: dict[str, Any], binding: SessionBinding) -> MappedCall:
     parts = tool_name.split("__", 2)
     bare_name = parts[2] if len(parts) == 3 and parts[2] else tool_name
@@ -385,6 +572,17 @@ def map_tool_call(
         return _map_mcp(tool_name, tool_input, binding)
     if tool_name == "Bash":
         return _map_bash(str(tool_input.get("command") or ""), binding)
+    if tool_name == "Monitor":
+        # Monitor runs a shell command in the background. Classifying it as
+        # session-internal would let `Monitor({command: "rm -rf /data"})` walk
+        # straight past the bash classifier, so it takes the same path Bash does.
+        return _map_bash(str(tool_input.get("command") or ""), binding)
+    if tool_name == "Artifact":
+        return _map_artifact(tool_input, binding)
+    if tool_name == "PushNotification":
+        return _map_push_notification()
+    if tool_name in _EFFECT_TOOLS:
+        return _map_effect_tool(tool_name, tool_input)
     if tool_name in _EDIT_TOOLS:
         return _map_file_edit(tool_name, tool_input, binding)
     if tool_name in _READ_TOOLS:
