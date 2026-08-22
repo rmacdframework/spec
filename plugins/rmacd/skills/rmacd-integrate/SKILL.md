@@ -19,7 +19,7 @@ applies.
 
 Carry these into every integration; getting them wrong breaks governance:
 
-- **Install name ≠ import name.** `pip install "rmacd-framework>=0.14"` but
+- **Install name ≠ import name.** `pip install "rmacd-framework>=0.15"` but
   `import rmacd`. There is an unrelated `rmacd` distribution namespace — never
   `pip install rmacd`.
 - **§12.5 immutable floor.** Add, Change and Delete on Restricted data are **prohibited for
@@ -50,7 +50,7 @@ Carry these into every integration; getting them wrong breaks governance:
 Install into the project's virtual environment:
 
 ```bash
-pip install "rmacd-framework>=0.14"
+pip install "rmacd-framework>=0.15"
 python3 -c "import rmacd; print(rmacd.__version__)"
 ```
 
@@ -134,7 +134,7 @@ fragment = build_system_prompt(profile)
 ### 7. Verify
 
 Run `scripts/check_setup.sh` (in this skill) to confirm: `rmacd` imports, version
-≥ 0.14, the profile validates, and env vars are bound. Then smoke-test with
+≥ 0.15, the profile validates, and env vars are bound. Then smoke-test with
 `rmacd evaluate profiles/agent.json C -c internal` and one scripted agent task using
 `AutoApproveGateway()` (test-only — swap it out immediately after).
 
@@ -160,11 +160,11 @@ Exception types to handle: `RMACDProhibitedError` (hard stop),
 `RMACDApprovalTimeoutError` (human said no / never answered), `RMACDConstraintError`
 (env/time-window/quota).
 
-## Claude Code session governance (requires rmacd-framework>=0.14)
+## Claude Code session governance (requires rmacd-framework>=0.15)
 
 To govern a Claude Code session itself (rather than an agent the user is building),
 the SDK ships a session hook, `python3 -m rmacd.claude_code.hook`, and this plugin's
-`/rmacd:status` command reports the bound profile. Both require `rmacd-framework>=0.14`;
+`/rmacd:status` command reports the bound profile. Both require `rmacd-framework>=0.15`;
 do not reference them if an older SDK is installed.
 
 ## Resources

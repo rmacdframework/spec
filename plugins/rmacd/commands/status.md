@@ -28,7 +28,7 @@ packs, classification map, audit sink, and how approvals/unknown tools are route
   and that all governance logic lives in the SDK ("thin plugin, fat SDK"):
 
   ```bash
-  pip install "rmacd-framework>=0.14"
+  pip install "rmacd-framework>=0.15"
   ```
 
   The PyPI distribution is `rmacd-framework`; the import name is `rmacd` (never

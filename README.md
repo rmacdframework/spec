@@ -4,7 +4,7 @@
 
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.21438139.svg)](https://doi.org/10.5281/zenodo.21438139)
 [![License: CC BY 4.0](https://img.shields.io/badge/License-CC_BY_4.0-lightgrey.svg)](https://creativecommons.org/licenses/by/4.0/)
-[![Spec version](https://img.shields.io/badge/spec-1.4.0-blue.svg)](https://github.com/rmacdframework/spec/releases)
+[![Spec version](https://img.shields.io/badge/spec-1.4.1-blue.svg)](https://github.com/rmacdframework/spec/releases)
 [![PyPI](https://img.shields.io/pypi/v/rmacd-framework.svg)](https://pypi.org/project/rmacd-framework/)
 [![Python](https://img.shields.io/pypi/pyversions/rmacd-framework.svg)](https://pypi.org/project/rmacd-framework/)
 
@@ -42,7 +42,7 @@ then, inside a session:
 Install the SDK into the Python environment your session's `python3` resolves to (the `[mcp]` extra is optional — it adds the `rmacd mcp-serve` policy server for MCP clients):
 
 ```bash
-pip install "rmacd-framework[mcp]>=0.14"
+pip install "rmacd-framework[mcp]>=0.15"
 ```
 
 Beyond scaffolding governance for agents you build, the plugin governs the **Claude Code session itself**: a deterministic `PreToolUse` hook (`python3 -m rmacd.claude_code.hook`) classifies every Bash, file-edit, and MCP tool call into RMACD terms and evaluates it against a bound profile before the tool runs. With the read-only `observer-3d` profile bound, reads pass through untouched while a `rm -rf` is refused with a decision that cites the operation, tier, rule, and profile — `RMACD: Delete on internal target 'bash:rm' denied — Operation D not permitted for this profile. Rule: bash classifier: rm. Profile: rmacd-3d-observer-v1.`
@@ -206,7 +206,7 @@ RMACD is first a governance specification; the SDK is the optional enforcement h
 4. **Integrate** with your agent runtime, either directly or through the SDK:
 
    ```bash
-   pip install "rmacd-framework>=0.14"
+   pip install "rmacd-framework>=0.15"
    ```
 
    Optional extras: `[mcp]` (policy MCP server), `[llm]` (Claude-assisted tool classification), `[sign]` (Ed25519 pack signing), `[yaml]` (YAML governance packs and tool-source files).
@@ -251,8 +251,8 @@ If you use the RMACD Framework in your work, please cite:
   author       = {Kashyap, Kash},
   title        = {RMACD: AI Agent Governance Framework},
   year         = {2026},
-  month        = jun,
-  version      = {1.4.0},
+  month        = aug,
+  version      = {1.4.1},
   doi          = {10.5281/zenodo.21438139},
   url          = {https://rmacd-framework.org},
   howpublished = {\url{https://github.com/rmacdframework/spec}},

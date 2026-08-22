@@ -3,8 +3,8 @@
 **Companion to:** `runtime-patterns.md` — this doc is the framework-specific
 cookbook.
 
-**Current release:** `rmacd-framework` 0.14.1
-(`pip install "rmacd-framework>=0.14"`; the import name is `rmacd`).
+**Current release:** `rmacd-framework` 0.15.0
+(`pip install "rmacd-framework>=0.15"`; the import name is `rmacd`).
 
 ### Version requirements
 

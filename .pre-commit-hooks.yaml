@@ -15,7 +15,7 @@
     (2D / 3D / DC2D) using `rmacd validate`.
   entry: rmacd validate
   language: python
-  additional_dependencies: ["rmacd-framework>=0.14"]
+  additional_dependencies: ["rmacd-framework>=0.15"]
   # Matches JSON under a directory whose name starts with "rmacd"
   # (the recommended rmacd/profiles/*.json layout) or files named
   # *-2d.json / *-3d.json / *-dc2d.json. Override `files` in your

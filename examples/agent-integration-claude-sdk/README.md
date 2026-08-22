@@ -53,7 +53,7 @@ pip install -e ../../sdk/python
 pip install claude-agent-sdk
 
 # Option B: from PyPI
-pip install "rmacd-framework>=0.14" claude-agent-sdk
+pip install "rmacd-framework>=0.15" claude-agent-sdk
 ```
 
 ## Run

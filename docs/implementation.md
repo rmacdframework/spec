@@ -233,7 +233,7 @@ The `rmacd-framework` package on PyPI ships the enforcement plumbing
 that turns a profile decision into an action. Install with:
 
 ```bash
-pip install "rmacd-framework>=0.14"
+pip install "rmacd-framework>=0.15"
 ```
 
 The distribution name is `rmacd-framework`; the import name is `rmacd`.

@@ -1,6 +1,6 @@
 # RMACD session governance for Claude Code
 
-**Requires `rmacd-framework` ≥ 0.14.0** (`pip install "rmacd-framework>=0.14"`;
+**Requires `rmacd-framework` ≥ 0.15.0** (`pip install "rmacd-framework>=0.15"`;
 the import name is `rmacd`).
 
 The `rmacd.claude_code` module makes RMACD govern a **Claude Code session
@@ -46,7 +46,7 @@ Only `PreToolUse` can change what runs. The other two report.
    `PATH` or whatever `RMACD_PYTHON` names:
 
    ```bash
-   pip install "rmacd-framework>=0.14"
+   pip install "rmacd-framework>=0.15"
    # or, when the SDK lives in a project venv:
    export RMACD_PYTHON=/path/to/.venv/bin/python3
    ```
@@ -113,7 +113,7 @@ which users cannot override:
 Notes for managed deployments:
 
 - **Distribute the SDK in the base image / bootstrap** (`pip install
-  "rmacd-framework>=0.14"`) and pair the managed hook with configuration
+  "rmacd-framework>=0.15"`) and pair the managed hook with configuration
   management that asserts the package is present. The module entry points above
   are the SDK itself: if it cannot be imported, the process exits non-zero,
   which Claude Code treats as a *non-blocking* error, and the call runs

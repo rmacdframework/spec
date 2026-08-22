@@ -5,9 +5,27 @@ All notable changes to the RMACD Framework will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.15.0] — 2026-08-22
+
+Adjudication joins interception. Spec 1.4.1 introduces **RMACD Intents**, a
+declarative mode in which an actor states what it intends to do before acting
+and a deterministic engine grades it, reconciling against the interception trail
+on `intent_id`. Alongside it, the Claude Code hook learns the tool surface
+Claude Code actually ships, permissions finally behave cumulatively, governed
+sessions write an audit trail, and the §12.5 floor is stated as all three
+operations everywhere it appears.
 
 #### Added
+
+- **`/rmacd:init` now offers to bind the current session.** Four code paths —
+  the hook, the SessionStart shim, `status.py` and `/rmacd:status` — all told
+  users to run `/rmacd:init` to bind a session, and it never wrote the file that
+  binds one. It created `./rmacd/profiles/<agent>.json` while the hook looks for
+  `.claude/rmacd-profile.json`, so following the instructions produced a profile
+  that governed nothing. The command now asks, and on yes writes a real copy —
+  never a symlink, since the hook resolves the real path and a dangling link
+  fails closed — warning that hooks load at session start so a restart is
+  required, and that the session's own tool calls become governed.
 
 - **RMACD Intents — spec 1.4.1.** A second, complementary enforcement mode.
   Where interception classifies a tool call *during* execution and requires the

@@ -51,7 +51,7 @@ ENV_PROFILE_PATH = "RMACD_PROFILE_PATH"
 ENV_PROJECT_DIR = "CLAUDE_PROJECT_DIR"
 PROJECT_PROFILE_RELPATH = Path(".claude") / "rmacd-profile.json"
 
-INSTALL_HINT = 'pip install "rmacd-framework>=0.14"'
+INSTALL_HINT = 'pip install "rmacd-framework>=0.15"'
 
 
 def profile_source(cwd: str | None) -> str | None:

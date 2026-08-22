@@ -1,7 +1,7 @@
 # RMACD Runtime Patterns
 
 **Companion to:** `RMACD_Framework_v1.4.md` (Appendices C and D)
-**Targets:** SDK ≥ 0.14.0 (`rmacd-framework` on PyPI)
+**Targets:** SDK ≥ 0.15.0 (`rmacd-framework` on PyPI)
 
 The canonical specification (Appendix C) describes the four-component
 enforcement architecture (Policy Store, PDP, PEP, Audit Engine) and the
@@ -16,7 +16,7 @@ This document fills those gaps by describing the runtime patterns the
 `rmacd-framework` SDK implements and the reference Claude Agent SDK
 integration (`spec/examples/agent-integration-claude-sdk/`) demonstrates.
 Everything below is written against the supported floor,
-`pip install "rmacd-framework>=0.14"`; per-feature version markers are
+`pip install "rmacd-framework>=0.15"`; per-feature version markers are
 therefore omitted unless a capability is newer than that.
 
 ## Contents

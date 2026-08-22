@@ -46,7 +46,7 @@ jobs:
 | `packs` | *(empty)* | Optional glob(s) of governance pack files (`.json`/`.yaml`) to check with `rmacd pack validate`. Empty skips the pack step. |
 | `require-signed-packs` | `false` | When `true`, also run `rmacd pack verify` on every matched pack. Requires `pack-public-key`. |
 | `pack-public-key` | *(empty)* | Workspace path to the Ed25519 public key PEM used by `rmacd pack verify`. Required when `require-signed-packs` is `true`. |
-| `version` | `>=0.14` | pip version specifier for the SDK, appended verbatim (`>=0.14`, `==0.14.1`, ...). 0.14 is a floor, not a preference: 0.14.0 closed nine under-enforcement bypasses. Do not lower it. |
+| `version` | `>=0.15` | pip version specifier for the SDK, appended verbatim (`>=0.15`, `==0.15.0`, ...). Tracks the current release; never lower it below 0.14, which closed nine under-enforcement bypasses. |
 
 ### Packs example (with signature verification)
 

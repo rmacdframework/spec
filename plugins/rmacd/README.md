@@ -25,7 +25,7 @@ claude --plugin-dir plugins/rmacd
 
 The plugin ships markdown, reference material, and three small stdlib-only hook shims;
 all governance logic lives in the pip-installed SDK:
-`pip install "rmacd-framework>=0.14"`. The shims are deliberately dependency-free so
+`pip install "rmacd-framework>=0.15"`. The shims are deliberately dependency-free so
 they still work in the one case that matters — when the SDK itself cannot be imported.
 
 ## What's inside
@@ -84,7 +84,7 @@ point the hooks at the interpreter that has the SDK (e.g. a project venv).
 
 ## Requirements
 
-- Python 3.10+ with `rmacd-framework>=0.14` installed in the interpreter the hooks run
+- Python 3.10+ with `rmacd-framework>=0.15` installed in the interpreter the hooks run
   (`${RMACD_PYTHON:-python3}`) and in the target project (`/rmacd:init` handles the
   latter).
 - No API keys required by the plugin itself; the optional LLM-assisted pack authoring
