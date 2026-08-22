@@ -62,9 +62,12 @@ def test_prompt_includes_all_five_operations_in_3d_matrix(admin_3d):
 
 
 def test_prompt_flags_matrix_prohibitions(admin_3d):
-    # Change/Delete on Restricted are always prohibited; the prompt must say so.
+    # The §12.5 floor is Add, Change AND Delete on Restricted. The prompt derives
+    # these from the matrix so it already named all three, but this test asserted
+    # only two — it would not have caught a regression that dropped Add.
     out = build_system_prompt(admin_3d)
     assert "Hard prohibitions" in out
+    assert "Add on Restricted" in out
     assert "Change on Restricted" in out
     assert "Delete on Restricted" in out
 
