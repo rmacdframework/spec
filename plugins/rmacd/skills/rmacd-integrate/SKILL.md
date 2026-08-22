@@ -22,7 +22,7 @@ Carry these into every integration; getting them wrong breaks governance:
 - **Install name ≠ import name.** `pip install "rmacd-framework>=0.14"` but
   `import rmacd`. There is an unrelated `rmacd` distribution namespace — never
   `pip install rmacd`.
-- **§12.5 immutable floor.** Change and Delete on Restricted data are **prohibited for
+- **§12.5 immutable floor.** Add, Change and Delete on Restricted data are **prohibited for
   any autonomous agent**. This cannot be granted through the exception process, a
   profile, or an override — it is enforced twice: the profile-3d schema rejects it and
   the evaluator applies an immutable runtime floor even if a profile sneaks it in. Never
@@ -149,9 +149,9 @@ Autonomy applied when a granted `(operation, tier)` cell has no profile override
 | Confidential | logged | approval | elevated | elevated | elevated |
 | Restricted | notification | elevated | **PROHIBITED** | **PROHIBITED** | **PROHIBITED** |
 
-> **Warning (§12.5):** the Restricted-row prohibitions (and Add on Restricted) are hard
-> safety boundaries. No profile, override, emergency escalation, or exception request
-> can lift Add/Change/Delete on Restricted for an autonomous agent. Surface
+> **Warning (§12.5):** the Restricted-row prohibitions — Add, Change and Delete — are
+> hard safety boundaries. No profile, override, emergency escalation, or exception
+> request can lift Add/Change/Delete on Restricted for an autonomous agent. Surface
 > `RMACDProhibitedError` to the user as "a human must do this directly".
 
 Exception types to handle: `RMACDProhibitedError` (hard stop),

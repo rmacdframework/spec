@@ -17,7 +17,7 @@ Grep the project's imports to identify which framework the agent uses:
 - None of the above → generic dispatch-site pattern (`references/adapters.md`)
 
 Also note which MCP servers the project configures (`.mcp.json`, `mcp_servers=` in code)
-— they will need governance in step 5.
+— they will need governance in step 6.
 
 ## 2. Install the SDK
 
@@ -53,12 +53,34 @@ locally) to `./rmacd/profiles/<agent-name>.json`. Then:
 - Update `profile_name` and `description` to describe this agent.
 - Trim `permissions` to what the agent actually needs — start narrow; permissions are
   cumulative (D ⊃ C ⊃ A ⊃ M ⊃ R), so granting Delete implies everything below it.
-- Never grant `C` or `D` on `restricted` — the schema rejects it and the runtime floor
-  (§12.5) blocks it regardless.
+- Never grant `A`, `C` or `D` on `restricted` — all three are the §12.5 immutable floor.
+  The schema rejects them and the runtime floor blocks them regardless.
 - Validate: `rmacd validate ./rmacd/profiles/<agent-name>.json` must print `VALID`.
 - Show the effective matrix to the user: `rmacd matrix ./rmacd/profiles/<agent-name>.json`.
 
-## 5. Build the tools registry and wire the enforcer
+## 5. Ask whether to bind *this* Claude Code session too
+
+The profile written above governs **the agent this project builds**. It does not
+govern the Claude Code session you are in — that binds only from
+`RMACD_PROFILE_PATH` or `.claude/rmacd-profile.json` (see `docs/claude-code.md`).
+
+This matters because `/rmacd:status`, the unbound-session notice and the SDK's own
+status renderer all tell users to *"run `/rmacd:init`"* to bind a session. Creating
+only `./rmacd/profiles/…` leaves them exactly as unbound as before, with no
+indication why.
+
+So ask the user directly: **"Also govern this Claude Code session with this
+profile?"**
+
+- **Yes** — copy the validated profile to `.claude/rmacd-profile.json` (never a
+  symlink; the hook resolves the real path and a dangling link fails the session
+  closed). Then tell them plainly: **hooks load at session start, so this takes
+  effect after restarting Claude Code**, and `/rmacd:status` will report `BOUND`
+  once it has. Warn that the session's own tool calls are then governed by this
+  profile — a read-only profile will deny the edits they may be about to make.
+- **No** — say which file would have bound it, so the choice stays theirs.
+
+## 6. Build the tools registry and wire the enforcer
 
 Build a registry that covers every tool the agent can call:
 
@@ -75,7 +97,7 @@ Then generate the enforcer wiring and the framework hook, adapting the skill's
 `references/adapters.md`. Unregistered tools are denied fail-closed, so make sure the
 registry covers the full tool surface.
 
-## 6. Smoke-test, then arm the real gateway
+## 7. Smoke-test, then arm the real gateway
 
 1. Dry-run decisions without side effects: `rmacd evaluate <profile> R -c internal`
    (repeat for the operations the agent needs), and/or `enforcer.evaluate_tool_call(...)`.

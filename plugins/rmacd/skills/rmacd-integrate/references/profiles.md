@@ -27,7 +27,7 @@ https://rmacd-framework.org/validator (check one).
 | `monitoring-3d.json` | `rmacd-3d-monitoring-v1` | 3D | Read-only observability/SRE, alerting |
 | `devops-3d.json` | `rmacd-3d-devops-v1` | 3D | CI/CD + infra; full on public, R/M on confidential, R on restricted |
 | `incident-responder-3d.json` | `rmacd-3d-incident-responder-v1` | 3D | R/M/A with pre-authorized emergency escalation |
-| `administrator-3d.json` | `rmacd-3d-administrator-v1` | 3D | Maximum grants — still no C/D on restricted |
+| `administrator-3d.json` | `rmacd-3d-administrator-v1` | 3D | Maximum grants — still no A/C/D on restricted |
 | `regulated-data-handler-dc2d.json` | `rmacd-dc2d-regulated-data-handler-v1` | DC2D | Support agent; PII redaction, egress allow-list, restricted tier blocked |
 
 Copy the nearest one and trim; do not start from an empty file.
@@ -35,10 +35,9 @@ Copy the nearest one and trim; do not start from an empty file.
 ## Invariants (the validator and runtime both enforce these)
 
 - **§12.5 immutable floor** — Add/Change/Delete on Restricted is prohibited for autonomous
-  agents. The profile-3d schema rejects `C`/`D` in `permissions.restricted`, and the
-  evaluator applies the same floor at runtime regardless of what a profile says. The
-  exception process cannot grant it. Add on Restricted is likewise PROHIBITED in the
-  default matrix.
+  agents — all three, not just Change and Delete. The profile-3d schema allows only
+  `R`/`M` in `permissions.restricted`, and the evaluator applies the same floor at
+  runtime regardless of what a profile says. The exception process cannot grant it.
 - **Cumulative permissions** — D ⊃ C ⊃ A ⊃ M ⊃ R. Listing `D` for a tier means the
   agent effectively holds every verb there. Grant the lowest verb that does the job.
 - **Profile ID patterns** — `^rmacd-2d-[a-z0-9-]+$`, `^rmacd-3d-[a-z0-9-]+$`,

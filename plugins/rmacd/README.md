@@ -57,9 +57,10 @@ point the hooks at the interpreter that has the SDK (e.g. a project venv).
   and how approvals and unknown tools are routed.
 - **`/rmacd:init`** — scaffolds RMACD governance for the agent in the current project:
   detects the agent stack, installs the SDK, asks for a deployment shape (3D / 2D /
-  DC2D) and role template, creates and validates a policy profile, builds the tools
-  registry from governance packs, generates the enforcement hook, and smoke-tests the
-  wiring.
+  DC2D) and role template, creates and validates a policy profile, offers to bind
+  *this* session to the same profile (a copy at `.claude/rmacd-profile.json`, live
+  after a restart), builds the tools registry from governance packs, generates the
+  enforcement hook, and smoke-tests the wiring.
 - **`/rmacd:bug-setup`** — scaffolds label-gated GitHub bug automation into your repo:
   a bug-report issue form, a Claude triage + owner-gated auto-fix workflow, and an
   auto-review workflow for `fix/**` PRs — then walks you through the one-time token,
