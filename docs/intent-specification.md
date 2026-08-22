@@ -78,7 +78,7 @@ Every intent, of every type, is a single JSON object conforming to
 | `composes` | Conditional | array of `intent_id` | Required by composite types (§4) |
 | `requires` | Conditional | array of `intent_id` | Required by dependent types (§4) |
 | `grant_ref` | No | `intent_id` | A campaign or exception this intent claims coverage from (§7) |
-| `compliance_tags` | No | array of string | Framework §10 vocabulary |
+| `compliance_tags` | No | array of string | Framework §10 vocabulary; a closed enum in the schema |
 | `provenance` | No | object | `rationale_ref`, `produced_by`, `source_intent_id` |
 | `metadata` | No | object | Organization-local; never an adjudication input |
 
@@ -103,7 +103,10 @@ The declaration carries the facts the engine grades.
 | `environment` | **Yes** | `development` \| `staging` \| `production` \| `disaster-recovery` \| `sandbox` | Framework environment vocabulary |
 | `reversibility` | No | object | `rollback_declared`, `rollback_plan`, `attested_by` |
 | `blast_radius` | No | object | `scope_percentage`, `affected_count` |
-| `impact_basis` | No | object | Alternative impact axis, if the organization substitutes one (§5.3) |
+
+The declaration carries no impact axis of its own. Where an organization
+substitutes one, it is declared in the bound profile and stamped into the
+decision record, never supplied by the actor (N-8, N-16, §5.3).
 
 **N-3.** In a 3D or DC2D deployment, `data_classification` **MUST** be present.
 An implementation **MUST NOT** infer a missing classification as anything other
@@ -161,7 +164,7 @@ composition obligations, and any additional required fields.
 |---|---|---|---|---|
 | `change` | Production | Stable | — | Lattice root |
 | `release` | Production | Stable | `composes` (≥ 1 `change`) | Composite |
-| `deployment` | Production | Stable | `requires` (exactly 1 `release`), `declaration.environment` | Dependent |
+| `deployment` | Production | Stable | `requires` (exactly 1 `release`) | Dependent |
 | `service_request` | Production | Stable | `catalogue_ref` | Grants over `change` |
 | `decommission` | Production | Incubating | `composes` (≥ 1 `change`), `stages` | Composite |
 | `maintenance_window` | Production | Incubating | `window.start`, `window.end`, `service_commitment` | Cited by `deployment` |
@@ -169,6 +172,13 @@ composition obligations, and any additional required fields.
 | `incident` | Record | Stable | `severity`, `dedup_key` | Produces `change` |
 | `campaign` | Grant | Stable | `class_predicate`, `caps`, `expires_at` | Grants over `change` |
 | `exception` | Grant | Stable | `base_profile_id`, `exception_category`, `escalated_permissions`, `expires_at` | Grants over `change` |
+
+Only `campaign` and `exception` are grants in the sense of §7, and only they
+carry the grant machinery — `class_predicate`, `caps`, `escalated_permissions`,
+`expires_at`. `service_request` and `continuity_invocation` are described as
+pre-authorized because their authorization is recorded outside the intent system
+— in a service catalogue entry and in an approved continuity plan respectively —
+and §7's requirements do not apply to them.
 
 **N-9.** Maturity labels (`Stable`, `Incubating`) signal semantic stability
 only. An implementation **MUST NOT** treat maturity as a rank, a trust level, or
@@ -220,6 +230,8 @@ escalation path is consulted — mirroring how the SDK evaluator applies
 effective matrix for the actor's bound profile — the §3.1 defaults as adjusted
 by that profile's `autonomy_overrides`. An implementation **MUST NOT** define a
 second matrix, and **MUST NOT** compute a base level from any other source.
+In a 2D deployment the effective matrix is indexed by operation alone; in 3D and
+DC2D deployments it is indexed by `(classification, operation)`.
 
 **N-14. Monotonicity.** The computed level **MUST NOT** be less restrictive than
 the base level. No factor, grant, emergency, attestation, or configuration
@@ -266,8 +278,9 @@ tier, ordered `public < internal < confidential < restricted`.
 another impact basis (CMDB criticality, service tier). Where it does, the
 substitution **MUST** be declared in the bound profile, **MUST** map onto the
 same four-tier ordering, and **MUST** be stamped into every decision record via
-`impact_basis`. An implementation **MUST NOT** accept an impact basis supplied
-in the intent itself.
+`impact_basis`. The intent envelope carries no impact axis: an implementation
+**MUST NOT** accept an impact basis supplied in the intent itself, and the
+schema provides no field through which an actor could supply one (N-8).
 
 ### 5.4 Likelihood factors
 
@@ -304,8 +317,9 @@ subsequently refused by interception is conformant behaviour.
 
 **N-21.** Adjudication **MUST** be reproducible. Given the same intent, matrix
 version, likelihood weight-table version, policy version, and decision-log
-epoch, an implementation **MUST** produce the same level. All five inputs
-**MUST** be recorded in the decision record (§9).
+epoch, an implementation **MUST** produce the same level. The four version
+inputs **MUST** be recorded in the decision record (§9), alongside the
+`intent_id` that identifies the intent they were applied to.
 
 Adjudication is deterministic but not stateless: novelty and budget standing
 read organizational state. Reproducibility is therefore defined against a
@@ -386,13 +400,18 @@ human disposition in advance.
 **N-28.** A child is covered only when **all** of the following hold. If any
 fails, the child **MUST** route for individual human disposition:
 
-1. Every field in the grant's `class_predicate` matches the child (§7.2).
-2. The child's computed level is no more restrictive than the grant's
-   `caps.max_level` — the level the human approved the grant at.
+1. The child falls inside the bounds the grant declared — every field of a
+   `campaign`'s `class_predicate` matches the child (§7.2), or the child's
+   `(classification, operation)` falls inside an `exception`'s
+   `escalated_permissions` grid.
+2. Where the grant declares `caps.max_level`, the child's computed level is no
+   more restrictive than that level — the level the human approved the grant at.
 3. The grant is active: `expires_at` is in the future and it has not been
    revoked.
-4. No cap is exhausted — `max_children`, `max_blast_radius_percentage`.
-5. The child's computed level is not `prohibited`, whether pinned or computed.
+4. No declared cap is exhausted — `max_children`,
+   `max_blast_radius_percentage`.
+5. The child's computed level is not `prohibited`, whether pinned or extended
+   (N-14b).
 
 **N-29.** A grant **MUST NOT** cover a `prohibited` child under any
 circumstance, and **MUST NOT** be construed as an exception to framework §12.5.
@@ -406,6 +425,10 @@ circumstance, and **MUST NOT** be construed as an exception to framework §12.5.
 `declaration.environment`, `declaration.target_class`, `actor.id`,
 `actor.on_behalf_of`.
 
+The predicate names these flattened, as `intent_type`, `operation`,
+`data_classification`, `environment`, `target_class`, `actor_id` and
+`on_behalf_of`; the schema admits no other key.
+
 **N-31.** All specified fields **MUST** match conjunctively. Wildcards **MAY**
 appear only in `target_class`. A predicate **MUST NOT** match on
 `justification`, `metadata`, or any free-text field, and **MUST NOT** be
@@ -417,8 +440,12 @@ prohibited by framework §12.5.
 
 ### 7.3 Caps, expiry and revocation
 
-**N-33.** Every grant **MUST** declare `expires_at` and `caps.max_children`.
-Indefinite or open-ended grants **MUST** be rejected, per framework §12.5.
+**N-33.** Every grant **MUST** declare `expires_at`. Indefinite or open-ended
+grants **MUST** be rejected, per framework §12.5. A `campaign` **MUST**
+additionally declare `caps.max_children` and `caps.max_level`, because its
+bounds are otherwise only a predicate; an `exception` is bounded instead by its
+`escalated_permissions` grid and by the maximum duration its §12.2 category
+fixes, and **MAY** declare `caps` in addition.
 
 **N-34.** Revocation **MUST** take effect immediately. Intents adjudicated after
 revocation **MUST NOT** be covered.
@@ -429,8 +456,12 @@ them as affected by the revocation and **SHOULD** surface them for review.
 
 ### 7.4 The `exception` type
 
-The `exception` type expresses framework §12.3's five-step process. Its fields
-mirror the §12.4 template.
+The `exception` type expresses framework §12.3's five-step process. Framework
+§12.4's exception profile template *is* an `exception` intent: from framework
+revision 1.4.1 the template is written in this envelope and points at
+`schema/v1/intent.json`, so the framework carries one request path rather than
+two. The `schema/v1/exception.json` URL that §12.4 advertised from v1.0 but
+never published is retired rather than filled in.
 
 | §12.3 step | Intent-model equivalent |
 |---|---|
@@ -440,11 +471,33 @@ mirror the §12.4 template.
 | 4. Exception Activation | The grant becomes active; caps and expiry enforced |
 | 5. Exception Closure | Expiry or revocation; the decision record closes |
 
+Beyond the envelope, an `exception` carries the fields framework §12.3 Step 1
+requires of a request:
+
+| Field | Required | Notes |
+|---|---|---|
+| `base_profile_id` | **Yes** | The profile being temporarily widened |
+| `exception_category` | **Yes** | `emergency`, `urgent`, `planned` or `extended` — framework §12.2, which fixes the maximum duration and the approval authority |
+| `escalated_permissions` | **Yes** | Per-tier operation lists; `restricted` admits only `R` and `M` (N-36) |
+| `expires_at` | **Yes** | The explicit expiration §12.5 requires (N-33) |
+| `compensating_controls` | No | Monitoring or restriction applied for the life of the grant; `enhanced_logging` may only ever be `true` |
+| `rollback_plan` | No | How the widening is undone if it causes issues |
+| `caps` | No | Optional additional bounds (N-33) |
+| `status` | No | Grant lifecycle state: `requested`, `active`, `expired`, `revoked`, `closed`. Shared with `campaign` |
+
+Approval fields are deliberately absent from the request. Who approved, when,
+and at what level are recorded as the *disposition* on the decision record (§9),
+never asserted by the requester (N-8).
+
 **N-36.** An `exception` intent **MUST** be rejected if it would escalate
 `restricted` beyond `["R", "M"]`, omit `expires_at`, remove audit logging,
 apply a profile across environments, or request a blanket grant. These are
-framework §12.5's five named prohibitions, and they are enforced here by schema
-as well as by process.
+framework §12.5's five named prohibitions. Two of the five are enforced by the
+schema at authoring time — `escalated_permissions.restricted` admits only `R`
+and `M`, and `expires_at` is required — and `compensating_controls`
+`enhanced_logging`, where present, may only be `true`. The remaining
+prohibitions are not expressible in a per-document schema and **MUST** be
+enforced by the implementation at grant submission.
 
 **N-37.** Adjudication of an `exception` computes the scrutiny the request
 requires. It **MUST NOT** decide whether the exception is granted; that
@@ -492,13 +545,14 @@ evidence artifact and the novelty memory.
 
 | Field | Required | Notes |
 |---|---|---|
+| `$schema` | No | `https://rmacd-framework.org/schema/v1/intent-decision.json` |
 | `decision_id` | **Yes** | `^dec-[a-z0-9][a-z0-9-]*$` |
 | `intent_id` | **Yes** | The adjudicated intent; the join key for reconciliation |
 | `decided_at` | **Yes** | RFC 3339, UTC |
 | `shape_key` | **Yes** | §6.1 |
 | `base_level` | **Yes** | Before escalation |
 | `computed_level` | **Yes** | After escalation, composition and floor |
-| `escalation_factors` | **Yes** | Array of `{factor, steps, cause}`; empty if none fired |
+| `escalation_factors` | **Yes** | Array of `{factor, steps, cause}`, `factor` and `steps` required; the five §5.4 factors plus `unresolved_authorization` (N-6) and `composition_floor` (N-11). Empty if none fired |
 | `impact_basis` | **Yes** | Classification, or the declared substitute (N-16) |
 | `matrix_version` | **Yes** | Reproducibility input |
 | `likelihood_weights_version` | **Yes** | Reproducibility input |
@@ -506,7 +560,7 @@ evidence artifact and the novelty memory.
 | `log_epoch` | **Yes** | Reproducibility input |
 | `profile_id` | **Yes** | The bound profile that supplied the ceiling |
 | `grant_ref` | No | The grant that discharged approval, if any |
-| `disposition` | No | `{outcome, approver, decided_at, note}` |
+| `disposition` | No | `{outcome, approver, decided_at, note}`, `outcome` and `decided_at` required; `outcome` is one of framework §12.3 Step 3's four decisions |
 | `prohibition_source` | Conditional | `pinned` or `extended`, when the level is `prohibited` (N-14b) |
 | `reconciliation` | No | Populated after execution (§10) |
 

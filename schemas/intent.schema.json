@@ -267,7 +267,7 @@
     },
     "declaration": {
       "type": "object",
-      "description": "The facts the engine grades. Contains no rating of any kind (N-8).",
+      "description": "The facts the engine grades. Contains no rating of any kind and no impact axis: a substitute impact basis is declared in the bound profile and stamped into the decision record, never supplied here (N-8, N-16).",
       "required": ["operation", "target", "environment"],
       "additionalProperties": false,
       "properties": {
@@ -306,15 +306,6 @@
           "properties": {
             "scope_percentage": { "type": "number", "minimum": 0, "maximum": 100 },
             "affected_count": { "type": "integer", "minimum": 0 }
-          }
-        },
-        "impact_basis": {
-          "type": "object",
-          "description": "An organization-declared substitute impact axis. Must map onto the four-tier ordering and be declared in the bound profile, not here (N-16).",
-          "additionalProperties": false,
-          "properties": {
-            "scheme": { "type": "string" },
-            "value": { "type": "string" }
           }
         }
       }

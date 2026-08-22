@@ -174,6 +174,11 @@ labels are maturity, which signal semantic stability, never rank.
 | `campaign` | A bounded grant for a class of changes | Grant | grants over `change` |
 | `exception` | Temporary, expiring widening of a profile | Grant | grants over `change` |
 
+Grant is not a third plane of action. `campaign` and `exception` are
+meta-intents: they carry a human disposition over a bounded class of future
+production-plane intents, and they are the only two types that carry the grant
+machinery the normative companion specifies in its §7.
+
 The registry is open by design: new types register against the common envelope
 and contract without amending the model's core. The `change` intent is the
 lattice root not because it contains the others, but because one
@@ -286,9 +291,9 @@ exactly.
 Adjudication is deterministic, but it is not a pure function of the intent
 alone: novelty and budget standing read organizational state. The precise
 claim is that adjudication is reproducible given the intent together with the
-matrix version, the policy version, and the decision-log epoch — all four of
-which the decision record stamps, so that any past decision can be recomputed
-and defended years later.
+matrix version, the likelihood weight-table version, the policy version, and the
+decision-log epoch — all four versions the decision record stamps, so that any
+past decision can be recomputed and defended years later.
 
 ### 7.4 The prohibited floor carries forward
 
@@ -346,7 +351,8 @@ waived. A matching child is covered only when every condition holds:
 - the child's computed level is no more restrictive than the level the human
   approved the campaign at;
 - the campaign's caps — child count, blast radius, expiry — are not exhausted;
-- the child is not Prohibited, pinned or computed.
+- the child is not Prohibited, whether pinned by §12.5 or extended by the
+  organization.
 
 A child that computes *above* the campaign's approved level is not covered and
 routes to a human individually. This is the same shape as an ITIL standard
@@ -408,7 +414,9 @@ revision, advertised a `schema/v1/exception.json` that was never published.
 An exception request *is* an intent: a declared, justified, time-bounded ask,
 submitted for adjudication before it takes effect. Rather than adding a second
 request path to a framework that already has one, Intents register `exception`
-as a type and fulfil the promised schema.
+as a type, and §12.4's template is now written in the intent envelope and points
+at `schema/v1/intent.json`. The framework carries one request path; the
+unpublished `exception.json` URL is retired rather than filled in.
 
 | §12.3 step | Intent model |
 |---|---|
@@ -421,9 +429,11 @@ as a type and fulfil the promised schema.
 The human judgment in Step 2 is not removed — it is relocated. The engine
 computes *how much* scrutiny the request needs; the named authority in §12.2
 still decides whether to grant it. Every §12.5 prohibition continues to apply,
-now enforced by schema as well as by process: `exception` intents cannot
-escalate Restricted beyond R and M, cannot omit an expiry, and cannot request
-blanket grants.
+and two of the five are now enforced by schema as well as by process: an
+`exception` intent cannot escalate Restricted beyond R and M, and cannot omit an
+expiry. The remaining three — no removal of audit logging, no cross-environment
+exception, no blanket grant — are not expressible in a per-document schema and
+remain the implementation's duty at grant submission.
 
 Nothing in §12 changes semantically. This document and the normative companion
 describe the same process in the intent envelope's terms.

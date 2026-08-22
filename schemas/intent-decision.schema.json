@@ -170,7 +170,7 @@
       "properties": {
         "factor": {
           "type": "string",
-          "description": "The five likelihood factors of specification §5.4, plus the fail-closed factor of N-6.",
+          "description": "The five likelihood factors of specification §5.4, plus the fail-closed factor of N-6 and the composition floor of N-11.",
           "enum": [
             "novelty",
             "reversibility",

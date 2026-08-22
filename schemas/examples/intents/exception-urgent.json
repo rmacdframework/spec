@@ -38,6 +38,6 @@
   "status": "requested",
   "justification": "Emergency database migration required due to storage failure.",
   "metadata": {
-    "note": "This is the framework §12.4 exception template expressed as a registered intent type, fulfilling the schema/v1/exception.json URL that §12.4 has advertised since v1.0. Restricted cannot exceed R and M here: Add, Change and Delete on Restricted are the §12.5 immutable floor and no grant can reach them. Adjudication computes how much scrutiny this request needs; the §12.2 authority still decides whether to grant it (N-37)."
+    "note": "This is the shape framework §12.4 now uses for its exception profile template: an exception intent pointing at schema/v1/intent.json, replacing the schema/v1/exception.json URL that §12.4 advertised from v1.0 but never published. Restricted cannot exceed R and M here: Add, Change and Delete on Restricted are the §12.5 immutable floor and no grant can reach them. Adjudication computes how much scrutiny this request needs; the §12.2 authority still decides whether to grant it (N-37)."
   }
 }
