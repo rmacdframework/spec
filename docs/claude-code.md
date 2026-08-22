@@ -160,7 +160,7 @@ where the session happens to be working.
 | `RMACD_PROFILE_PATH` | Profile JSON to bind (overrides the project file) | unset → search for `.claude/rmacd-profile.json` (see *Profile binding order* above), else unbound |
 | `RMACD_PACKS` | Extra governance packs, comma-separated built-in names or file paths, merged onto the defaults | unset |
 | `RMACD_CLASSIFICATION_MAP` | Path-glob → tier map: inline JSON (`{"/data/secret/*": "restricted"}`) or a path to a JSON file of that shape | unset |
-| `RMACD_DEFAULT_TIER` | Tier assumed for targets no map rule matches (3D/DC2D evaluation requires a tier) | `internal` |
+| `RMACD_DEFAULT_TIER` | Tier assumed for targets no map rule matches (3D/DC2D evaluation requires a tier). `restricted` is **refused at binding**: the value is asserted as the classification of unmapped targets, not used as a floor, so it would place every Add/Change/Delete on them under the §12.5 immutable floor — prohibited outright and not grantable by any approver or exception. Classify restricted targets explicitly instead. | `internal` |
 | `RMACD_UNKNOWN_TOOL` | `deny` or `ask` for tools the registry cannot govern; any other value falls back to `deny` rather than erroring | `deny` |
 | `RMACD_AGENT_ID` | Identity attached to the session's decisions | `claude-code` |
 | `RMACD_ENVIRONMENT` | Deployment environment fed to profile constraints (`development`/`staging`/`production`/...) | unset |

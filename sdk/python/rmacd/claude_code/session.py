@@ -30,7 +30,9 @@ Environment variables read here:
 - ``RMACD_CLASSIFICATION_MAP`` — path-glob → tier map, either inline JSON
   (``{"/etc/*": "restricted"}``) or a path to a JSON file of the same shape.
 - ``RMACD_DEFAULT_TIER`` — tier assumed for targets no map rule matches
-  (default ``internal``; 3D/DC2D evaluation requires a tier).
+  (default ``internal``; 3D/DC2D evaluation requires a tier). ``restricted``
+  is refused: it would assert every unmapped target is Restricted, putting all
+  Add/Change/Delete on them under the §12.5 floor, grantable by nobody.
 - ``RMACD_UNKNOWN_TOOL`` — ``deny`` (default) or ``ask`` for MCP/unmapped
   tools the registry does not know.
 - ``RMACD_AGENT_ID`` — audit identity for the session (default
@@ -360,6 +362,24 @@ def bind_session(
             f"{ENV_DEFAULT_TIER}='{default_tier_raw}' is not a valid tier "
             f"(expected public/internal/confidential/restricted)"
         ) from exc
+
+    if default_tier is DataClassification.RESTRICTED:
+        # The default tier is not a floor for unknown targets — `classify_path`
+        # returns None when no rule matches and the hook substitutes this value,
+        # so it is *asserted* as their classification. Asserting `restricted`
+        # puts every Add/Change/Delete on an unmapped target under the §12.5
+        # immutable floor, which no approver and no exception process can lift:
+        # the session could read, and nothing else, for reasons no error
+        # explained. Refuse it at binding rather than at every call.
+        raise SessionBindingError(
+            f"{ENV_DEFAULT_TIER}='restricted' is not a usable default: it "
+            f"asserts that every target no classification rule matches is "
+            f"Restricted, placing all Add/Change/Delete on those targets under "
+            f"the §12.5 immutable floor — prohibited outright, and not "
+            f"grantable by any approver or exception. Classify restricted "
+            f"targets explicitly via {ENV_CLASSIFICATION_MAP} and leave the "
+            f"default at internal or below."
+        )
 
     # Fail closed on an unrecognised override value rather than erroring: the
     # stricter of the two documented behaviours is the safe default.

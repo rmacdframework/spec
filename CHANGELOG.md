@@ -86,6 +86,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Fixed
 
+- **`RMACD_DEFAULT_TIER=restricted` is refused at binding instead of failing
+  silently at every call.** The default tier is not a floor for targets no
+  classification rule matches — `classify_path` returns `None` and the hook
+  substitutes the default, so the value is *asserted* as their classification.
+  Setting it to `restricted`, which reads like the conservative choice, put
+  every Add/Change/Delete on an unmapped target under the §12.5 immutable
+  floor: not "needs senior approval" but prohibited outright, unapprovable by
+  any authority and not reachable through the exception process. The session
+  could read and nothing else, with no error explaining why. Binding now
+  refuses the value and says what it would have done. The 2D path was never
+  affected — it deliberately keeps the tier `None` so the floor applies only to
+  explicitly-mapped targets.
+
 - **Spec 1.4.1 — the §12.5 floor is stated as all three operations everywhere.**
   The 1.4.0 correction to §3.1 never propagated, and §6.3 — the normative table
   prescribing how Add operations are performed per tier — still listed Restricted

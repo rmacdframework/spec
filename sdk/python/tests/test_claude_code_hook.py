@@ -1163,14 +1163,30 @@ def test_effect_tools_pin_a_tier_instead_of_inheriting_the_default(
 ) -> None:
     """Their target is `session://<Tool>`, not the data the default tier describes.
 
-    Inheriting a `restricted` default put them under the §12.5 immutable floor,
-    which no exception process can lift: `ExitWorktree` became Delete on
-    Restricted, so a session could enter a worktree and never leave it.
+    A `restricted` default is now refused at binding (see
+    `test_restricted_default_tier_is_refused_at_binding`), which closes the worst
+    case — `ExitWorktree` became Delete on Restricted, under the §12.5 floor that
+    no approver can lift, so a session could enter a worktree and never leave it.
+    The pin still matters for accuracy: a `confidential` default would otherwise
+    assert that leaving a worktree is an operation on confidential data.
     """
     binding = make_binding(
-        tmp_path, env_overrides={session.ENV_DEFAULT_TIER: "restricted"}
+        tmp_path, env_overrides={session.ENV_DEFAULT_TIER: "confidential"}
     )
     assert mapping.map_tool_call(tool, {}, binding).tier == DataClassification.INTERNAL
+
+
+def test_restricted_default_tier_is_refused_at_binding(tmp_path: Path) -> None:
+    """It asserts a classification rather than supplying a floor.
+
+    `classify_path` returns None for a target no rule matches and the hook
+    substitutes the default, so `restricted` claims every unmapped target is
+    Restricted — putting all Add/Change/Delete on them under the §12.5 floor,
+    prohibited outright and grantable by nobody. Refused at binding so the
+    operator gets one clear error instead of silent denials at every call.
+    """
+    with pytest.raises(session.SessionBindingError, match="not a usable default"):
+        make_binding(tmp_path, env_overrides={session.ENV_DEFAULT_TIER: "restricted"})
 
 
 @pytest.mark.parametrize("tool", ["RemoteTrigger", "DesignSync"])
