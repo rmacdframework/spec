@@ -17,6 +17,15 @@ operations everywhere it appears.
 
 #### Added
 
+- **Python 3.13 and 3.14 are now tested and declared.** The classifiers stopped
+  at 3.12 and the CI and publish matrices tested 3.10–3.12, so the two current
+  interpreters were neither exercised nor advertised — the package installed and
+  worked on them (there is no upper bound), but nothing verified it and users had
+  no claim to rely on. Both matrices now run five versions and the classifiers
+  match. `requires-python` stays `>=3.10`: nothing in the code needs a 3.11+
+  feature, so dropping 3.10 before its October 2026 end of life would break users
+  for no benefit.
+
 - **`/rmacd:init` now offers to bind the current session.** Four code paths —
   the hook, the SessionStart shim, `status.py` and `/rmacd:status` — all told
   users to run `/rmacd:init` to bind a session, and it never wrote the file that
