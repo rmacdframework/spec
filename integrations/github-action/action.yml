@@ -39,9 +39,12 @@ inputs:
   version:
     description: >-
       pip version specifier for the rmacd-framework SDK, appended verbatim
-      to the requirement (e.g. ">=0.13", "==0.13.0").
+      to the requirement (e.g. ">=0.14", "==0.14.1"). The default floor is
+      0.14 because 0.14.0 was a security release: nine under-enforcement
+      bypasses were closed, including the §12.5 floor not applying on the
+      DC2D path. Do not lower it.
     required: false
-    default: ">=0.13"
+    default: ">=0.14"
 
 runs:
   using: "composite"

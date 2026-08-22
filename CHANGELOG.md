@@ -86,6 +86,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Fixed
 
+- **The GitHub Action defaulted to an SDK predating the 0.14.0 security
+  release.** `integrations/github-action/action.yml` shipped `>=0.13` as its
+  version specifier, so a workflow adopting the Action with defaults could
+  resolve an SDK missing all nine under-enforcement fixes — among them the
+  §12.5 floor not being applied on the DC2D path, which allowed an autonomous
+  Delete on Restricted. The floor sweep that unified the documented minimum to
+  `>=0.14` reached the plugin and the companion docs but never reached
+  `integrations/`. Raised to `>=0.14`, with the reason recorded inline so it is
+  not silently lowered again.
+
 - **`RMACD_DEFAULT_TIER=restricted` is refused at binding instead of failing
   silently at every call.** The default tier is not a floor for targets no
   classification rule matches — `classify_path` returns `None` and the hook
