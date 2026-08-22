@@ -479,3 +479,4 @@ This work is licensed under [Creative Commons Attribution 4.0 International (CC 
 - [RMACD Framework Specification](https://github.com/rmacdframework/spec)
 - [JSON Schemas](../../schemas/)
 - [Example Profiles](../../schemas/examples/)
+- [RMACD Intents](../../docs/intents.md) and the [Intent Specification](../../docs/intent-specification.md) — the framework's out-of-band *adjudication* mode, where an actor declares an action before taking it. Specification and JSON Schemas only: **this SDK implements interception, not adjudication — there is no intent API in this release.**

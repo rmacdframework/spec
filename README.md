@@ -71,7 +71,7 @@ What we've built, from the standard up to running agents. Each layer links to it
 
 | Layer | What it is | Documentation |
 |-------|-----------|---------------|
-| **1 · The Governance Standard** | The rulebook for what an agent may do, on which data, with what oversight — the shared language for security, compliance & engineering. | [Specification v1.4](docs/RMACD_Framework_v1.4.md) · [Conceptual model](docs/RMACD_Framework_Diagram.drawio.png) · [DC2D variant](docs/RMACD_Framework_v1.4.md#appendix-d-the-data-classification-two-dimensional-variant-dc2d) |
+| **1 · The Governance Standard** | The rulebook for what an agent may do, on which data, with what oversight — the shared language for security, compliance & engineering. | [Specification v1.4](docs/RMACD_Framework_v1.4.md) · [Conceptual model](docs/RMACD_Framework_Diagram.drawio.png) · [DC2D variant](docs/RMACD_Framework_v1.4.md#appendix-d-the-data-classification-two-dimensional-variant-dc2d) · [Intents — the adjudication mode](docs/intents.md) |
 | **2 · Real-Time Enforcement** | The engine that checks every agent action — allow, block, or escalate to a human — with the §12.5 safety floor that cannot be overridden. | [Python SDK](sdk/python/) · [Runtime patterns](docs/runtime-patterns.md) · [Framework adapters](docs/framework-adapters.md) |
 | **3 · Ready-Made Policy Library** | 34 built-in governance packs for the cloud, identity, developer & business tools enterprises already run — onboarding becomes configuration, not code. | [Governance Packs](docs/governance-packs/) · [Pack catalog](docs/governance-packs/catalog.md) · [Authoring guide](docs/governance-packs/authoring-guide.md) |
 | **4 · Accountability & Data Protection** | Human approvals on risky actions, a tamper-evident audit trail of every decision, and redaction/egress controls for sensitive data. | [Implementation guide](docs/implementation.md) · [DC2D redaction + egress demo](examples/dc2d-customer-support/) · [Runtime patterns](docs/runtime-patterns.md#5-approval-wait-semantics-for-llm-agents) |
@@ -133,6 +133,27 @@ All three shapes have a JSON Schema in [`schemas/`](schemas/) and worked profile
 
 ---
 
+## Two Modes of Enforcement
+
+Whichever mode observes an action, it is graded against the matrix above — RMACD has one matrix and one set of six autonomy levels. What differs is *when* the grading happens and what has to be instrumented.
+
+| | **Interception** | **Adjudication** ([RMACD Intents](docs/intents.md)) |
+|--|--|--|
+| Position | During execution, in-band | Before execution, out-of-band |
+| Needs instrumentation | Yes — the SDK, a hook or an adapter in the call path | No — a declaration any API, pipeline or form can submit |
+| Guards against | Undeclared behaviour | Unplanned risk |
+| Ships as | The [Python SDK](sdk/python/) — `PolicyEvaluator`, `PolicyEnforcer` | The spec and two JSON Schemas; **no SDK implementation in this revision** |
+
+An **RMACD Intent** is a structured declaration of something an actor — agent, pipeline or human — wants to do, submitted for adjudication before it is done. The actor declares the facts; a deterministic engine computes the required oversight level from the §3.1 matrix, and likelihood factors (novelty, reversibility, environment, budget standing, blast radius) escalate it *monotonically* toward more oversight, saturating at Elevated Approval. Nothing an actor declares can produce less oversight than the matrix already required, and the §12.5 immutable floor carries through untouched: likelihood can demand the CISO, it can never reach Prohibited.
+
+Ten intent types are registered against one envelope — `change`, `release`, `deployment`, `service_request`, `decommission`, `maintenance_window`, `continuity_invocation`, `incident`, `campaign` and `exception` — and `exception` fulfils the §12.4 exception schema advertised since v1.0 but never published.
+
+The two modes are complementary, and their decision streams join in the audit trail on `intent_id`: declaring one thing and doing another becomes a detectable, citable event that neither mode surfaces alone.
+
+Read [The Intent Model](docs/intents.md) for the model and its rationale, and the [Intent Specification](docs/intent-specification.md) for the normative envelope, adjudication contract, decision record and conformance requirements.
+
+---
+
 ## Documentation
 
 ### Specification and diagrams
@@ -145,6 +166,7 @@ All three shapes have a JSON Schema in [`schemas/`](schemas/) and worked profile
 | [Runtime Architecture Diagram](docs/RMACD_Runtime_Architecture.drawio.png) ([source](docs/RMACD_Runtime_Architecture.drawio)) | PDP / PEP / Audit / Approval, with the SDK class overlay |
 | [Governance Packs Diagram](docs/RMACD_Governance_Packs.drawio.png) ([source](docs/RMACD_Governance_Packs.drawio)) | How packs are authored (AI-assisted, signed) and enforced deterministically |
 | [JSON Schema Templates](schemas/) | `profile-2d`, `profile-3d`, `profile-dc2d` + [example profiles](schemas/examples/) |
+| [Intent Schemas](schemas/) | [`intent`](schemas/intent.schema.json) (the envelope and its ten registered types) and [`intent-decision`](schemas/intent-decision.schema.json) (the decision record) + [worked intents](schemas/examples/intents/) |
 
 ### Guides and runtime reference
 
@@ -152,6 +174,8 @@ All three shapes have a JSON Schema in [`schemas/`](schemas/) and worked profile
 |----------|----------------|
 | [Implementation Guide](docs/implementation.md) | Step-by-step adoption: choose a shape, define profiles, wire enforcement, approvals, rollout |
 | [Runtime Patterns](docs/runtime-patterns.md) | How an agent runtime consumes RMACD: profile binding, classification lookup, approval-wait, error contract, agent self-restriction, DC2D |
+| [RMACD Intents — the Intent Model](docs/intents.md) | The second, out-of-band mode: adjudication before execution. The intent ladder, the production and record planes, the ten-type registry, campaigns, budgets, and how likelihood escalates the §3.1 matrix without introducing a second one |
+| [Intent Specification](docs/intent-specification.md) | The normative companion (RFC 2119): the intent envelope, the actor model, the adjudication contract, shape and novelty, grants, the decision record, reconciliation with interception, and 16 conformance requirements |
 | [Framework adapters](docs/framework-adapters.md) | Registry-backed `enforce_tool_call` for OpenAI Agents SDK, Microsoft Agent Framework, Claude Agent SDK, LangChain, AutoGen, CrewAI — plus RMACD as an MCP server |
 | [Claude Code integration](docs/claude-code.md) | Governing the Claude Code session itself: `SessionStart` notice, `PreToolUse` decision hook, `PostToolUse` audit trail (`.claude/rmacd-audit.jsonl`), fail-closed behaviour when a profile is bound but the SDK is missing, the `rmacd` plugin, and enterprise managed-settings rollout |
 | [Audit evidence](docs/audit-evidence.md) | `rmacd audit summarize` reports, SIEM shipping recipes, SOC 2 / ISO 27001 / GDPR mapping |
@@ -213,6 +237,8 @@ Example profile for a read-only monitoring agent:
 ```
 
 See [schemas/examples/](schemas/examples/) for more profiles.
+
+Profiles are not the only governed artifact: an [RMACD Intent](docs/intents.md) is a declaration adjudicated *before* an action, with its own envelope ([`intent.schema.json`](schemas/intent.schema.json)) and decision record ([`intent-decision.schema.json`](schemas/intent-decision.schema.json)). Worked examples of both — a production change, a composed release, an incident, a campaign grant, an exception request and a decision record — are in [schemas/examples/intents/](schemas/examples/intents/).
 
 ---
 

@@ -138,6 +138,37 @@ decision must have no side effects (dry runs, profile linters, "would this be
 allowed?" UIs), and the enforcer everywhere a real call is about to happen.
 See [`runtime-patterns.md`](runtime-patterns.md) §1.
 
+### The second mode: adjudication
+
+Everything above wires *interception* — a hook in the agent's call path that
+classifies and decides while the call is happening. Interception is powerful,
+but it governs only what it can instrument.
+
+**RMACD Intents** define the complementary mode. An actor — agent, pipeline or
+human — declares what it intends to do *before* acting, and a deterministic
+engine computes the required oversight level from the same §3.1 matrix,
+escalating it monotonically for novelty, irreversibility, environment, budget
+standing and blast radius. Nothing declared can produce less oversight than the
+matrix already required, and the §12.5 floor is checked before anything else.
+
+Adjudication never grants: the profile remains a ceiling, so an intent that
+adjudicates cleanly and is then refused by interception is a correctly
+functioning deployment, not a contradiction. Where both modes run, the two
+decision streams join on `intent_id`, which is what turns
+declared-one-thing-did-another into a detectable event.
+
+Reach for it when the actors you must govern are not all instrumentable, when
+change and release approval should happen before execution rather than during
+it, or when you need the §12.3 exception process expressed as a schema rather
+than a form. **No SDK implementation ships with this revision** — the capability
+is defined by the spec and its two schemas:
+
+| Artifact | What it gives you |
+|---|---|
+| [`docs/intents.md`](intents.md) | The model and its rationale: the intent ladder, the production and record planes, the ten registered types, campaigns, budgets and emergencies |
+| [`docs/intent-specification.md`](intent-specification.md) | The normative contract: envelope, actor model, the adjudication algorithm, shape and novelty, grants, the decision record, reconciliation, conformance |
+| [`schemas/intent.schema.json`](../schemas/intent.schema.json) · [`schemas/intent-decision.schema.json`](../schemas/intent-decision.schema.json) | The intent envelope and the decision record, with worked examples in [`schemas/examples/intents/`](../schemas/examples/intents/) |
+
 ## Step 4: Integrate Approval Workflows
 
 Map autonomy levels to your existing systems. The left column is the
@@ -266,6 +297,8 @@ Runnable end-to-end examples in `examples/`:
 | [`docs/framework-adapters.md`](framework-adapters.md) | Registry-backed `enforce_tool_call`, plus OpenAI Agents SDK, Microsoft Agent Framework, LangChain, AutoGen and CrewAI snippets, and RMACD as an MCP server |
 | [`docs/claude-code.md`](claude-code.md) | Governing a Claude Code session itself — the `rmacd` plugin, its `SessionStart` / `PreToolUse` / `PostToolUse` hooks, the session audit trail, and enterprise managed-settings rollout |
 | [`docs/audit-evidence.md`](audit-evidence.md) | `rmacd audit summarize`, SIEM shipping recipes, and the SOC 2 / ISO 27001 / GDPR control mapping |
+| [`docs/intents.md`](intents.md) | The adjudication mode: declaring an action before taking it, the intent ladder, the ten-type registry, and how likelihood escalates the §3.1 matrix (spec-level; no SDK implementation yet) |
+| [`docs/intent-specification.md`](intent-specification.md) | The normative intent contract: envelope, actor model, adjudication algorithm, grants, decision record, reconciliation with interception, conformance |
 
 ## Tools registry
 
