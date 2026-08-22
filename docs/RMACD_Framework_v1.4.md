@@ -21,7 +21,7 @@ Version 1.4.1 | August 2026
 | 1.3.1 | Published the SDK enforcement layer and the DC2D runtime controls; added `runtime-patterns.md`, `framework-adapters.md` and the runtime-architecture diagram. |
 | 1.3.2 | Hardened the **§12.5** boundary: Add/Change/Delete on Restricted is now rejected both at authoring time by `profile-3d.schema.json` and at decision time by an immutable evaluator floor, closing a gap where an `autonomy_overrides` entry could raise a prohibited cell. |
 | 1.4.0 | Made the Tools Registry a first-class policy layer (§9.4–9.5); added **session governance** (§9.7), **audit evidence** (§9.8) and the **MCP policy server** (§9.9). Renamed v1.3 → v1.4 per the minor-release convention. |
-| 1.4.1 | Introduced **RMACD Intents** (`docs/intents.md`, `docs/intent-specification.md`): declarative pre-execution adjudication complementing runtime interception. Restated the §12.4 exception template as an `exception` intent, resolving a schema URL advertised since v1.0 but never published. Corrected the Appendix A quick-reference card, where Add on Restricted still read *Elevated Approval* after the 1.4.0 correction to §3.1. |
+| 1.4.1 | Introduced **RMACD Intents** (`docs/intents.md`, `docs/intent-specification.md`): declarative pre-execution adjudication complementing runtime interception. Restated the §12.4 exception template as an `exception` intent, resolving a schema URL advertised since v1.0 but never published. Corrected the Appendix A quick-reference card, where Add on Restricted still read *Elevated Approval* after the 1.4.0 correction to §3.1 — as did the §6.3 Add-operations table. Restated the §9.1, §10 and Appendix B notes that still described the §12.5 floor as Change and Delete only; it is all three. |
 
 ### SDK releases behind this revision
 
@@ -306,7 +306,9 @@ The data classification for Add operations relates to what data the new resource
 | Public | Notification | Template compliance check | Asset registration; owner assignment |
 | Internal | Approval | Budget verification; standard config | CMDB update; monitoring enabled |
 | Confidential | Elevated Approval | Security review; hardened config | Security scan; compliance attestation |
-| Restricted | Elevated Approval | CAB + Security + Legal review | Penetration test; full audit trail |
+| Restricted | PROHIBITED | Human execution only | Agent may prepare; human executes |
+
+Note: Add operations against Restricted data are Prohibited for autonomous agents. Creating a resource that will hold Restricted data is itself a Restricted-tier mutation, so it sits behind the same §12.5 safety boundary as Change and Delete: the agent may prepare or recommend the change, but a human executes it.
 
 ## **6.4 Add Operation Agent Patterns**
 
@@ -454,7 +456,7 @@ RMACD permissions can be expressed as profiles that define an agent's operationa
 | Operations | RMAC | RMAC | RMA | R |
 | Administrator | RMACD | RMACD | RMAC | RM |
 
-Note: Even Administrator agents do not receive full RMACD permissions on Restricted data. Change and Delete operations on Restricted data remain human-only in the default model.
+Note: Even Administrator agents do not receive full RMACD permissions on Restricted data. Add, Change and Delete operations on Restricted data all remain human-only in the default model.
 
 ## **9.2 Environment-Based Differentiation**
 
@@ -983,7 +985,7 @@ The RMACD Framework's three-dimensional model provides natural alignment with ma
 
 - **GDPR (General Data Protection Regulation):** Personal data maps to Confidential tier; special categories (Article 9) map to Restricted. Read operations enable data subject access rights; Change enables rectification; Delete enables erasure ('right to be forgotten'). Consent workflows map to HITL approval requirements.
 - **HIPAA (Health Insurance Portability and Accountability Act):** Protected Health Information (PHI) maps to Restricted tier. The RMACD model enforces minimum necessary access (R-only default), audit logging requirements, and approval controls for any mutative operation.
-- **PCI-DSS (Payment Card Industry Data Security Standard):** Cardholder data maps to Restricted tier. RMACD's prohibition on autonomous Change/Delete operations aligns with PCI requirements for privileged access management and change control.
+- **PCI-DSS (Payment Card Industry Data Security Standard):** Cardholder data maps to Restricted tier. RMACD's prohibition on autonomous Add, Change and Delete operations against Restricted data aligns with PCI requirements for privileged access management and change control.
 - **SOX (Sarbanes-Oxley Act):** Financial data maps to Confidential tier. Separation of duties is enforced through differentiated agent profiles; audit requirements are addressed through the logging framework.
 
 ## **10.2 Compliance Matrix**
@@ -991,8 +993,8 @@ The RMACD Framework's three-dimensional model provides natural alignment with ma
 | Regulation | Data Classification | Key RMACD Control | Audit Requirement |
 |---|---|---|---|
 | GDPR | Confidential/Restricted | HITL for C/D operations | Processing activity logs |
-| HIPAA | Restricted | R-only default; prohibit C/D | 6-year retention |
-| PCI-DSS | Restricted | Prohibit autonomous C/D | 1-year online, archive |
+| HIPAA | Restricted | R-only default; prohibit A/C/D | 6-year retention |
+| PCI-DSS | Restricted | Prohibit autonomous A/C/D | 1-year online, archive |
 | SOX | Confidential | Elevated approval for C | 7-year retention |
 | ISO 27001 | All tiers | Classification-based controls | As per risk assessment |
 
@@ -1011,7 +1013,7 @@ The California Consumer Privacy Act, as amended by the California Privacy Rights
 | **Right to Correct** | Change operations on personal data require `approval` with documented justification |
 | **Right to Opt-Out (Sale/Sharing)** | Move operations involving data transfer require `approval`; prohibited destinations prevent unauthorized sharing |
 | **Data Minimization** | Permission profiles enforce minimum necessary access; Read-only profiles for agents that don't need mutation |
-| **Sensitive Personal Information** | Maps to Restricted tier; autonomous Change/Delete prohibited |
+| **Sensitive Personal Information** | Maps to Restricted tier; autonomous Add/Change/Delete prohibited |
 
 **Key Controls:**
 - Consumer personal information: Confidential tier
@@ -1040,7 +1042,7 @@ FedRAMP provides a standardized approach to security assessment for cloud produc
 |----------------|--------------------------|---------------------|
 | **Low** | Public, Internal | Standard governance matrix |
 | **Moderate** | Internal, Confidential | Approval required for C/D; enhanced logging |
-| **High** | Confidential, Restricted | Elevated approval for all mutations; prohibited C/D on Restricted |
+| **High** | Confidential, Restricted | Elevated approval for all mutations; prohibited A/C/D on Restricted |
 
 **Key Controls:**
 - Continuous monitoring agents: Observer profile with `logged` autonomy
@@ -1721,7 +1723,7 @@ Full operational capabilities except Delete for production change management.
 
 ## **B.6 Administrator Profile**
 
-Maximum agent permissions with appropriate controls. Note: Restricted data C/D remains prohibited.
+Maximum agent permissions with appropriate controls. Note: Restricted data A/C/D remains prohibited.
 
 ```json
 {

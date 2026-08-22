@@ -124,7 +124,7 @@ FAMILY_BLURB = {
         "general verb-table fallback governs ordinary commands, while scoped "
         "overlays raise the whole identity surface to **confidential** and "
         "privileged identity mutations and secret/credential access to "
-        "**restricted**. Because the §12.5 floor makes Change/Delete on "
+        "**restricted**. Because the §12.5 floor makes Add/Change/Delete on "
         "`restricted` *prohibited* for autonomous agents, these packs make "
         "destructive identity and RBAC changes (deleting users/roles, rewriting "
         "policies, purging Key Vault keys) structurally impossible to perform "

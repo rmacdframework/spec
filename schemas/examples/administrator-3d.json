@@ -4,7 +4,7 @@
   "profile_name": "Administrator (3D)",
   "model": "three-dimensional",
   "version": "1.0",
-  "description": "Maximum agent permissions with classification-aware controls. Note: Change and Delete on Restricted data remain prohibited.",
+  "description": "Maximum agent permissions with classification-aware controls. Note: Add, Change and Delete on Restricted data remain prohibited.",
   "permissions": {
     "public": ["R", "M", "A", "C", "D"],
     "internal": ["R", "M", "A", "C", "D"],

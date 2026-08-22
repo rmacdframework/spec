@@ -157,7 +157,7 @@
 
 ## Identity & access (focused)
 
-Focused, security-hardened variants of the cloud CLI packs. Each is a drop-in standalone pack (load it *instead of* the general `aws` / `az` / `gcloud` pack for agents whose role touches identity or secrets): a general verb-table fallback governs ordinary commands, while scoped overlays raise the whole identity surface to **confidential** and privileged identity mutations and secret/credential access to **restricted**. Because the §12.5 floor makes Change/Delete on `restricted` *prohibited* for autonomous agents, these packs make destructive identity and RBAC changes (deleting users/roles, rewriting policies, purging Key Vault keys) structurally impossible to perform autonomously — while reads of the identity surface and secret access require elevated approval rather than running silently.
+Focused, security-hardened variants of the cloud CLI packs. Each is a drop-in standalone pack (load it *instead of* the general `aws` / `az` / `gcloud` pack for agents whose role touches identity or secrets): a general verb-table fallback governs ordinary commands, while scoped overlays raise the whole identity surface to **confidential** and privileged identity mutations and secret/credential access to **restricted**. Because the §12.5 floor makes Add/Change/Delete on `restricted` *prohibited* for autonomous agents, these packs make destructive identity and RBAC changes (deleting users/roles, rewriting policies, purging Key Vault keys) structurally impossible to perform autonomously — while reads of the identity surface and secret access require elevated approval rather than running silently.
 
 ### `aws-iam`
 

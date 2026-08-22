@@ -86,6 +86,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Fixed
 
+- **Spec 1.4.1 — the §12.5 floor is stated as all three operations everywhere.**
+  The 1.4.0 correction to §3.1 never propagated, and §6.3 — the normative table
+  prescribing how Add operations are performed per tier — still listed Restricted
+  as *Elevated Approval* with pre-conditions of "CAB + Security + Legal review".
+  It described a sanctioned path for an operation the profile schema and the
+  runtime floor both refuse unconditionally, which is worse than the shorthand
+  Appendix A card: a reader following §6.3 would have staged work that can never
+  be approved by anyone. Restated alongside it: the §9.1 note, four compliance
+  rows in §10 (HIPAA, PCI-DSS, CCPA, FedRAMP High), Appendix B.6, the
+  `administrator-3d` example description, the emergency-escalation description in
+  both copies of `profile-3d.schema.json` (whose enum already rejected `A` — only
+  the prose was wrong), and the Governance Pack catalog generator.
+
 - **Spec 1.4.1 — Appendix A quick-reference card.** Add on Restricted still
   read `ELEVATED`; the 1.4.0 correction reached §3.1 but never reached the
   quick-reference matrix, leaving the most-copied table in the document
