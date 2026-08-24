@@ -10,7 +10,7 @@ authors:
     orcid: "https://orcid.org/0009-0005-0127-6265"
 version: "1.4.1"
 doi: "10.5281/zenodo.21438139"
-date-released: "2026-08-22"
+date-released: "2026-08-24"
 url: "https://rmacd-framework.org"
 repository-code: "https://github.com/rmacdframework/spec"
 license: "CC-BY-4.0"
