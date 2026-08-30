@@ -1,5 +1,5 @@
 {
-  "$schema": "https://rmacd-framework.org/schema/v1/intent.json",
+  "$schema": "https://rmacd-framework.org/schema/v2/intent.json",
   "intent_id": "int-cmp-20260801-0002",
   "intent_type": "campaign",
   "submitted_at": "2026-08-01T08:00:00Z",
@@ -32,6 +32,6 @@
   "status": "active",
   "justification": "Quarterly TLS certificate rotation across the edge fleet. One human decision governs the class; matching child changes adjudicate against this grant.",
   "metadata": {
-    "note": "Coverage is discharge, not reduction (N-27). A child computing above 'approval' — say, one that lands on elevated_approval because the shape is novel and no rollback is attested — is not covered and routes to a human individually."
+    "note": "Coverage is approval in advance, not reduction (N-27). A child computing above 'approval' — say, one that lands on elevated_approval because the action pattern is unprecedented and no rollback is attested — is not covered and routes to a human individually."
   }
 }

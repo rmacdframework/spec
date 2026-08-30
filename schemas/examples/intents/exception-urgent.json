@@ -1,5 +1,5 @@
 {
-  "$schema": "https://rmacd-framework.org/schema/v1/intent.json",
+  "$schema": "https://rmacd-framework.org/schema/v2/intent.json",
   "intent_id": "int-exc-20260815-0001",
   "intent_type": "exception",
   "submitted_at": "2026-08-15T10:25:00Z",
@@ -24,20 +24,28 @@
   "base_profile_id": "rmacd-3d-observer-v1",
   "exception_category": "urgent",
   "escalated_permissions": {
-    "confidential": ["R", "M", "A"],
-    "restricted": ["R"]
+    "confidential": [
+      "R",
+      "M",
+      "A"
+    ],
+    "restricted": [
+      "R"
+    ]
   },
   "expires_at": "2026-08-16T11:00:00Z",
   "compensating_controls": {
     "enhanced_logging": true,
     "real_time_alerts": true,
     "human_shadow": "dba-team@company.com",
-    "restricted_targets": ["db-prod-migration-*"]
+    "restricted_targets": [
+      "db-prod-migration-*"
+    ]
   },
   "rollback_plan": "Restore from snapshot db-snap-20260815-pre-migration.",
   "status": "requested",
   "justification": "Emergency database migration required due to storage failure.",
   "metadata": {
-    "note": "This is the shape framework §12.4 now uses for its exception profile template: an exception intent pointing at schema/v1/intent.json, replacing the schema/v1/exception.json URL that §12.4 advertised from v1.0 but never published. Restricted cannot exceed R and M here: Add, Change and Delete on Restricted are the §12.5 immutable floor and no grant can reach them. Adjudication computes how much scrutiny this request needs; the §12.2 authority still decides whether to grant it (N-37)."
+    "note": "This is the form framework §12.4 now uses for its exception profile template: an exception intent pointing at schema/v2/intent.json, replacing the schema/v1/exception.json URL that §12.4 advertised from v1.0 but never published. Restricted cannot exceed R and M here: Add, Change and Delete on Restricted are permanently prohibited by §12.5 and no grant can reach them. Adjudication computes how much scrutiny this request needs; the §12.2 authority still decides whether to grant it (N-37)."
   }
 }

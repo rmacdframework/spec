@@ -5,6 +5,155 @@ All notable changes to the RMACD Framework will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Intent Specification 2.0.0
+
+The Intent Specification is versioned independently of the framework. This
+revision changes no requirement's meaning and renumbers nothing: N-1..N-49 and
+C-1..C-16 keep their identifiers, which external documents cite.
+
+#### Added
+
+- **Every requirement carries a plain-English name.** `N-14` is now
+  *N-14 (The Monotonicity Rule)*, `C-5` is *Five Factors, No Negatives*, and so
+  on for all 84 identifiers. Names are a reading aid, never an identifier: a
+  name **MAY** be revised, a number **MUST NOT** be.
+- **Appendix A: Requirement Quick Reference** — two generated tables mapping
+  every N-x and C-x to its name, gloss, anchor, and the conformance item it
+  rolls up into.
+- **Stable anchors** for every requirement (`#n-14`, `#c-5`), keyed to the
+  identifier rather than the name, and verified to resolve identically on
+  GitHub and on rmacd-framework.org.
+- **`requirements.yaml`** is now the authoritative registry for requirement
+  metadata, and **`requirements.json`** is generated from it for SDKs and
+  validators that want the names in error messages.
+- **`tools/check_spec.py`** regenerates the derived tables and enforces four
+  invariants: document/registry agreement, conformance coverage of every
+  obligation, a readability budget on normative prose, and GitHub/site anchor
+  parity. `tools/test_gates.py` mutation-tests all four. Both run in CI.
+- **C-17 through C-32**, sixteen new conformance items closing a coverage gap:
+  27 requirements carrying a **MUST** or **MUST NOT** rolled up into no
+  conformance item at all, so an implementation could satisfy the whole of §11
+  and still violate them. Every obligation now rolls up into exactly one item.
+
+- **The companion documents now name the rules they argue.** `docs/intents.md`
+  and `README.md` carried no N-x references at all, so a reader moving from the
+  narrative to the normative text had to find the rule by hand. Thirteen rules
+  are now named at the point the narrative makes their case — N-5 at the actor
+  model's first absolute rule, N-13 and N-21 in §7, N-12 where the prohibited
+  region carries forward, N-27 at campaigns, N-36 and N-37 at the exception
+  process — and two in the README's intent summary. First mention per document
+  is named; there are no second mentions.
+
+#### RFC 2119 alignment
+
+The document is now aligned with BCP 14 — [RFC 2119](https://www.rfc-editor.org/rfc/rfc2119)
+as updated by [RFC 8174](https://www.rfc-editor.org/rfc/rfc8174) — and the
+alignment is enforced rather than asserted.
+
+- **BCP 14 boilerplate.** The declaration now cites RFC 8174's case-sensitivity
+  clause: the keywords bind "when, and only when, they appear in all capitals".
+  The document contains ~20 lower-case *may*/*must*/*should* in ordinary prose,
+  which were ambiguous under a bare RFC 2119 reference and are now unambiguously
+  non-normative. It also records that SHALL, REQUIRED, RECOMMENDED and OPTIONAL
+  are deliberately unused.
+- **N-50 (Steps Run In Order) is new.** §5.1's "Steps **MUST** be applied in
+  order" was a binding obligation with no requirement number — and therefore no
+  conformance item, invisible to the coverage check. It is now numbered and
+  rolls up into **C-33 (The Sequence Is Honoured)**.
+- **Two prohibitions were wearing a `MAY`.** RFC 2119 defines **MAY** as truly
+  optional, so it cannot express a prohibition. N-14's "No factor … **MAY** move
+  a level toward lower oversight" and N-31's "Wildcards **MAY** appear only in
+  `target_class`" are now **MUST NOT**. Neither changes what an implementation
+  must do; both stop a keyword-driven reader from misclassifying the rule.
+- **Keywords removed from explanatory prose**, per RFC 2119 §6, which limits the
+  imperatives to what is needed for interoperation. N-14a's rationale ("Novelty
+  **SHOULD** be able to demand the CISO") and Appendix A's note on naming now
+  state their reasoning in plain words.
+- **No SHOULD, and none coming back.** RFC 2119 §4 lets an implementation
+  disregard a **SHOULD** where it judges the reasons sufficient. Adjudication is
+  a grading function that **MUST** be reproducible across implementations
+  (N-21), so advice an implementer may decline would let two conformant engines
+  answer the same governance failure differently. The four **SHOULD** rules were
+  the consequential ones — demote after a mismatch (N-26), demote after
+  divergence (N-48), mark revoked children for review (N-35), carry `intent_id`
+  into the execution path (N-46) — and each limits behaviour with potential for
+  harm, which is where RFC 2119 §6 directs an author to **MUST**. All four are
+  now obligations, N-46 gains **C-34 (The Intent ID Travels)**, and the document
+  declares only **MUST**, **MUST NOT** and **MAY**. This is a deliberate,
+  opinionated narrowing: the specification states what an implementation has to
+  do and what it is free to choose, and nothing in between.
+- **"Shape" and "novelty" are retired.** *Shape* already meant a deployment
+  shape (3D / 2D Operational / DC2D) everywhere else in the framework, so the
+  Intent Specification was overloading an established term with a second,
+  unrelated meaning. *Novelty* named the absence of a thing, which made every
+  sentence about it read backwards. They are replaced by **action pattern** and
+  **precedent**:
+
+  | Was | Now |
+  |---|---|
+  | shape | action pattern |
+  | `shape_key` | `action_pattern_key` |
+  | novelty credit / novelty standing | precedent |
+  | likelihood factor L1 "Novelty" | "Unprecedented" |
+
+  N-25 now reads "a prior decision **MUST NOT** count toward precedent unless…",
+  which says what it means without inverting. *Standing* is freed up and now
+  refers only to budget standing. **`shape_key` → `action_pattern_key` is a wire
+  format change** to `intent-decision.schema.json`; no SDK code implements
+  intents yet, so the only producer updated is the worked example, but any
+  decision record written by hand against the draft schema needs the field
+  renamed.
+- **The intent schemas move to `schema/v2/`.** Renaming a required field is not
+  a backward-compatible change, so `intent.json` and `intent-decision.json` are
+  now published at `https://rmacd-framework.org/schema/v2/`. The two schema
+  families are versioned independently and deliberately sit on different majors:
+
+  | Family | Version | Tracks |
+  |---|---|---|
+  | `intent.json`, `intent-decision.json` | **v2** | the Intent Specification (2.0.0) |
+  | `profile-{2d,3d,dc2d}.json`, `pack.json` | v1 | the framework (1.4.x), unchanged |
+
+  Framework §12.4's exception template cites the intent envelope, so its
+  `$schema` moves to v2 with it; the profile examples throughout the framework
+  document are untouched. Historical references to the never-published
+  `schema/v1/exception.json` stay as they are — they describe what an older
+  revision advertised. The v1 intent URLs were never served (they return 404
+  today), so no consumer is broken by the move.
+- **The four obligations are composed, not keyword-swapped.** N-26, N-35 and
+  N-48 each stated two duties and had gained a second **MUST** mid-sentence.
+  They now read as one obligation with two required effects — "**MUST** clear
+  that action pattern's accrued precedent and demote the actor".
+- **Requirement names follow the vocabulary**: N-22 *The Six-Field Pattern Key*,
+  N-26 *A Mismatch Wipes Precedent*, C-6 *Pattern Key Exactly Six*, C-7
+  *Precedent Comes From Checks*, C-25 *A Mismatch Clears Precedent*. Inline
+  names in the prose are now generated from `requirements.yaml`, so a rename is
+  a one-line registry edit.
+- **A new gate.** Gate 5 rejects any capitalised keyword used outside a
+  numbered requirement — prose that quotes one as a token is allowlisted by
+  section — and rejects **SHOULD**/**SHOULD NOT** inside a requirement, so the
+  advisory tier cannot creep back. `tools/test_gates.py` mutation-tests all
+  thirteen failure modes, including this one.
+
+#### Changed
+
+- **§11's opening claim is corrected.** It stated that conformance followed from
+  the checklist while the checklist sampled roughly half the obligations. The
+  list is now exhaustive over **MUST**/**MUST NOT**, and states explicitly that
+  the permissive N-41 and N-46 are excluded by design.
+- **Twelve normative sentences were reworded** for readability — double
+  negatives flipped to positive form, compound sentences split. No requirement's
+  meaning changed; `MUST`/`MUST NOT`/`SHOULD`/`MAY` force is preserved
+  throughout. Examples: N-14 now reads "**MUST** be at least as restrictive as
+  the base level" rather than "**MUST NOT** be less restrictive than"; N-3 reads
+  "Where a classification is missing, an implementation **MUST** treat it as the
+  most sensitive tier".
+- **"Novelty credit" is now "novelty standing"** throughout, so the body and
+  Appendix A use one term for one concept.
+- The six requirements that carried both an author label and a name
+  (`N-11`..`N-14b`) now carry only the name.
+
 ## [0.15.0] — 2026-08-22
 
 Adjudication joins interception. Spec 1.4.1 introduces **RMACD Intents**, a
@@ -46,7 +195,7 @@ operations everywhere it appears.
   - `docs/intents.md` — the capability definition: the intent ladder, the
     production and record planes, the open type registry, the actor model, and
     campaigns as pre-recorded approval rather than waived approval.
-  - `docs/intent-specification.md` — the normative companion (v1.0.0): 49
+  - `docs/intent-specification.md` — the normative companion (v1.0.0 at the time; see Unreleased): 49
     numbered requirements and a 17-item conformance table covering the
     envelope, the adjudication contract, the shape key over which novelty is
     computed, grants, budgets, the decision record, and reconciliation.

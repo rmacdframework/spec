@@ -1,5 +1,5 @@
 {
-  "$schema": "https://rmacd-framework.org/schema/v1/intent.json",
+  "$schema": "https://rmacd-framework.org/schema/v2/intent.json",
   "intent_id": "int-chg-20260815-0031",
   "intent_type": "change",
   "submitted_at": "2026-08-15T09:14:00Z",

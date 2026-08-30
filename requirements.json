@@ -1,0 +1,800 @@
+[
+  {
+    "id": "N-1",
+    "kind": "normative",
+    "name": "Reject, Never Default",
+    "gloss": "A malformed intent is rejected outright, never adjudicated at a fallback level",
+    "section_anchor": "#n-1",
+    "rolls_up_to": [
+      "C-1"
+    ]
+  },
+  {
+    "id": "N-2",
+    "kind": "normative",
+    "name": "Unlisted Fields Are Inert",
+    "gloss": "Anything outside the spec and schema is recorded but cannot move the grade",
+    "section_anchor": "#n-2",
+    "rolls_up_to": [
+      "C-17"
+    ]
+  },
+  {
+    "id": "N-3",
+    "kind": "normative",
+    "name": "Classification Required, Never Guessed",
+    "gloss": "3D and DC2D intents must carry a classification; absence resolves to the most sensitive tier",
+    "section_anchor": "#n-3",
+    "rolls_up_to": [
+      "C-17"
+    ]
+  },
+  {
+    "id": "N-4",
+    "kind": "normative",
+    "name": "Rollback Buys No Discount",
+    "gloss": "A declared rollback can never pull the level below base; a third-party attestation must name the party",
+    "section_anchor": "#n-4",
+    "rolls_up_to": [
+      "C-17"
+    ]
+  },
+  {
+    "id": "N-5",
+    "kind": "normative",
+    "name": "Every Agent Has a Human",
+    "gloss": "Agent and pipeline intents need an `on_behalf_of` that resolves to an accountable human or team",
+    "section_anchor": "#n-5",
+    "rolls_up_to": [
+      "C-8"
+    ]
+  },
+  {
+    "id": "N-6",
+    "kind": "normative",
+    "name": "Fail Closed on Unknown Actors",
+    "gloss": "Unresolvable authorization escalates everything but Read to at least approval, and is recorded",
+    "section_anchor": "#n-6",
+    "rolls_up_to": [
+      "C-9"
+    ]
+  },
+  {
+    "id": "N-7",
+    "kind": "normative",
+    "name": "Kind Routes, Never Grades",
+    "gloss": "Actor kind may steer approval routing and must be recorded, but cannot change the level",
+    "section_anchor": "#n-7",
+    "rolls_up_to": [
+      "C-18"
+    ]
+  },
+  {
+    "id": "N-8",
+    "kind": "normative",
+    "name": "No Self-Assigned Rating",
+    "gloss": "Any level, impact or likelihood grade an actor puts in its own intent is ignored",
+    "section_anchor": "#n-8",
+    "rolls_up_to": [
+      "C-18"
+    ]
+  },
+  {
+    "id": "N-9",
+    "kind": "normative",
+    "name": "Maturity Is Not Rank",
+    "gloss": "`Stable` and `Incubating` describe semantic stability, not trust, and never feed adjudication",
+    "section_anchor": "#n-9",
+    "rolls_up_to": [
+      "C-19"
+    ]
+  },
+  {
+    "id": "N-10",
+    "kind": "normative",
+    "name": "One Envelope, One Contract",
+    "gloss": "A new type registers against the common envelope and this adjudication contract, or stays out of scope",
+    "section_anchor": "#n-10",
+    "rolls_up_to": [
+      "C-19"
+    ]
+  },
+  {
+    "id": "N-11",
+    "kind": "normative",
+    "name": "Composites Inherit the Worst",
+    "gloss": "A composite takes the most restrictive level among itself and its children; membership never softens a child",
+    "section_anchor": "#n-11",
+    "rolls_up_to": [
+      "C-20"
+    ]
+  },
+  {
+    "id": "N-12",
+    "kind": "normative",
+    "name": "The Permanent No",
+    "gloss": "Add, Change and Delete on Restricted return `prohibited` before anything else runs, and no override reaches them",
+    "section_anchor": "#n-12",
+    "rolls_up_to": [
+      "C-2"
+    ]
+  },
+  {
+    "id": "N-13",
+    "kind": "normative",
+    "name": "One Matrix, No Second",
+    "gloss": "The base level comes from the bound profile's effective matrix and from nowhere else",
+    "section_anchor": "#n-13",
+    "rolls_up_to": [
+      "C-3"
+    ]
+  },
+  {
+    "id": "N-14",
+    "kind": "normative",
+    "name": "The Monotonicity Rule",
+    "gloss": "Nothing — factor, grant, emergency, attestation or configuration — may move a level toward less oversight",
+    "section_anchor": "#n-14",
+    "rolls_up_to": [
+      "C-4"
+    ]
+  },
+  {
+    "id": "N-14a",
+    "kind": "normative",
+    "name": "Escalation Stops Below Prohibited",
+    "gloss": "Likelihood saturates at `elevated_approval` and can never reach the end of the ladder",
+    "section_anchor": "#n-14a",
+    "rolls_up_to": [
+      "C-4a"
+    ]
+  },
+  {
+    "id": "N-14b",
+    "kind": "normative",
+    "name": "Two Sources of Prohibited",
+    "gloss": "`prohibited` arises only as `pinned` or `extended`; the pinned set may be grown, never shrunk",
+    "section_anchor": "#n-14b",
+    "rolls_up_to": [
+      "C-21"
+    ]
+  },
+  {
+    "id": "N-15",
+    "kind": "normative",
+    "name": "Classification Is Impact",
+    "gloss": "The impact dimension is the four-tier classification ordering",
+    "section_anchor": "#n-15",
+    "rolls_up_to": [
+      "C-22"
+    ]
+  },
+  {
+    "id": "N-16",
+    "kind": "normative",
+    "name": "Declare Any Impact Substitute",
+    "gloss": "A substituted impact basis must be profile-declared, map onto the same four tiers, and be stamped into every record",
+    "section_anchor": "#n-16",
+    "rolls_up_to": [
+      "C-22"
+    ]
+  },
+  {
+    "id": "N-17",
+    "kind": "normative",
+    "name": "The Five Likelihood Factors",
+    "gloss": "All five factors must be implemented, each adding a non-negative number of steps",
+    "section_anchor": "#n-17",
+    "rolls_up_to": [
+      "C-5"
+    ]
+  },
+  {
+    "id": "N-18",
+    "kind": "normative",
+    "name": "Weights Adjustable, Never Negative",
+    "gloss": "Weights may be tuned but never below zero, and the weight table is versioned into every record",
+    "section_anchor": "#n-18",
+    "rolls_up_to": [
+      "C-5"
+    ]
+  },
+  {
+    "id": "N-19",
+    "kind": "normative",
+    "name": "No Self-Declared Escape",
+    "gloss": "No factor may subtract steps, or take its value straight from the intent without attestation",
+    "section_anchor": "#n-19",
+    "rolls_up_to": [
+      "C-23"
+    ]
+  },
+  {
+    "id": "N-20",
+    "kind": "normative",
+    "name": "Approval Is Not Permission",
+    "gloss": "No adjudication, grant or disposition authorizes what the profile or capability ceiling forbids",
+    "section_anchor": "#n-20",
+    "rolls_up_to": [
+      "C-13"
+    ]
+  },
+  {
+    "id": "N-21",
+    "kind": "normative",
+    "name": "Same Inputs, Same Level",
+    "gloss": "The same intent under the same four recorded version inputs must reproduce the same level",
+    "section_anchor": "#n-21",
+    "rolls_up_to": [
+      "C-14"
+    ]
+  },
+  {
+    "id": "N-22",
+    "kind": "normative",
+    "name": "The Six-Field Pattern Key",
+    "gloss": "The action pattern key hashes exactly six named fields and nothing else",
+    "section_anchor": "#n-22",
+    "rolls_up_to": [
+      "C-6"
+    ]
+  },
+  {
+    "id": "N-23",
+    "kind": "normative",
+    "name": "Same Target, Same Class",
+    "gloss": "`target_class` is worked out the same way every time — the matching rule, else last-segment wildcarding — and the source is recorded",
+    "section_anchor": "#n-23",
+    "rolls_up_to": [
+      "C-24"
+    ]
+  },
+  {
+    "id": "N-24",
+    "kind": "normative",
+    "name": "The System's Class Wins",
+    "gloss": "A `target_class` supplied by the actor never beats the one the system works out; any disagreement is recorded",
+    "section_anchor": "#n-24",
+    "rolls_up_to": [
+      "C-24"
+    ]
+  },
+  {
+    "id": "N-25",
+    "kind": "normative",
+    "name": "Only Checked Successes Count",
+    "gloss": "Precedent needs a disposition permitting execution, a checked execution, and no material mismatch",
+    "section_anchor": "#n-25",
+    "rolls_up_to": [
+      "C-7"
+    ]
+  },
+  {
+    "id": "N-26",
+    "kind": "normative",
+    "name": "A Mismatch Wipes Precedent",
+    "gloss": "A material mismatch clears the action pattern's precedent and should demote the actor",
+    "section_anchor": "#n-26",
+    "rolls_up_to": [
+      "C-25"
+    ]
+  },
+  {
+    "id": "N-27",
+    "kind": "normative",
+    "name": "Grants Approve, Never Lower",
+    "gloss": "A grant supplies the human approval in advance; it never changes the child's computed level",
+    "section_anchor": "#n-27",
+    "rolls_up_to": [
+      "C-10"
+    ]
+  },
+  {
+    "id": "N-28",
+    "kind": "normative",
+    "name": "Coverage Is All or Nothing",
+    "gloss": "All five coverage conditions must hold, or the child routes for individual human disposition",
+    "section_anchor": "#n-28",
+    "rolls_up_to": [
+      "C-26"
+    ]
+  },
+  {
+    "id": "N-29",
+    "kind": "normative",
+    "name": "No Grant Covers Prohibited",
+    "gloss": "No grant reaches a prohibited child, and none is an exception to framework §12.5",
+    "section_anchor": "#n-29",
+    "rolls_up_to": [
+      "C-10"
+    ]
+  },
+  {
+    "id": "N-30",
+    "kind": "normative",
+    "name": "The Closed Predicate Fields",
+    "gloss": "A class predicate matches only on the seven named fields; the schema admits no other key",
+    "section_anchor": "#n-30",
+    "rolls_up_to": [
+      "C-11"
+    ]
+  },
+  {
+    "id": "N-31",
+    "kind": "normative",
+    "name": "Match All, Never Execute",
+    "gloss": "Predicate fields match conjunctively, wildcards only in `target_class`, no free text and no code",
+    "section_anchor": "#n-31",
+    "rolls_up_to": [
+      "C-11"
+    ]
+  },
+  {
+    "id": "N-32",
+    "kind": "normative",
+    "name": "No Blanket Grants",
+    "gloss": "An empty or catch-all predicate is rejected at grant submission",
+    "section_anchor": "#n-32",
+    "rolls_up_to": [
+      "C-12"
+    ]
+  },
+  {
+    "id": "N-33",
+    "kind": "normative",
+    "name": "Every Grant Expires and Caps",
+    "gloss": "Every grant declares an expiry; a campaign additionally declares a child cap and a maximum level",
+    "section_anchor": "#n-33",
+    "rolls_up_to": [
+      "C-12"
+    ]
+  },
+  {
+    "id": "N-34",
+    "kind": "normative",
+    "name": "Revocation Is Immediate",
+    "gloss": "Nothing adjudicated after revocation is covered",
+    "section_anchor": "#n-34",
+    "rolls_up_to": [
+      "C-27"
+    ]
+  },
+  {
+    "id": "N-35",
+    "kind": "normative",
+    "name": "Past Dispositions Stand",
+    "gloss": "Children dispositioned before revocation stay valid, but are recorded as affected and surfaced for review",
+    "section_anchor": "#n-35",
+    "rolls_up_to": [
+      "C-27"
+    ]
+  },
+  {
+    "id": "N-36",
+    "kind": "normative",
+    "name": "The Five Named Prohibitions",
+    "gloss": "An exception is rejected if it trips any of framework §12.5's five prohibitions, whether the schema catches it or not",
+    "section_anchor": "#n-36",
+    "rolls_up_to": [
+      "C-28"
+    ]
+  },
+  {
+    "id": "N-37",
+    "kind": "normative",
+    "name": "Scrutiny, Not the Decision",
+    "gloss": "Adjudicating an exception sizes the scrutiny required; the §12.2 authority decides whether to grant it",
+    "section_anchor": "#n-37",
+    "rolls_up_to": [
+      "C-28"
+    ]
+  },
+  {
+    "id": "N-38",
+    "kind": "normative",
+    "name": "Budgets Come From the Profile",
+    "gloss": "Budget standing comes from bound-profile constraints; no parallel budget vocabulary exists",
+    "section_anchor": "#n-38",
+    "rolls_up_to": [
+      "C-29"
+    ]
+  },
+  {
+    "id": "N-39",
+    "kind": "normative",
+    "name": "Breach Escalates, Never Denies",
+    "gloss": "A budget breach fires L4 escalation rather than a silent denial or a reduction",
+    "section_anchor": "#n-39",
+    "rolls_up_to": [
+      "C-29"
+    ]
+  },
+  {
+    "id": "N-40",
+    "kind": "normative",
+    "name": "Demotion Is Escalation",
+    "gloss": "Demotion is the L4 weight applied until it lifts, recorded with its cause — not a new state",
+    "section_anchor": "#n-40",
+    "rolls_up_to": [
+      "C-29"
+    ]
+  },
+  {
+    "id": "N-41",
+    "kind": "normative",
+    "name": "Emergencies Raise the Ceiling",
+    "gloss": "Citing an active emergency escalation raises the permission ceiling and nothing else",
+    "section_anchor": "#n-41",
+    "rolls_up_to": []
+  },
+  {
+    "id": "N-42",
+    "kind": "normative",
+    "name": "Emergencies Never Lower Grades",
+    "gloss": "An emergency cannot lower a level, waive a factor, or touch the pinned cells",
+    "section_anchor": "#n-42",
+    "rolls_up_to": [
+      "C-30"
+    ]
+  },
+  {
+    "id": "N-43",
+    "kind": "normative",
+    "name": "The Durable Decision Record",
+    "gloss": "Decision records are append-only; only a disposition or a reconciliation result may be attached",
+    "section_anchor": "#n-43",
+    "rolls_up_to": [
+      "C-14"
+    ]
+  },
+  {
+    "id": "N-44",
+    "kind": "normative",
+    "name": "Name the Prohibition Source",
+    "gloss": "Every prohibited decision states `pinned` or `extended`; escalation is never a source",
+    "section_anchor": "#n-44",
+    "rolls_up_to": [
+      "C-15"
+    ]
+  },
+  {
+    "id": "N-45",
+    "kind": "normative",
+    "name": "One Audit Trail",
+    "gloss": "Decision records join the interception records' audit trail on `intent_id`",
+    "section_anchor": "#n-45",
+    "rolls_up_to": [
+      "C-31"
+    ]
+  },
+  {
+    "id": "N-46",
+    "kind": "normative",
+    "name": "Carry the Intent ID Through",
+    "gloss": "Where both modes run, `intent_id` should propagate into the execution path",
+    "section_anchor": "#n-46",
+    "rolls_up_to": [
+      "C-34"
+    ]
+  },
+  {
+    "id": "N-47",
+    "kind": "normative",
+    "name": "The Four Reconciliation Results",
+    "gloss": "Every executed action is classed as matched, divergent, undeclared or unexecuted",
+    "section_anchor": "#n-47",
+    "rolls_up_to": [
+      "C-32"
+    ]
+  },
+  {
+    "id": "N-48",
+    "kind": "normative",
+    "name": "Divergence Is a Governance Event",
+    "gloss": "Divergent and undeclared results are recorded as events, clear the action pattern's precedent, and should demote",
+    "section_anchor": "#n-48",
+    "rolls_up_to": [
+      "C-32"
+    ]
+  },
+  {
+    "id": "N-49",
+    "kind": "normative",
+    "name": "Unreconciled Is Not Matched",
+    "gloss": "Missing interception coverage leaves `reconciliation.result` unset — never recorded as success",
+    "section_anchor": "#n-49",
+    "rolls_up_to": [
+      "C-16"
+    ]
+  },
+  {
+    "id": "N-50",
+    "kind": "normative",
+    "name": "Steps Run In Order",
+    "gloss": "The nine adjudication steps are applied in the order §5.1 gives them",
+    "section_anchor": "#n-50",
+    "rolls_up_to": [
+      "C-33"
+    ]
+  },
+  {
+    "id": "C-1",
+    "kind": "conformance",
+    "name": "Malformed Intents Rejected",
+    "gloss": "Schema validation gates adjudication, with no defaulting",
+    "section_anchor": "#c-1",
+    "rolls_up_to": []
+  },
+  {
+    "id": "C-2",
+    "kind": "conformance",
+    "name": "The Permanent No Comes First",
+    "gloss": "Framework §12.5's prohibition is checked before everything and survives every override",
+    "section_anchor": "#c-2",
+    "rolls_up_to": []
+  },
+  {
+    "id": "C-3",
+    "kind": "conformance",
+    "name": "Single Source Matrix",
+    "gloss": "One effective matrix supplies the base level; no second matrix exists",
+    "section_anchor": "#c-3",
+    "rolls_up_to": []
+  },
+  {
+    "id": "C-4",
+    "kind": "conformance",
+    "name": "Never Less Restrictive",
+    "gloss": "No mechanism produces a level below base",
+    "section_anchor": "#c-4",
+    "rolls_up_to": []
+  },
+  {
+    "id": "C-4a",
+    "kind": "conformance",
+    "name": "Escalation Saturates",
+    "gloss": "Escalation stops at `elevated_approval`; likelihood never reaches `prohibited`",
+    "section_anchor": "#c-4a",
+    "rolls_up_to": []
+  },
+  {
+    "id": "C-5",
+    "kind": "conformance",
+    "name": "Five Factors, No Negatives",
+    "gloss": "All five likelihood factors are implemented and every weight is non-negative",
+    "section_anchor": "#c-5",
+    "rolls_up_to": []
+  },
+  {
+    "id": "C-6",
+    "kind": "conformance",
+    "name": "Pattern Key Exactly Six",
+    "gloss": "The action pattern key covers the six §6.1 fields, no more and no fewer",
+    "section_anchor": "#c-6",
+    "rolls_up_to": []
+  },
+  {
+    "id": "C-7",
+    "kind": "conformance",
+    "name": "Precedent Comes From Checks",
+    "gloss": "Precedent comes only from executions that were checked and succeeded",
+    "section_anchor": "#c-7",
+    "rolls_up_to": []
+  },
+  {
+    "id": "C-8",
+    "kind": "conformance",
+    "name": "Accountable Human Required",
+    "gloss": "Non-human actors without a resolvable `on_behalf_of` are rejected",
+    "section_anchor": "#c-8",
+    "rolls_up_to": []
+  },
+  {
+    "id": "C-9",
+    "kind": "conformance",
+    "name": "Unknown Actors Fail Closed",
+    "gloss": "Unresolvable authorization escalates non-Read operations to at least approval",
+    "section_anchor": "#c-9",
+    "rolls_up_to": []
+  },
+  {
+    "id": "C-10",
+    "kind": "conformance",
+    "name": "Grants Never Change Levels",
+    "gloss": "Grants leave computed levels untouched and never cover `prohibited`",
+    "section_anchor": "#c-10",
+    "rolls_up_to": []
+  },
+  {
+    "id": "C-11",
+    "kind": "conformance",
+    "name": "Predicates Closed and Declarative",
+    "gloss": "Predicates match the closed field set, conjunctively, with no executable code",
+    "section_anchor": "#c-11",
+    "rolls_up_to": []
+  },
+  {
+    "id": "C-12",
+    "kind": "conformance",
+    "name": "Bounded and Expiring Grants",
+    "gloss": "Every grant carries an expiry and a child cap; blanket and indefinite grants are rejected",
+    "section_anchor": "#c-12",
+    "rolls_up_to": []
+  },
+  {
+    "id": "C-13",
+    "kind": "conformance",
+    "name": "Profile Ceiling Holds",
+    "gloss": "Adjudication never grants what the bound profile withholds",
+    "section_anchor": "#c-13",
+    "rolls_up_to": []
+  },
+  {
+    "id": "C-14",
+    "kind": "conformance",
+    "name": "Reproducible Durable Records",
+    "gloss": "Every adjudication emits a durable record carrying all four reproducibility inputs",
+    "section_anchor": "#c-14",
+    "rolls_up_to": []
+  },
+  {
+    "id": "C-15",
+    "kind": "conformance",
+    "name": "Prohibition Source Recorded",
+    "gloss": "Prohibited decisions distinguish `pinned` from `extended`",
+    "section_anchor": "#c-15",
+    "rolls_up_to": []
+  },
+  {
+    "id": "C-16",
+    "kind": "conformance",
+    "name": "No False Matches",
+    "gloss": "Unreconcilable executions are never recorded as `matched`",
+    "section_anchor": "#c-16",
+    "rolls_up_to": []
+  },
+  {
+    "id": "C-17",
+    "kind": "conformance",
+    "name": "The Envelope Is the Whole Input",
+    "gloss": "Only fields this specification and the schema define may grade an intent; a missing classification resolves to the most sensitive tier; a rollback claim never lowers the level (N-2, N-3, N-4)",
+    "section_anchor": "#c-17",
+    "rolls_up_to": []
+  },
+  {
+    "id": "C-18",
+    "kind": "conformance",
+    "name": "Actors Are Recorded, Not Trusted",
+    "gloss": "Actor kind never changes the computed level, and no grade an actor asserts about itself is honoured (N-7, N-8)",
+    "section_anchor": "#c-18",
+    "rolls_up_to": []
+  },
+  {
+    "id": "C-19",
+    "kind": "conformance",
+    "name": "The Type Registry Is Flat",
+    "gloss": "Maturity is never a rank, and every registered type uses the common envelope and adjudication contract (N-9, N-10)",
+    "section_anchor": "#c-19",
+    "rolls_up_to": []
+  },
+  {
+    "id": "C-20",
+    "kind": "conformance",
+    "name": "Composites Take the Worst",
+    "gloss": "A composite computes to the most restrictive level among itself and its children, and never softens a child (N-11)",
+    "section_anchor": "#c-20",
+    "rolls_up_to": []
+  },
+  {
+    "id": "C-21",
+    "kind": "conformance",
+    "name": "Prohibited Has Two Sources",
+    "gloss": "`prohibited` is reachable only as `pinned` or `extended`, and the pinned set is never narrowed (N-14b)",
+    "section_anchor": "#c-21",
+    "rolls_up_to": []
+  },
+  {
+    "id": "C-22",
+    "kind": "conformance",
+    "name": "Impact Is Declared, Not Supplied",
+    "gloss": "Impact is the four-tier classification ordering, and any substitute is profile-declared and stamped into every record (N-15, N-16)",
+    "section_anchor": "#c-22",
+    "rolls_up_to": []
+  },
+  {
+    "id": "C-23",
+    "kind": "conformance",
+    "name": "No Factor Subtracts",
+    "gloss": "No likelihood factor contributes negative steps or takes its value from the intent without attestation (N-19)",
+    "section_anchor": "#c-23",
+    "rolls_up_to": []
+  },
+  {
+    "id": "C-24",
+    "kind": "conformance",
+    "name": "One Target, One Class",
+    "gloss": "`target_class` is computed the same way every time, and a value the actor supplies never wins (N-23, N-24)",
+    "section_anchor": "#c-24",
+    "rolls_up_to": []
+  },
+  {
+    "id": "C-25",
+    "kind": "conformance",
+    "name": "A Mismatch Clears Precedent",
+    "gloss": "A material mismatch clears the action pattern's precedent and demotes the actor",
+    "section_anchor": "#c-25",
+    "rolls_up_to": []
+  },
+  {
+    "id": "C-26",
+    "kind": "conformance",
+    "name": "Coverage Needs Every Condition",
+    "gloss": "A child is covered only when every one of the five coverage conditions holds (N-28)",
+    "section_anchor": "#c-26",
+    "rolls_up_to": []
+  },
+  {
+    "id": "C-27",
+    "kind": "conformance",
+    "name": "Grants End Cleanly",
+    "gloss": "Revocation takes effect immediately, and children already dispositioned are recorded as affected (N-34, N-35)",
+    "section_anchor": "#c-27",
+    "rolls_up_to": []
+  },
+  {
+    "id": "C-28",
+    "kind": "conformance",
+    "name": "Exceptions Stay Inside §12.5",
+    "gloss": "An exception tripping any of framework §12.5's five prohibitions is rejected, and adjudication never decides the grant (N-36, N-37)",
+    "section_anchor": "#c-28",
+    "rolls_up_to": []
+  },
+  {
+    "id": "C-29",
+    "kind": "conformance",
+    "name": "Budgets and Demotion Escalate",
+    "gloss": "Budget standing comes from the bound profile, and breach and demotion escalate rather than deny or reduce (N-38, N-39, N-40)",
+    "section_anchor": "#c-29",
+    "rolls_up_to": []
+  },
+  {
+    "id": "C-30",
+    "kind": "conformance",
+    "name": "Emergencies Only Raise Ceilings",
+    "gloss": "An emergency never lowers a level, waives a factor, or touches the pinned cells (N-42)",
+    "section_anchor": "#c-30",
+    "rolls_up_to": []
+  },
+  {
+    "id": "C-31",
+    "kind": "conformance",
+    "name": "One Joined Audit Trail",
+    "gloss": "Decision records join the interception audit trail on `intent_id` (N-45)",
+    "section_anchor": "#c-31",
+    "rolls_up_to": []
+  },
+  {
+    "id": "C-32",
+    "kind": "conformance",
+    "name": "Reconciliation Classifies Everything",
+    "gloss": "Every executed action is classed into one of the four results, and divergence is recorded as a governance event (N-47, N-48)",
+    "section_anchor": "#c-32",
+    "rolls_up_to": []
+  },
+  {
+    "id": "C-33",
+    "kind": "conformance",
+    "name": "The Sequence Is Honoured",
+    "gloss": "Adjudication applies the §5.1 steps in order (N-50)",
+    "section_anchor": "#c-33",
+    "rolls_up_to": []
+  },
+  {
+    "id": "C-34",
+    "kind": "conformance",
+    "name": "The Intent ID Travels",
+    "gloss": "Where both modes are deployed, `intent_id` reaches the interception record",
+    "section_anchor": "#c-34",
+    "rolls_up_to": []
+  }
+]

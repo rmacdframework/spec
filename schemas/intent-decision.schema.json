@@ -1,14 +1,14 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://rmacd-framework.org/schema/v1/intent-decision.json",
+  "$id": "https://rmacd-framework.org/schema/v2/intent-decision.json",
   "title": "RMACD Intent Decision Record",
-  "description": "The durable evidence artifact produced by every adjudication. Simultaneously the audit record and the novelty memory that feeds likelihood. See docs/intent-specification.md §9.",
+  "description": "The durable evidence artifact produced by every adjudication. Simultaneously the audit record and the precedent memory that feeds likelihood. See docs/intent-specification.md §9.",
   "type": "object",
   "required": [
     "decision_id",
     "intent_id",
     "decided_at",
-    "shape_key",
+    "action_pattern_key",
     "base_level",
     "computed_level",
     "escalation_factors",
@@ -35,7 +35,7 @@
       "type": "string",
       "format": "date-time"
     },
-    "shape_key": {
+    "action_pattern_key": {
       "type": "string",
       "description": "SHA-256 over the canonical serialization of exactly the six fields in specification §6.1.",
       "pattern": "^sha256:[0-9a-f]{64}$"
@@ -86,7 +86,7 @@
     },
     "log_epoch": {
       "type": "string",
-      "description": "Reproducibility input: the decision-log state novelty was computed against. Adjudication is deterministic but not stateless (N-21)."
+      "description": "Reproducibility input: the decision-log state precedent was computed against. Adjudication is deterministic but not stateless (N-21)."
     },
     "grant_ref": {
       "type": "string",
@@ -172,7 +172,7 @@
           "type": "string",
           "description": "The five likelihood factors of specification §5.4, plus the fail-closed factor of N-6 and the composition floor of N-11.",
           "enum": [
-            "novelty",
+            "precedent",
             "reversibility",
             "environment",
             "budget_standing",

@@ -1213,7 +1213,7 @@ record shape, so the framework carries one request path rather than two. See
 
 ```json
 {
-  "$schema": "https://rmacd-framework.org/schema/v1/intent.json",
+  "$schema": "https://rmacd-framework.org/schema/v2/intent.json",
   "intent_id": "int-exc-20260115-001",
   "intent_type": "exception",
   "submitted_at": "2026-01-15T10:15:00Z",

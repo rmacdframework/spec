@@ -204,13 +204,14 @@ accountability (who answers for the action).
 Three rules are absolute:
 
 1. **Non-human actors always trace to accountable humans.** An `agent` or
-   `pipeline` intent without a resolvable `on_behalf_of` is malformed.
+   `pipeline` intent without a resolvable `on_behalf_of` is malformed —
+   N-5 (Every Agent Has a Human).
 2. **Unknown actors fail closed.** An unresolvable authorization routes every
    non-Read operation to Approval at minimum, regardless of what the matrix
-   would otherwise compute.
+   would otherwise compute — N-6 (Fail Closed on Unknown Actors).
 3. **Ratings are computed, never claimed** — by any actor, of any kind. An
    actor can misdeclare facts, which reconciliation detects and demotion
-   punishes. An actor can never argue with the rating.
+   punishes. An actor can never argue with the rating — N-8 (No Self-Assigned Rating).
 
 ---
 
@@ -227,7 +228,7 @@ where the level comes from.
 
 The framework already grades an action: the §3.1 matrix maps
 `(data classification, operation)` to a required autonomy level, adjusted by the
-actor's profile. Intents do not introduce a competing grade. They compute a
+actor's profile. Intents do not introduce a competing grade — N-13 (One Matrix, No Second). They compute a
 **base level** from the existing matrix and then apply **monotonic escalation**
 driven by likelihood:
 
@@ -273,31 +274,32 @@ reconcile:
 
 | Factor | Raises likelihood when |
 |---|---|
-| Novelty | No prior confirmed success of this intent *shape* in the decision log |
+| Unprecedented | No prior confirmed success of this *action pattern* in the decision log |
 | Reversibility | No attested rollback path |
 | Environment | Production or disaster-recovery, versus staging or development |
 | Budget standing | The actor is at or over its autonomy budget, or currently demoted |
 | Blast radius | The declared scope approaches or exceeds the profile's declared caps |
 
-Novelty is memory: the decision log is simultaneously the evidence artifact and
+Precedent is memory: the decision log is simultaneously the evidence artifact and
 the input that lets a well-trodden action stop costing human attention. The
-*shape* over which novelty is computed is the security-critical definition in
-the whole model — whatever the shape key ignores becomes a gradient an actor can
+*action pattern* over which precedent is counted is the security-critical definition in
+the whole model — whatever the action pattern key ignores becomes a gradient an actor can
 walk down to erode its own scrutiny — and the normative companion defines it
 exactly.
 
 ### 7.3 Determinism is not statelessness
 
 Adjudication is deterministic, but it is not a pure function of the intent
-alone: novelty and budget standing read organizational state. The precise
+alone: precedent and budget standing read organizational state. The precise
 claim is that adjudication is reproducible given the intent together with the
-matrix version, the likelihood weight-table version, the policy version, and the
-decision-log epoch — all four versions the decision record stamps, so that any
-past decision can be recomputed and defended years later.
+matrix version, the likelihood weight-table version, the policy version, and
+the decision-log epoch — all four versions the decision record stamps, so that
+any past decision can be recomputed and defended years later — N-21 (Same
+Inputs, Same Level).
 
 ### 7.4 The prohibited floor carries forward
 
-The §12.5 immutable floor maps into this model unchanged. Because escalation
+The §12.5 immutable floor maps into this model unchanged — N-12 (The Permanent No). Because escalation
 cannot reach Prohibited, there are exactly two ways an intent gets there — and
 neither of them is likelihood:
 
@@ -324,14 +326,16 @@ Adjudication never grants. An approved intent does not confer permission the
 actor's profile lacks: the profile's permission grid and any tool capability
 ceiling still gate execution, and adjudication can only raise scrutiny above
 what they require. An intent that clears adjudication and is then refused by
-interception is a correctly functioning system, not a contradiction.
+interception is a correctly functioning system, not a contradiction — N-20
+(Approval Is Not Permission).
 
 ### 7.6 The decision record
 
-Every adjudication produces a durable decision record — the declared facts, the
-computed base and final levels, every escalation factor that fired, the matrix
-and policy versions, the log epoch, and any approver's disposition. It joins the
-same audit trail as interception decisions, on `intent_id`.
+Every adjudication produces a durable decision record — the declared facts,
+the computed base and final levels, every escalation factor that fired, the
+matrix and policy versions, the log epoch, and any approver's disposition. It
+joins the same audit trail as interception decisions, on `intent_id` — N-43
+(The Durable Decision Record) and N-45 (One Audit Trail).
 
 ---
 
@@ -342,10 +346,11 @@ humans or quietly weakening itself.
 
 ### 8.1 Campaigns are pre-recorded approval, not waived approval
 
-A campaign grant does **not** lower a child intent's computed level — that would
-break monotonicity. Instead it supplies a human disposition *in advance*: the
-approval requirement is discharged by a recorded human decision rather than
-waived. A matching child is covered only when every condition holds:
+A campaign grant does **not** lower a child intent's computed level — that
+would break monotonicity. Instead it supplies a human disposition *in
+advance*: the approval requirement is satisfied by a recorded human decision
+rather than waived — N-27 (Grants Approve, Never Lower). A matching child is
+covered only when every condition holds:
 
 - the child matches the campaign's class predicate deterministically;
 - the child's computed level is no more restrictive than the level the human
@@ -355,7 +360,7 @@ waived. A matching child is covered only when every condition holds:
   organization.
 
 A child that computes *above* the campaign's approved level is not covered and
-routes to a human individually. This is the same shape as an ITIL standard
+routes to a human individually. This is the same idea as an ITIL standard
 change: still governed, its approval pre-granted by an approved model.
 
 Campaigns are the highest-leverage object in the model and therefore the most
@@ -377,9 +382,10 @@ than as a new state.
 
 An intent may cite an active emergency escalation as defined by its profile's
 `emergency_escalation` block — the same trigger conditions, duration cap,
-cooldown and post-incident review the framework already specifies. An emergency
-raises the *permission ceiling*; it never lowers a computed level, and it never
-touches the §12.5 pinned cells.
+cooldown and post-incident review the framework already specifies. An
+emergency raises the *permission ceiling*; it never lowers a computed level,
+and it never touches the §12.5 pinned cells — N-42 (Emergencies Never Lower
+Grades).
 
 ---
 
@@ -415,7 +421,7 @@ An exception request *is* an intent: a declared, justified, time-bounded ask,
 submitted for adjudication before it takes effect. Rather than adding a second
 request path to a framework that already has one, Intents register `exception`
 as a type, and §12.4's template is now written in the intent envelope and points
-at `schema/v1/intent.json`. The framework carries one request path; the
+at `schema/v2/intent.json`. The framework carries one request path; the
 unpublished `exception.json` URL is retired rather than filled in.
 
 | §12.3 step | Intent model |
@@ -428,12 +434,13 @@ unpublished `exception.json` URL is retired rather than filled in.
 
 The human judgment in Step 2 is not removed — it is relocated. The engine
 computes *how much* scrutiny the request needs; the named authority in §12.2
-still decides whether to grant it. Every §12.5 prohibition continues to apply,
-and two of the five are now enforced by schema as well as by process: an
-`exception` intent cannot escalate Restricted beyond R and M, and cannot omit an
-expiry. The remaining three — no removal of audit logging, no cross-environment
-exception, no blanket grant — are not expressible in a per-document schema and
-remain the implementation's duty at grant submission.
+still decides whether to grant it — N-37 (Scrutiny, Not the Decision). Every
+§12.5 prohibition continues to apply, and two of the five are now enforced by
+schema as well as by process: an `exception` intent cannot escalate Restricted
+beyond R and M, and cannot omit an expiry. The remaining three — no removal of
+audit logging, no cross-environment exception, no blanket grant — are not
+expressible in a per-document schema and remain the implementation's duty at
+grant submission — N-36 (The Five Named Prohibitions).
 
 Nothing in §12 changes semantically. This document and the normative companion
 describe the same process in the intent envelope's terms.

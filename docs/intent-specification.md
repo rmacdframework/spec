@@ -1,10 +1,11 @@
 # RMACD Intent Specification
 
-**Version:** 1.0.0
+**Version:** 2.0.0
 **Status:** Normative
 **Companion to:** `RMACD_Framework_v1.4.md` (§2.4, §3, §12)
 **Narrative companion:** [`intents.md`](intents.md) — the model and its rationale
 **Schemas:** `schemas/intent.schema.json`, `schemas/intent-decision.schema.json`
+(published as `schema/v2/`; the field rename in 2.0.0 is not backward compatible)
 
 This document specifies the intent envelope, the actor model, the adjudication
 contract, the decision record, and the conformance requirements for an RMACD
@@ -13,8 +14,33 @@ specification. It adds no autonomy levels, no governance matrix, and no
 permission semantics; where it refers to those, the framework specification
 governs.
 
-The key words **MUST**, **MUST NOT**, **SHOULD**, **SHOULD NOT** and **MAY** are
-to be interpreted as described in RFC 2119.
+The key words **MUST**, **MUST NOT** and **MAY** in this document are to be
+interpreted as described in BCP 14 [RFC
+2119](https://www.rfc-editor.org/rfc/rfc2119) and [RFC
+8174](https://www.rfc-editor.org/rfc/rfc8174) when, and only when, they appear
+in all capitals, as shown here. The same words in lower case carry their
+ordinary English meaning and impose no requirement.
+
+Per RFC 2119 §6, these imperatives appear only where they are needed for
+interoperation or to limit behaviour that could cause harm. Explanatory
+passages state their reasoning in plain words. Every capitalised keyword in
+this document sits inside a numbered requirement, and `tools/check_spec.py`
+enforces that.
+
+**This specification uses no SHOULD and no SHOULD NOT.** RFC 2119 §4 permits
+an implementation to disregard a **SHOULD** where it judges the reasons
+sufficient. Adjudication is a grading function that **MUST** be reproducible
+across implementations (N-21), so advice an implementer may decline would let
+two conformant engines answer the same governance failure differently — and
+the rules that would have been advisory are precisely the consequential ones:
+demotion after a mismatch, demotion after divergence, marking revoked children
+for review, carrying `intent_id` into the execution path. Each limits
+behaviour with potential for harm, which is where RFC 2119 §6 directs an
+author to use **MUST**. This specification therefore states obligations and
+latitude, and nothing in between: what an implementation has to do is a
+**MUST**, what it is free to choose is a **MAY**. The synonyms RFC 2119
+permits — SHALL, REQUIRED, RECOMMENDED, OPTIONAL — are unused; the three
+keywords above are the whole vocabulary.
 
 ## Contents
 
@@ -23,12 +49,13 @@ to be interpreted as described in RFC 2119.
 - [3. The actor model](#3-the-actor-model)
 - [4. Intent types](#4-intent-types)
 - [5. The adjudication contract](#5-the-adjudication-contract)
-- [6. Intent shape and novelty](#6-intent-shape-and-novelty)
+- [6. Action patterns and precedent](#6-action-patterns-and-precedent)
 - [7. Grants: campaigns and exceptions](#7-grants-campaigns-and-exceptions)
 - [8. Budgets, demotion and emergencies](#8-budgets-demotion-and-emergencies)
 - [9. The decision record](#9-the-decision-record)
 - [10. Reconciliation with interception](#10-reconciliation-with-interception)
 - [11. Conformance](#11-conformance)
+- [Appendix A: Requirement Quick Reference](#appendix-a-requirement-quick-reference)
 
 ---
 
@@ -40,7 +67,7 @@ to be interpreted as described in RFC 2119.
 | **Adjudication** | The deterministic computation of a required autonomy level from a declared intent |
 | **Base level** | The autonomy level the framework's effective matrix requires for the declared `(classification, operation)` |
 | **Escalation** | Monotonic movement of a level toward greater oversight along the §2.4 ladder |
-| **Shape** | The canonical equivalence class over which novelty is computed (§6) |
+| **Action pattern** | The canonical equivalence class over which precedent is computed (§6) |
 | **Grant** | A pre-recorded human disposition covering a bounded class of future intents (§7) |
 | **Disposition** | A human decision recorded against an adjudicated intent |
 | **Decision record** | The durable evidence artifact produced by every adjudication (§9) |
@@ -68,7 +95,7 @@ Every intent, of every type, is a single JSON object conforming to
 
 | Field | Required | Type | Notes |
 |---|---|---|---|
-| `$schema` | No | string | `https://rmacd-framework.org/schema/v1/intent.json` |
+| `$schema` | No | string | `https://rmacd-framework.org/schema/v2/intent.json` |
 | `intent_id` | **Yes** | string | `^int-[a-z0-9][a-z0-9-]*$`; unique within the issuing organization |
 | `intent_type` | **Yes** | string | A registered type (§4) |
 | `submitted_at` | **Yes** | date-time | RFC 3339, UTC |
@@ -82,11 +109,11 @@ Every intent, of every type, is a single JSON object conforming to
 | `provenance` | No | object | `rationale_ref`, `produced_by`, `source_intent_id` |
 | `metadata` | No | object | Organization-local; never an adjudication input |
 
-**N-1.** An implementation **MUST** reject an intent that fails schema
+**N-1 (Reject, Never Default).** <a id="n-1"></a>An implementation **MUST** reject an intent that fails schema
 validation. It **MUST NOT** adjudicate a malformed intent, and **MUST NOT**
 fall back to a default level.
 
-**N-2.** Fields not listed in this specification or the schema **MUST NOT**
+**N-2 (Unlisted Fields Are Inert).** <a id="n-2"></a>Fields not listed in this specification or the schema **MUST NOT**
 influence adjudication. `justification`, `metadata` and `provenance` are
 recorded and surfaced to humans, but are never adjudication inputs.
 
@@ -108,14 +135,16 @@ The declaration carries no impact axis of its own. Where an organization
 substitutes one, it is declared in the bound profile and stamped into the
 decision record, never supplied by the actor (N-8, N-16, §5.3).
 
-**N-3.** In a 3D or DC2D deployment, `data_classification` **MUST** be present.
-An implementation **MUST NOT** infer a missing classification as anything other
-than the most sensitive tier the deployment recognizes.
+**N-3 (Classification Required, Never Guessed).** <a id="n-3"></a>In a 3D or
+DC2D deployment, `data_classification` **MUST** be present. Where a
+classification is missing, an implementation **MUST** treat it as the most
+sensitive tier the deployment recognizes.
 
-**N-4.** `reversibility.rollback_declared` **MUST NOT** reduce a computed level
-below the base level under any circumstance (§5.2). Where a rollback claim is
-attested by a party other than the requesting actor, `attested_by` **MUST**
-identify that party.
+**N-4 (Rollback Buys No Discount).** <a id="n-4"></a>
+`reversibility.rollback_declared` **MUST NOT** lower a computed level. The base
+level is the minimum in every case (§5.2). Where a rollback claim is attested by
+a party other than the requesting actor, `attested_by` **MUST** identify that
+party.
 
 ---
 
@@ -137,19 +166,20 @@ identify that party.
 | `authorization` | **Yes** | A reference an implementation can resolve to verify the actor |
 | `on_behalf_of` | Conditional | **Required** when `kind` is `agent` or `pipeline` |
 
-**N-5.** An implementation **MUST** reject an `agent` or `pipeline` intent whose
+**N-5 (Every Agent Has a Human).** <a id="n-5"></a>An implementation **MUST** reject an `agent` or `pipeline` intent whose
 `on_behalf_of` is absent or does not resolve to an accountable human or team.
 
-**N-6.** Where `authorization` cannot be resolved, the implementation **MUST**
-fail closed: every operation other than `R` is escalated to at least `approval`,
-regardless of what the matrix would otherwise compute. The decision record
-**MUST** record `unresolved_authorization` as an escalation factor.
+**N-6 (Fail Closed on Unknown Actors).** <a id="n-6"></a>Where `authorization`
+cannot be resolved, the implementation **MUST** fail closed. Every operation
+except `R` escalates to at least `approval`, whatever the matrix would
+otherwise compute. The decision record **MUST** record
+`unresolved_authorization` as an escalation factor.
 
-**N-7.** Adjudication **MUST** be actor-kind-agnostic. `kind` **MUST NOT**
+**N-7 (Kind Routes, Never Grades).** <a id="n-7"></a>Adjudication **MUST** be actor-kind-agnostic. `kind` **MUST NOT**
 influence the computed level. It **MAY** determine approval routing and
 **MUST** be recorded for accountability.
 
-**N-8.** An actor **MUST NOT** be able to assert its own rating. An
+**N-8 (No Self-Assigned Rating).** <a id="n-8"></a>An actor **MUST NOT** be able to assert its own rating. An
 implementation **MUST** ignore any field in a submitted intent that names an
 autonomy level, an impact grade, or a likelihood grade.
 
@@ -180,15 +210,15 @@ pre-authorized because their authorization is recorded outside the intent system
 — in a service catalogue entry and in an approved continuity plan respectively —
 and §7's requirements do not apply to them.
 
-**N-9.** Maturity labels (`Stable`, `Incubating`) signal semantic stability
+**N-9 (Maturity Is Not Rank).** <a id="n-9"></a>Maturity labels (`Stable`, `Incubating`) signal semantic stability
 only. An implementation **MUST NOT** treat maturity as a rank, a trust level, or
 an adjudication input.
 
-**N-10.** A new type **MUST** register against the common envelope and this
+**N-10 (One Envelope, One Contract).** <a id="n-10"></a>A new type **MUST** register against the common envelope and this
 adjudication contract. A type that requires different adjudication semantics is
 out of scope for this specification.
 
-**N-11. Composition floor.** For any composite intent, the computed level
+**N-11 (Composites Inherit the Worst).** <a id="n-11"></a>For any composite intent, the computed level
 **MUST** be the most restrictive level among the composite itself and all
 intents it composes or requires. Membership in a composite **MUST NOT** lower
 any child's own computed level.
@@ -199,7 +229,10 @@ any child's own computed level.
 
 ### 5.1 The algorithm
 
-Adjudication is the following sequence. Steps **MUST** be applied in order.
+Adjudication is the following sequence.
+
+**N-50 (Steps Run In Order).** <a id="n-50"></a>An implementation **MUST**
+apply these steps in the order given.
 
 ```
 1. Validate the envelope.                        → reject if malformed        (N-1)
@@ -213,7 +246,7 @@ Adjudication is the following sequence. Steps **MUST** be applied in order.
 9. Emit the decision record.                     → durable, append-only       (N-43)
 ```
 
-**N-12. Immutable floor.** Before any other computation, an implementation
+**N-12 (The Permanent No).** <a id="n-12"></a>Before any other computation, an implementation
 **MUST** return `prohibited` for any intent whose declared
 `(data_classification, operation)` falls in the framework's §12.5 set —
 `(restricted, A)`, `(restricted, C)`, `(restricted, D)`. This result **MUST NOT**
@@ -226,30 +259,30 @@ pinned set, so that both are evaluated before any permission, override or
 escalation path is consulted — mirroring how the SDK evaluator applies
 `IMMUTABLE_PROHIBITIONS`.
 
-**N-13. Base level.** The base level **MUST** be derived from the framework's
+**N-13 (One Matrix, No Second).** <a id="n-13"></a>The base level **MUST** be derived from the framework's
 effective matrix for the actor's bound profile — the §3.1 defaults as adjusted
 by that profile's `autonomy_overrides`. An implementation **MUST NOT** define a
 second matrix, and **MUST NOT** compute a base level from any other source.
 In a 2D deployment the effective matrix is indexed by operation alone; in 3D and
 DC2D deployments it is indexed by `(classification, operation)`.
 
-**N-14. Monotonicity.** The computed level **MUST NOT** be less restrictive than
-the base level. No factor, grant, emergency, attestation, or configuration
-**MAY** move a level toward lower oversight.
+**N-14 (The Monotonicity Rule).** <a id="n-14"></a>The computed level **MUST**
+be at least as restrictive as the base level. A factor, grant, emergency,
+attestation or configuration **MUST NOT** move a level toward lower oversight.
 
-**N-14a. Saturation.** Escalation **MUST** saturate at `elevated_approval`.
+**N-14a (Escalation Stops Below Prohibited).** <a id="n-14a"></a>Escalation **MUST** saturate at `elevated_approval`.
 Likelihood **MUST NOT** move an intent to `prohibited`.
 
 `prohibited` means no human disposition can authorize the action for an
-autonomous actor. That is a categorical statement about the action itself, not a
-function of how novel or how poorly-attested a particular request is. Novelty
-**SHOULD** be able to demand the CISO; it **MUST NOT** be able to make an
-action categorically impossible. An implementation that let escalation reach the
-end of the ladder would turn routine production work on sensitive data —
-already at `elevated_approval` in the §3.1 defaults — into a deterministic deny
-on its first occurrence.
+autonomous actor. That is a categorical statement about the action itself, not
+a function of how novel or how poorly-attested a particular request is.
+An unprecedented action can reasonably demand the CISO; it cannot be allowed to make an action
+categorically impossible. An implementation that let escalation reach the end
+of the ladder would turn routine production work on sensitive data — already
+at `elevated_approval` in the §3.1 defaults — into a deterministic deny on its
+first occurrence.
 
-**N-14b. Reaching prohibited.** An intent **MUST** compute to `prohibited` only
+**N-14b (Two Sources of Prohibited).** <a id="n-14b"></a>An intent **MUST** compute to `prohibited` only
 via one of exactly two sources:
 
 | Source | Origin | Mutability |
@@ -271,43 +304,45 @@ demotion (§8), not by the grading function.
 
 ### 5.3 Impact
 
-**N-15.** The impact dimension **MUST** be the deployment's data classification
+**N-15 (Classification Is Impact).** <a id="n-15"></a>The impact dimension **MUST** be the deployment's data classification
 tier, ordered `public < internal < confidential < restricted`.
 
-**N-16.** An organization **MAY** substitute or supplement classification with
-another impact basis (CMDB criticality, service tier). Where it does, the
-substitution **MUST** be declared in the bound profile, **MUST** map onto the
-same four-tier ordering, and **MUST** be stamped into every decision record via
-`impact_basis`. The intent envelope carries no impact axis: an implementation
-**MUST NOT** accept an impact basis supplied in the intent itself, and the
-schema provides no field through which an actor could supply one (N-8).
+**N-16 (Declare Any Impact Substitute).** <a id="n-16"></a>An organization
+**MAY** substitute or supplement classification with another impact basis
+(CMDB criticality, service tier). Where it does, the substitution **MUST** be
+declared in the bound profile, **MUST** map onto the same four-tier ordering,
+and **MUST** be stamped into every decision record via `impact_basis`. The
+intent envelope carries no impact axis. An implementation **MUST NOT** accept
+an impact basis supplied in the intent itself, and the schema provides no
+field through which an actor could supply one (N-8).
 
 ### 5.4 Likelihood factors
 
-**N-17.** An implementation **MUST** implement all five factors below. Each
+**N-17 (The Five Likelihood Factors).** <a id="n-17"></a>An implementation **MUST** implement all five factors below. Each
 contributes a non-negative number of escalation steps.
 
 | # | Factor | Condition | Default steps |
 |---|---|---|---|
-| L1 | Novelty | No confirmed prior success of this shape (§6) | +1 |
+| L1 | Unprecedented | No confirmed prior success of this action pattern (§6) | +1 |
 | L2 | Reversibility | No attested rollback path | +1 |
 | L3 | Environment | `production` or `disaster-recovery` | +1 |
 | L4 | Budget standing | Actor at or over budget, or currently demoted | +2 |
 | L5 | Blast radius | Declared scope exceeds the profile's cap | +2 |
 | | | Declared scope within 80% of the cap | +1 |
 
-**N-18.** An organization **MAY** adjust these weights. Every weight **MUST**
+**N-18 (Weights Adjustable, Never Negative).** <a id="n-18"></a>An organization **MAY** adjust these weights. Every weight **MUST**
 remain ≥ 0; a negative weight **MUST** be rejected at configuration load. The
 effective weight table **MUST** carry a version identifier, and that identifier
 **MUST** be stamped into every decision record.
 
-**N-19.** An implementation **MUST NOT** introduce a factor that can contribute
-negative steps, and **MUST NOT** implement a factor whose value is taken
-directly from the intent without attestation or reconciliation.
+**N-19 (No Self-Declared Escape).** <a id="n-19"></a>An implementation **MUST
+NOT** introduce a factor that can contribute negative steps. It **MUST NOT**
+implement a factor whose value is taken straight from the intent without
+attestation or reconciliation.
 
 ### 5.5 The profile remains a ceiling
 
-**N-20.** Adjudication **MUST NOT** grant permission. A favourable
+**N-20 (Approval Is Not Permission).** <a id="n-20"></a>Adjudication **MUST NOT** grant permission. A favourable
 adjudication, an approved grant, and a recorded human disposition, singly or
 together, **MUST NOT** authorize an operation the actor's bound profile or a
 tool capability ceiling forbids. An intent that adjudicates successfully and is
@@ -315,58 +350,59 @@ subsequently refused by interception is conformant behaviour.
 
 ### 5.6 Determinism
 
-**N-21.** Adjudication **MUST** be reproducible. Given the same intent, matrix
+**N-21 (Same Inputs, Same Level).** <a id="n-21"></a>Adjudication **MUST** be reproducible. Given the same intent, matrix
 version, likelihood weight-table version, policy version, and decision-log
 epoch, an implementation **MUST** produce the same level. The four version
 inputs **MUST** be recorded in the decision record (§9), alongside the
 `intent_id` that identifies the intent they were applied to.
 
-Adjudication is deterministic but not stateless: novelty and budget standing
+Adjudication is deterministic but not stateless: precedent and budget standing
 read organizational state. Reproducibility is therefore defined against a
 recorded log epoch rather than against the intent alone.
 
 ---
 
-## 6. Intent shape and novelty
+## 6. Action patterns and precedent
 
-Novelty is the factor that lets a well-trodden action stop costing human
+Precedent is what lets a well-trodden action stop costing human
 attention. The equivalence class it is computed over is consequently the most
-security-sensitive definition in this specification: **whatever the shape
+security-sensitive definition in this specification: **whatever the action pattern
 excludes becomes a gradient an actor can descend to erode its own scrutiny.**
 
-### 6.1 The shape key
+### 6.1 The action pattern key
 
-**N-22.** The shape key **MUST** be a SHA-256 hash over the canonical JSON
+**N-22 (The Six-Field Pattern Key).** <a id="n-22"></a>The action pattern key **MUST** be a SHA-256 hash over the canonical JSON
 serialization of exactly these fields, and **MUST NOT** include any other field:
 
 | Field | Rationale for inclusion |
 |---|---|
-| `intent_type` | Credit earned as one type is not spendable as another |
-| `declaration.operation` | Credit earned reading is not spendable deleting |
-| `declaration.data_classification` | Credit earned on public data is not spendable on confidential |
-| `declaration.environment` | Credit earned in staging is not spendable in production |
+| `intent_type` | Standing earned as one type is not spendable as another |
+| `declaration.operation` | Standing earned reading is not spendable deleting |
+| `declaration.data_classification` | Standing earned on public data is not spendable on confidential |
+| `declaration.environment` | Standing earned in staging is not spendable in production |
 | `declaration.target_class` | The normalized target, never the literal target (§6.2) |
-| `actor.kind` | Credit earned by a supervised pipeline is not spendable by an autonomous agent |
+| `actor.kind` | Standing earned by a supervised pipeline is not spendable by an autonomous agent |
 
 Literal target identifiers, timestamps, justification text, metadata, and the
 actor's own `id` are excluded, so that the same governed action against a
-hundred hosts converges on one shape rather than a hundred.
+hundred hosts converges on one action pattern rather than a hundred.
 
 ### 6.2 Target normalization
 
-**N-23.** `target_class` **MUST** be derived deterministically: the target
-pattern declared by the matching Governance Pack rule or profile constraint if
-one matched, otherwise the target with its final identifier segment replaced by
-`*`. An implementation **MUST** record which rule produced the normalization.
+**N-23 (Same Target, Same Class).** <a id="n-23"></a>`target_class` **MUST**
+be computed the same way every time. Where a Governance Pack rule or profile
+constraint matched, it is the target pattern that rule declared. Otherwise it
+is the target with its final identifier segment replaced by `*`. An
+implementation **MUST** record which rule produced the normalization.
 
-**N-24.** An implementation **MUST NOT** accept a `target_class` supplied by the
+**N-24 (The System's Class Wins).** <a id="n-24"></a>An implementation **MUST NOT** accept a `target_class` supplied by the
 actor in preference to a derived one. Where both exist and disagree, the derived
 value governs and the discrepancy **MUST** be recorded.
 
 ### 6.3 What counts as a confirmed success
 
-**N-25.** A prior decision **MUST NOT** count toward novelty credit unless all
-of the following hold:
+**N-25 (Only Checked Successes Count).** <a id="n-25"></a>A prior decision
+**MUST NOT** count toward precedent unless all of the following hold:
 
 1. The intent was adjudicated and received a disposition permitting execution.
 2. Execution was **reconciled** (§10) — an interception record or an attested
@@ -374,13 +410,13 @@ of the following hold:
 3. Reconciliation found no material discrepancy between declared and executed
    facts.
 
-A declared-but-unreconciled outcome **MUST NOT** accrue credit. This closes
-novelty farming by declaration: an actor cannot earn standing simply by
+A declared-but-unreconciled outcome **MUST NOT** accrue standing. This closes
+precedent farming by declaration: an actor cannot earn standing simply by
 submitting intents.
 
-**N-26.** Where reconciliation detects a material discrepancy, the
-implementation **MUST** reset accrued novelty credit for that shape and
-**SHOULD** demote the actor (§8).
+**N-26 (A Mismatch Wipes Precedent).** <a id="n-26"></a>Where reconciliation
+detects a material discrepancy, the implementation **MUST** clear that action
+pattern's accrued precedent and demote the actor (§8).
 
 ---
 
@@ -393,11 +429,11 @@ specified.
 
 ### 7.1 Coverage is discharge, not reduction
 
-**N-27.** A grant **MUST NOT** change a child intent's computed level. It
+**N-27 (Grants Approve, Never Lower).** <a id="n-27"></a>A grant **MUST NOT** change a child intent's computed level. It
 **MAY** discharge the child's approval requirement by supplying a recorded
 human disposition in advance.
 
-**N-28.** A child is covered only when **all** of the following hold. If any
+**N-28 (Coverage Is All or Nothing).** <a id="n-28"></a>A child is covered only when **all** of the following hold. If any
 fails, the child **MUST** route for individual human disposition:
 
 1. The child falls inside the bounds the grant declared — every field of a
@@ -413,12 +449,12 @@ fails, the child **MUST** route for individual human disposition:
 5. The child's computed level is not `prohibited`, whether pinned or extended
    (N-14b).
 
-**N-29.** A grant **MUST NOT** cover a `prohibited` child under any
+**N-29 (No Grant Covers Prohibited).** <a id="n-29"></a>A grant **MUST NOT** cover a `prohibited` child under any
 circumstance, and **MUST NOT** be construed as an exception to framework §12.5.
 
 ### 7.2 Class predicates
 
-**N-30.** A `class_predicate` **MUST** be evaluated deterministically and
+**N-30 (The Closed Predicate Fields).** <a id="n-30"></a>A `class_predicate` **MUST** be evaluated deterministically and
 **MUST** match only on this closed set of fields:
 
 `intent_type`, `declaration.operation`, `declaration.data_classification`,
@@ -429,37 +465,40 @@ The predicate names these flattened, as `intent_type`, `operation`,
 `data_classification`, `environment`, `target_class`, `actor_id` and
 `on_behalf_of`; the schema admits no other key.
 
-**N-31.** All specified fields **MUST** match conjunctively. Wildcards **MAY**
-appear only in `target_class`. A predicate **MUST NOT** match on
-`justification`, `metadata`, or any free-text field, and **MUST NOT** be
-expressed as executable code.
+**N-31 (Match All, Never Execute).** <a id="n-31"></a>All specified fields
+**MUST** match conjunctively. Wildcards **MUST NOT** appear in any field
+except `target_class`. A predicate **MUST NOT** match on `justification`,
+`metadata`, or any free-text field, and **MUST NOT** be expressed as
+executable code.
 
-**N-32.** A predicate that specifies no fields, or that would match every
+**N-32 (No Blanket Grants).** <a id="n-32"></a>A predicate that specifies no fields, or that would match every
 intent of a type, **MUST** be rejected at grant submission. Blanket grants are
 prohibited by framework §12.5.
 
 ### 7.3 Caps, expiry and revocation
 
-**N-33.** Every grant **MUST** declare `expires_at`. Indefinite or open-ended
-grants **MUST** be rejected, per framework §12.5. A `campaign` **MUST**
-additionally declare `caps.max_children` and `caps.max_level`, because its
-bounds are otherwise only a predicate; an `exception` is bounded instead by its
+**N-33 (Every Grant Expires and Caps).** <a id="n-33"></a>Every grant **MUST**
+declare `expires_at`. Indefinite or open-ended grants **MUST** be rejected,
+per framework §12.5. A `campaign` **MUST** additionally declare
+`caps.max_children` and `caps.max_level`, because its bounds are otherwise
+only a predicate. An `exception` is bounded instead by its
 `escalated_permissions` grid and by the maximum duration its §12.2 category
-fixes, and **MAY** declare `caps` in addition.
+fixes; it **MAY** declare `caps` in addition.
 
-**N-34.** Revocation **MUST** take effect immediately. Intents adjudicated after
+**N-34 (Revocation Is Immediate).** <a id="n-34"></a>Revocation **MUST** take effect immediately. Intents adjudicated after
 revocation **MUST NOT** be covered.
 
-**N-35.** Children already dispositioned under a grant at the moment of
-revocation remain validly dispositioned, but the implementation **MUST** record
-them as affected by the revocation and **SHOULD** surface them for review.
+**N-35 (Past Dispositions Stand).** <a id="n-35"></a>A child already
+dispositioned when the grant is revoked stays validly dispositioned. The
+implementation **MUST** record it as affected by the revocation and mark it
+for human review.
 
 ### 7.4 The `exception` type
 
 The `exception` type expresses framework §12.3's five-step process. Framework
 §12.4's exception profile template *is* an `exception` intent: from framework
 revision 1.4.1 the template is written in this envelope and points at
-`schema/v1/intent.json`, so the framework carries one request path rather than
+`schema/v2/intent.json`, so the framework carries one request path rather than
 two. The `schema/v1/exception.json` URL that §12.4 advertised from v1.0 but
 never published is retired rather than filled in.
 
@@ -489,7 +528,7 @@ Approval fields are deliberately absent from the request. Who approved, when,
 and at what level are recorded as the *disposition* on the decision record (§9),
 never asserted by the requester (N-8).
 
-**N-36.** An `exception` intent **MUST** be rejected if it would escalate
+**N-36 (The Five Named Prohibitions).** <a id="n-36"></a>An `exception` intent **MUST** be rejected if it would escalate
 `restricted` beyond `["R", "M"]`, omit `expires_at`, remove audit logging,
 apply a profile across environments, or request a blanket grant. These are
 framework §12.5's five named prohibitions. Two of the five are enforced by the
@@ -499,7 +538,7 @@ and `M`, and `expires_at` is required — and `compensating_controls`
 prohibitions are not expressible in a per-document schema and **MUST** be
 enforced by the implementation at grant submission.
 
-**N-37.** Adjudication of an `exception` computes the scrutiny the request
+**N-37 (Scrutiny, Not the Decision).** <a id="n-37"></a>Adjudication of an `exception` computes the scrutiny the request
 requires. It **MUST NOT** decide whether the exception is granted; that
 disposition belongs to the authority named in framework §12.2.
 
@@ -509,28 +548,28 @@ disposition belongs to the authority named in framework §12.2.
 
 ### 8.1 Budgets
 
-**N-38.** Budget standing **MUST** be derived from the actor's bound profile
+**N-38 (Budgets Come From the Profile).** <a id="n-38"></a>Budget standing **MUST** be derived from the actor's bound profile
 constraints — `rate_limits`, `change_controls`, and
 `max_blast_radius_percentage`. An implementation **MUST NOT** define a parallel
 budget vocabulary.
 
-**N-39.** Budget breach **MUST** produce escalation (factor L4), never a silent
+**N-39 (Breach Escalates, Never Denies).** <a id="n-39"></a>Budget breach **MUST** produce escalation (factor L4), never a silent
 denial and never a reduction.
 
 ### 8.2 Demotion
 
-**N-40.** Demotion **MUST** be expressed as escalation, not as a new state. A
+**N-40 (Demotion Is Escalation).** <a id="n-40"></a>Demotion **MUST** be expressed as escalation, not as a new state. A
 demoted actor's intents escalate by the L4 weight until the demotion expires or
 is lifted. The decision record **MUST** record demotion as an escalation factor
 with its cause.
 
 ### 8.3 Emergencies
 
-**N-41.** An intent **MAY** cite an active emergency escalation defined by its
+**N-41 (Emergencies Raise the Ceiling).** <a id="n-41"></a>An intent **MAY** cite an active emergency escalation defined by its
 profile's `emergency_escalation` block. Citing an emergency raises the
 *permission ceiling* only.
 
-**N-42.** An emergency **MUST NOT** lower a computed level, **MUST NOT** waive
+**N-42 (Emergencies Never Lower Grades).** <a id="n-42"></a>An emergency **MUST NOT** lower a computed level, **MUST NOT** waive
 an escalation factor, and **MUST NOT** affect the §12.5 pinned cells. The
 profile's `trigger_conditions`, `max_duration_minutes`, `cooldown_minutes` and
 `require_post_incident_review` apply unchanged.
@@ -541,15 +580,15 @@ profile's `trigger_conditions`, `max_duration_minutes`, `cooldown_minutes` and
 
 Every adjudication produces exactly one decision record, conforming to
 `schemas/intent-decision.schema.json`. The decision record is simultaneously the
-evidence artifact and the novelty memory.
+evidence artifact and the precedent memory.
 
 | Field | Required | Notes |
 |---|---|---|
-| `$schema` | No | `https://rmacd-framework.org/schema/v1/intent-decision.json` |
+| `$schema` | No | `https://rmacd-framework.org/schema/v2/intent-decision.json` |
 | `decision_id` | **Yes** | `^dec-[a-z0-9][a-z0-9-]*$` |
 | `intent_id` | **Yes** | The adjudicated intent; the join key for reconciliation |
 | `decided_at` | **Yes** | RFC 3339, UTC |
-| `shape_key` | **Yes** | §6.1 |
+| `action_pattern_key` | **Yes** | §6.1 |
 | `base_level` | **Yes** | Before escalation |
 | `computed_level` | **Yes** | After escalation, composition and floor |
 | `escalation_factors` | **Yes** | Array of `{factor, steps, cause}`, `factor` and `steps` required; the five §5.4 factors plus `unresolved_authorization` (N-6) and `composition_floor` (N-11). Empty if none fired |
@@ -564,16 +603,17 @@ evidence artifact and the novelty memory.
 | `prohibition_source` | Conditional | `pinned` or `extended`, when the level is `prohibited` (N-14b) |
 | `reconciliation` | No | Populated after execution (§10) |
 
-**N-43.** A decision record **MUST** be durable and append-only. An
-implementation **MUST NOT** mutate a decision record after emission, other than
-by attaching a `disposition` or a `reconciliation` result.
+**N-43 (The Durable Decision Record).** <a id="n-43"></a>A decision record
+**MUST** be durable and append-only. An implementation **MUST NOT** change a
+decision record after emission. The only permitted additions are a
+`disposition` and a `reconciliation` result.
 
-**N-44.** Where the computed level is `prohibited`, `prohibition_source`
+**N-44 (Name the Prohibition Source).** <a id="n-44"></a>Where the computed level is `prohibited`, `prohibition_source`
 **MUST** distinguish `pinned` (framework §12.5) from `extended` (an
 organization's own declared prohibition), per N-14b. Escalation is never a
 source: likelihood cannot reach `prohibited` (N-14a).
 
-**N-45.** Decision records **MUST** join the same audit trail as interception
+**N-45 (One Audit Trail).** <a id="n-45"></a>Decision records **MUST** join the same audit trail as interception
 records, on `intent_id`.
 
 ---
@@ -583,10 +623,11 @@ records, on `intent_id`.
 Reconciliation is the mechanism that makes declaration trustworthy. It compares
 what an actor declared against what interception observed it do.
 
-**N-46.** Where both modes are deployed, an implementation **SHOULD** propagate
-`intent_id` into the execution path so interception records carry it.
+**N-46 (Carry the Intent ID Through).** <a id="n-46"></a>Where both modes are
+deployed, an implementation **MUST** propagate `intent_id` into the execution
+path so interception records carry it.
 
-**N-47.** A reconciliation result **MUST** classify each executed action as one
+**N-47 (The Four Reconciliation Results).** <a id="n-47"></a>A reconciliation result **MUST** classify each executed action as one
 of:
 
 | Result | Meaning |
@@ -596,40 +637,181 @@ of:
 | `undeclared` | An executed action carried no `intent_id` and matched no open intent |
 | `unexecuted` | An adjudicated intent was never executed before expiry |
 
-**N-48.** A `divergent` or `undeclared` result **MUST** be recorded as a
-governance event in its own right, **MUST** reset novelty credit for the
-affected shape (N-26), and **SHOULD** trigger demotion.
+**N-48 (Divergence Is a Governance Event).** <a id="n-48"></a>A `divergent` or
+`undeclared` result **MUST** be recorded as a governance event in its own
+right. It **MUST** clear the affected action pattern's accrued precedent
+(N-26) and trigger demotion.
 
-**N-49.** An implementation **MUST NOT** treat the absence of interception
-coverage as reconciliation success. Where an action cannot be reconciled, the
-decision record's `reconciliation.result` **MUST** remain unset rather than
-being recorded as `matched`.
+**N-49 (Unreconciled Is Not Matched).** <a id="n-49"></a>Where interception
+coverage is missing, an implementation **MUST NOT** treat the action as
+reconciled. Where an action cannot be reconciled, the decision record's
+`reconciliation.result` **MUST** remain unset rather than being recorded as
+`matched`.
 
 ---
 
 ## 11. Conformance
 
-An implementation conforms to this specification when all of the following hold.
+An implementation conforms to this specification when all of the following
+hold. The list is exhaustive over obligations: every **MUST** and **MUST NOT**
+in this document rolls up into exactly one item below, and `requirements.json`
+records the mapping. One requirement is deliberately excluded: N-41's **MAY**
+grants latitude rather than imposing an obligation, so there is nothing for a
+conformance run to assert.
 
-| # | Requirement |
-|---|---|
-| C-1 | Intents are validated against `intent.schema.json`; malformed intents are rejected, never defaulted (N-1) |
-| C-2 | The §12.5 immutable floor is checked before any other computation and is unreachable by any override (N-12) |
-| C-3 | The base level comes from the framework's effective matrix; no second matrix exists (N-13) |
-| C-4 | No mechanism can produce a level less restrictive than the base level (N-14) |
-| C-4a | Escalation saturates at `elevated_approval`; likelihood never reaches `prohibited` (N-14a) |
-| C-5 | All five likelihood factors are implemented; no weight is negative (N-17, N-18) |
-| C-6 | The shape key covers exactly the six fields in §6.1 (N-22) |
-| C-7 | Novelty credit accrues only from reconciled successes (N-25) |
-| C-8 | Non-human actors without a resolvable `on_behalf_of` are rejected (N-5) |
-| C-9 | Unresolvable authorization fails closed to at least `approval` for non-Read operations (N-6) |
-| C-10 | Grants discharge approval without changing computed levels, and never cover `prohibited` (N-27, N-29) |
-| C-11 | Class predicates match only the closed field set, conjunctively, with no executable code (N-30, N-31) |
-| C-12 | Every grant declares an expiry and a child cap; blanket and indefinite grants are rejected (N-32, N-33) |
-| C-13 | Adjudication never grants permission the bound profile withholds (N-20) |
-| C-14 | Every adjudication emits a durable decision record carrying all four reproducibility inputs (N-21, N-43) |
-| C-15 | Prohibited decisions distinguish `pinned` from `extended` (N-44) |
-| C-16 | Unreconcilable executions are never recorded as `matched` (N-49) |
+| # | Name | Requirement |
+|---|---|---|
+| <a id="c-1"></a>C-1 | Malformed Intents Rejected | Intents are validated against `intent.schema.json`; malformed intents are rejected, never defaulted (N-1) |
+| <a id="c-2"></a>C-2 | The Permanent No Comes First | The §12.5 immutable floor is checked before any other computation and is unreachable by any override (N-12) |
+| <a id="c-3"></a>C-3 | Single Source Matrix | The base level comes from the framework's effective matrix; no second matrix exists (N-13) |
+| <a id="c-4"></a>C-4 | Never Less Restrictive | No mechanism can produce a level less restrictive than the base level (N-14) |
+| <a id="c-4a"></a>C-4a | Escalation Saturates | Escalation saturates at `elevated_approval`; likelihood never reaches `prohibited` (N-14a) |
+| <a id="c-5"></a>C-5 | Five Factors, No Negatives | All five likelihood factors are implemented; no weight is negative (N-17, N-18) |
+| <a id="c-6"></a>C-6 | Pattern Key Exactly Six | The action pattern key covers exactly the six fields in §6.1 (N-22) |
+| <a id="c-7"></a>C-7 | Precedent Comes From Checks | Precedent accrues only from reconciled successes (N-25) |
+| <a id="c-8"></a>C-8 | Accountable Human Required | Non-human actors without a resolvable `on_behalf_of` are rejected (N-5) |
+| <a id="c-9"></a>C-9 | Unknown Actors Fail Closed | Unresolvable authorization fails closed to at least `approval` for non-Read operations (N-6) |
+| <a id="c-10"></a>C-10 | Grants Never Change Levels | Grants discharge approval without changing computed levels, and never cover `prohibited` (N-27, N-29) |
+| <a id="c-11"></a>C-11 | Predicates Closed and Declarative | Class predicates match only the closed field set, conjunctively, with no executable code (N-30, N-31) |
+| <a id="c-12"></a>C-12 | Bounded and Expiring Grants | Every grant declares an expiry and a child cap; blanket and indefinite grants are rejected (N-32, N-33) |
+| <a id="c-13"></a>C-13 | Profile Ceiling Holds | Adjudication never grants permission the bound profile withholds (N-20) |
+| <a id="c-14"></a>C-14 | Reproducible Durable Records | Every adjudication emits a durable decision record carrying all four reproducibility inputs (N-21, N-43) |
+| <a id="c-15"></a>C-15 | Prohibition Source Recorded | Prohibited decisions distinguish `pinned` from `extended` (N-44) |
+| <a id="c-16"></a>C-16 | No False Matches | Unreconcilable executions are never recorded as `matched` (N-49) |
+| <a id="c-17"></a>C-17 | The Envelope Is the Whole Input | Only fields this specification and the schema define may grade an intent; a missing classification resolves to the most sensitive tier; a rollback claim never lowers the level (N-2, N-3, N-4) |
+| <a id="c-18"></a>C-18 | Actors Are Recorded, Not Trusted | Actor kind never changes the computed level, and no grade an actor asserts about itself is honoured (N-7, N-8) |
+| <a id="c-19"></a>C-19 | The Type Registry Is Flat | Maturity is never a rank, and every registered type uses the common envelope and adjudication contract (N-9, N-10) |
+| <a id="c-20"></a>C-20 | Composites Take the Worst | A composite computes to the most restrictive level among itself and its children, and never softens a child (N-11) |
+| <a id="c-21"></a>C-21 | Prohibited Has Two Sources | `prohibited` is reachable only as `pinned` or `extended`, and the pinned set is never narrowed (N-14b) |
+| <a id="c-22"></a>C-22 | Impact Is Declared, Not Supplied | Impact is the four-tier classification ordering, and any substitute is profile-declared and stamped into every record (N-15, N-16) |
+| <a id="c-23"></a>C-23 | No Factor Subtracts | No likelihood factor contributes negative steps or takes its value from the intent without attestation (N-19) |
+| <a id="c-24"></a>C-24 | One Target, One Class | `target_class` is computed the same way every time, and a value the actor supplies never wins (N-23, N-24) |
+| <a id="c-25"></a>C-25 | A Mismatch Clears Precedent | A material mismatch found at reconciliation clears the affected action pattern's precedent and demotes the actor (N-26) |
+| <a id="c-26"></a>C-26 | Coverage Needs Every Condition | A child is covered only when every one of the five coverage conditions holds (N-28) |
+| <a id="c-27"></a>C-27 | Grants End Cleanly | Revocation takes effect immediately; children already dispositioned are recorded as affected and marked for human review (N-34, N-35) |
+| <a id="c-28"></a>C-28 | Exceptions Stay Inside §12.5 | An exception tripping any of framework §12.5's five prohibitions is rejected, and adjudication never decides the grant (N-36, N-37) |
+| <a id="c-29"></a>C-29 | Budgets and Demotion Escalate | Budget standing comes from the bound profile, and breach and demotion escalate rather than deny or reduce (N-38, N-39, N-40) |
+| <a id="c-30"></a>C-30 | Emergencies Only Raise Ceilings | An emergency never lowers a level, waives a factor, or touches the pinned cells (N-42) |
+| <a id="c-31"></a>C-31 | One Joined Audit Trail | Decision records join the interception audit trail on `intent_id` (N-45) |
+| <a id="c-32"></a>C-32 | Reconciliation Classifies Everything | Every executed action is classed into one of the four results; divergence is recorded as a governance event, clears precedent and demotes (N-47, N-48) |
+| <a id="c-33"></a>C-33 | The Sequence Is Honoured | The nine adjudication steps are applied in the order §5.1 gives them (N-50) |
+| <a id="c-34"></a>C-34 | The Intent ID Travels | Where both modes are deployed, `intent_id` is propagated into the execution path so interception records carry it (N-46) |
+
+---
+
+## Appendix A: Requirement Quick Reference
+
+Every normative requirement and conformance item carries a short plain-English
+name. The names are additive: they are a reading aid, and they are **not**
+identifiers. `N-14` and `C-5` are the stable references that external documents
+cite, and they never change. A name **MAY** be revised; a number **MUST NOT** be.
+
+Anchors are keyed to the identifier, not the name, for the same reason:
+`#n-14` resolves to N-14 whatever it comes to be called.
+
+This appendix is generated from `requirements.yaml` by `tools/check_spec.py`.
+Edit the registry, not the tables.
+
+### A.1 Normative requirements
+
+| # | Name | What it says | Section | Rolls up to |
+|---|---|---|---|---|
+| [N-1](#n-1) | Reject, Never Default | A malformed intent is rejected outright, never adjudicated at a fallback level | §2.1 | [C-1](#c-1) |
+| [N-2](#n-2) | Unlisted Fields Are Inert | Anything outside the spec and schema is recorded but cannot move the grade | §2.1 | [C-17](#c-17) |
+| [N-3](#n-3) | Classification Required, Never Guessed | 3D and DC2D intents must carry a classification; absence resolves to the most sensitive tier | §2.2 | [C-17](#c-17) |
+| [N-4](#n-4) | Rollback Buys No Discount | A declared rollback can never pull the level below base; a third-party attestation must name the party | §2.2 | [C-17](#c-17) |
+| [N-5](#n-5) | Every Agent Has a Human | Agent and pipeline intents need an `on_behalf_of` that resolves to an accountable human or team | §3 | [C-8](#c-8) |
+| [N-6](#n-6) | Fail Closed on Unknown Actors | Unresolvable authorization escalates everything but Read to at least approval, and is recorded | §3 | [C-9](#c-9) |
+| [N-7](#n-7) | Kind Routes, Never Grades | Actor kind may steer approval routing and must be recorded, but cannot change the level | §3 | [C-18](#c-18) |
+| [N-8](#n-8) | No Self-Assigned Rating | Any level, impact or likelihood grade an actor puts in its own intent is ignored | §3 | [C-18](#c-18) |
+| [N-9](#n-9) | Maturity Is Not Rank | `Stable` and `Incubating` describe semantic stability, not trust, and never feed adjudication | §4 | [C-19](#c-19) |
+| [N-10](#n-10) | One Envelope, One Contract | A new type registers against the common envelope and this adjudication contract, or stays out of scope | §4 | [C-19](#c-19) |
+| [N-11](#n-11) | Composites Inherit the Worst | A composite takes the most restrictive level among itself and its children; membership never softens a child | §4 | [C-20](#c-20) |
+| [N-12](#n-12) | The Permanent No | Add, Change and Delete on Restricted return `prohibited` before anything else runs, and no override reaches them | §5.1 | [C-2](#c-2) |
+| [N-13](#n-13) | One Matrix, No Second | The base level comes from the bound profile's effective matrix and from nowhere else | §5.1 | [C-3](#c-3) |
+| [N-14](#n-14) | The Monotonicity Rule | Nothing — factor, grant, emergency, attestation or configuration — may move a level toward less oversight | §5.1 | [C-4](#c-4) |
+| [N-14a](#n-14a) | Escalation Stops Below Prohibited | Likelihood saturates at `elevated_approval` and can never reach the end of the ladder | §5.1 | [C-4a](#c-4a) |
+| [N-14b](#n-14b) | Two Sources of Prohibited | `prohibited` arises only as `pinned` or `extended`; the pinned set may be grown, never shrunk | §5.1 | [C-21](#c-21) |
+| [N-15](#n-15) | Classification Is Impact | The impact dimension is the four-tier classification ordering | §5.3 | [C-22](#c-22) |
+| [N-16](#n-16) | Declare Any Impact Substitute | A substituted impact basis must be profile-declared, map onto the same four tiers, and be stamped into every record | §5.3 | [C-22](#c-22) |
+| [N-17](#n-17) | The Five Likelihood Factors | All five factors must be implemented, each adding a non-negative number of steps | §5.4 | [C-5](#c-5) |
+| [N-18](#n-18) | Weights Adjustable, Never Negative | Weights may be tuned but never below zero, and the weight table is versioned into every record | §5.4 | [C-5](#c-5) |
+| [N-19](#n-19) | No Self-Declared Escape | No factor may subtract steps, or take its value straight from the intent without attestation | §5.4 | [C-23](#c-23) |
+| [N-20](#n-20) | Approval Is Not Permission | No adjudication, grant or disposition authorizes what the profile or capability ceiling forbids | §5.5 | [C-13](#c-13) |
+| [N-21](#n-21) | Same Inputs, Same Level | The same intent under the same four recorded version inputs must reproduce the same level | §5.6 | [C-14](#c-14) |
+| [N-22](#n-22) | The Six-Field Pattern Key | The action pattern key hashes exactly six named fields and nothing else | §6.1 | [C-6](#c-6) |
+| [N-23](#n-23) | Same Target, Same Class | `target_class` is worked out the same way every time — the matching rule, else last-segment wildcarding — and the source is recorded | §6.2 | [C-24](#c-24) |
+| [N-24](#n-24) | The System's Class Wins | A `target_class` supplied by the actor never beats the one the system works out; any disagreement is recorded | §6.2 | [C-24](#c-24) |
+| [N-25](#n-25) | Only Checked Successes Count | Precedent needs a disposition permitting execution, a checked execution, and no material mismatch | §6.3 | [C-7](#c-7) |
+| [N-26](#n-26) | A Mismatch Wipes Precedent | A material mismatch clears the action pattern's precedent and should demote the actor | §6.3 | [C-25](#c-25) |
+| [N-27](#n-27) | Grants Approve, Never Lower | A grant supplies the human approval in advance; it never changes the child's computed level | §7.1 | [C-10](#c-10) |
+| [N-28](#n-28) | Coverage Is All or Nothing | All five coverage conditions must hold, or the child routes for individual human disposition | §7.1 | [C-26](#c-26) |
+| [N-29](#n-29) | No Grant Covers Prohibited | No grant reaches a prohibited child, and none is an exception to framework §12.5 | §7.1 | [C-10](#c-10) |
+| [N-30](#n-30) | The Closed Predicate Fields | A class predicate matches only on the seven named fields; the schema admits no other key | §7.2 | [C-11](#c-11) |
+| [N-31](#n-31) | Match All, Never Execute | Predicate fields match conjunctively, wildcards only in `target_class`, no free text and no code | §7.2 | [C-11](#c-11) |
+| [N-32](#n-32) | No Blanket Grants | An empty or catch-all predicate is rejected at grant submission | §7.2 | [C-12](#c-12) |
+| [N-33](#n-33) | Every Grant Expires and Caps | Every grant declares an expiry; a campaign additionally declares a child cap and a maximum level | §7.3 | [C-12](#c-12) |
+| [N-34](#n-34) | Revocation Is Immediate | Nothing adjudicated after revocation is covered | §7.3 | [C-27](#c-27) |
+| [N-35](#n-35) | Past Dispositions Stand | Children dispositioned before revocation stay valid, but are recorded as affected and surfaced for review | §7.3 | [C-27](#c-27) |
+| [N-36](#n-36) | The Five Named Prohibitions | An exception is rejected if it trips any of framework §12.5's five prohibitions, whether the schema catches it or not | §7.4 | [C-28](#c-28) |
+| [N-37](#n-37) | Scrutiny, Not the Decision | Adjudicating an exception sizes the scrutiny required; the §12.2 authority decides whether to grant it | §7.4 | [C-28](#c-28) |
+| [N-38](#n-38) | Budgets Come From the Profile | Budget standing comes from bound-profile constraints; no parallel budget vocabulary exists | §8.1 | [C-29](#c-29) |
+| [N-39](#n-39) | Breach Escalates, Never Denies | A budget breach fires L4 escalation rather than a silent denial or a reduction | §8.1 | [C-29](#c-29) |
+| [N-40](#n-40) | Demotion Is Escalation | Demotion is the L4 weight applied until it lifts, recorded with its cause — not a new state | §8.2 | [C-29](#c-29) |
+| [N-41](#n-41) | Emergencies Raise the Ceiling | Citing an active emergency escalation raises the permission ceiling and nothing else | §8.3 | — |
+| [N-42](#n-42) | Emergencies Never Lower Grades | An emergency cannot lower a level, waive a factor, or touch the pinned cells | §8.3 | [C-30](#c-30) |
+| [N-43](#n-43) | The Durable Decision Record | Decision records are append-only; only a disposition or a reconciliation result may be attached | §9 | [C-14](#c-14) |
+| [N-44](#n-44) | Name the Prohibition Source | Every prohibited decision states `pinned` or `extended`; escalation is never a source | §9 | [C-15](#c-15) |
+| [N-45](#n-45) | One Audit Trail | Decision records join the interception records' audit trail on `intent_id` | §9 | [C-31](#c-31) |
+| [N-46](#n-46) | Carry the Intent ID Through | Where both modes run, `intent_id` should propagate into the execution path | §10 | [C-34](#c-34) |
+| [N-47](#n-47) | The Four Reconciliation Results | Every executed action is classed as matched, divergent, undeclared or unexecuted | §10 | [C-32](#c-32) |
+| [N-48](#n-48) | Divergence Is a Governance Event | Divergent and undeclared results are recorded as events, clear the action pattern's precedent, and should demote | §10 | [C-32](#c-32) |
+| [N-49](#n-49) | Unreconciled Is Not Matched | Missing interception coverage leaves `reconciliation.result` unset — never recorded as success | §10 | [C-16](#c-16) |
+| [N-50](#n-50) | Steps Run In Order | The nine adjudication steps are applied in the order §5.1 gives them | §5.1 | [C-33](#c-33) |
+
+Every **MUST** and **MUST NOT** above rolls up into a conformance item. The
+entries showing — are permissive (N-41): they grant latitude
+rather than impose an obligation, so §11 has nothing to assert about them.
+
+### A.2 Conformance checklist
+
+| # | Name | What it says | Bundles |
+|---|---|---|---|
+| [C-1](#c-1) | Malformed Intents Rejected | Schema validation gates adjudication, with no defaulting | [N-1](#n-1) |
+| [C-2](#c-2) | The Permanent No Comes First | Framework §12.5's prohibition is checked before everything and survives every override | [N-12](#n-12) |
+| [C-3](#c-3) | Single Source Matrix | One effective matrix supplies the base level; no second matrix exists | [N-13](#n-13) |
+| [C-4](#c-4) | Never Less Restrictive | No mechanism produces a level below base | [N-14](#n-14) |
+| [C-4a](#c-4a) | Escalation Saturates | Escalation stops at `elevated_approval`; likelihood never reaches `prohibited` | [N-14a](#n-14a) |
+| [C-5](#c-5) | Five Factors, No Negatives | All five likelihood factors are implemented and every weight is non-negative | [N-17](#n-17), [N-18](#n-18) |
+| [C-6](#c-6) | Pattern Key Exactly Six | The action pattern key covers the six §6.1 fields, no more and no fewer | [N-22](#n-22) |
+| [C-7](#c-7) | Precedent Comes From Checks | Precedent comes only from executions that were checked and succeeded | [N-25](#n-25) |
+| [C-8](#c-8) | Accountable Human Required | Non-human actors without a resolvable `on_behalf_of` are rejected | [N-5](#n-5) |
+| [C-9](#c-9) | Unknown Actors Fail Closed | Unresolvable authorization escalates non-Read operations to at least approval | [N-6](#n-6) |
+| [C-10](#c-10) | Grants Never Change Levels | Grants leave computed levels untouched and never cover `prohibited` | [N-27](#n-27), [N-29](#n-29) |
+| [C-11](#c-11) | Predicates Closed and Declarative | Predicates match the closed field set, conjunctively, with no executable code | [N-30](#n-30), [N-31](#n-31) |
+| [C-12](#c-12) | Bounded and Expiring Grants | Every grant carries an expiry and a child cap; blanket and indefinite grants are rejected | [N-32](#n-32), [N-33](#n-33) |
+| [C-13](#c-13) | Profile Ceiling Holds | Adjudication never grants what the bound profile withholds | [N-20](#n-20) |
+| [C-14](#c-14) | Reproducible Durable Records | Every adjudication emits a durable record carrying all four reproducibility inputs | [N-21](#n-21), [N-43](#n-43) |
+| [C-15](#c-15) | Prohibition Source Recorded | Prohibited decisions distinguish `pinned` from `extended` | [N-44](#n-44) |
+| [C-16](#c-16) | No False Matches | Unreconcilable executions are never recorded as `matched` | [N-49](#n-49) |
+| [C-17](#c-17) | The Envelope Is the Whole Input | Only fields this specification and the schema define may grade an intent; a missing classification resolves to the most sensitive tier; a rollback claim never lowers the level (N-2, N-3, N-4) | [N-2](#n-2), [N-3](#n-3), [N-4](#n-4) |
+| [C-18](#c-18) | Actors Are Recorded, Not Trusted | Actor kind never changes the computed level, and no grade an actor asserts about itself is honoured (N-7, N-8) | [N-7](#n-7), [N-8](#n-8) |
+| [C-19](#c-19) | The Type Registry Is Flat | Maturity is never a rank, and every registered type uses the common envelope and adjudication contract (N-9, N-10) | [N-9](#n-9), [N-10](#n-10) |
+| [C-20](#c-20) | Composites Take the Worst | A composite computes to the most restrictive level among itself and its children, and never softens a child (N-11) | [N-11](#n-11) |
+| [C-21](#c-21) | Prohibited Has Two Sources | `prohibited` is reachable only as `pinned` or `extended`, and the pinned set is never narrowed (N-14b) | [N-14b](#n-14b) |
+| [C-22](#c-22) | Impact Is Declared, Not Supplied | Impact is the four-tier classification ordering, and any substitute is profile-declared and stamped into every record (N-15, N-16) | [N-15](#n-15), [N-16](#n-16) |
+| [C-23](#c-23) | No Factor Subtracts | No likelihood factor contributes negative steps or takes its value from the intent without attestation (N-19) | [N-19](#n-19) |
+| [C-24](#c-24) | One Target, One Class | `target_class` is computed the same way every time, and a value the actor supplies never wins (N-23, N-24) | [N-23](#n-23), [N-24](#n-24) |
+| [C-25](#c-25) | A Mismatch Clears Precedent | A material mismatch clears the action pattern's precedent and demotes the actor | [N-26](#n-26) |
+| [C-26](#c-26) | Coverage Needs Every Condition | A child is covered only when every one of the five coverage conditions holds (N-28) | [N-28](#n-28) |
+| [C-27](#c-27) | Grants End Cleanly | Revocation takes effect immediately, and children already dispositioned are recorded as affected (N-34, N-35) | [N-34](#n-34), [N-35](#n-35) |
+| [C-28](#c-28) | Exceptions Stay Inside §12.5 | An exception tripping any of framework §12.5's five prohibitions is rejected, and adjudication never decides the grant (N-36, N-37) | [N-36](#n-36), [N-37](#n-37) |
+| [C-29](#c-29) | Budgets and Demotion Escalate | Budget standing comes from the bound profile, and breach and demotion escalate rather than deny or reduce (N-38, N-39, N-40) | [N-38](#n-38), [N-39](#n-39), [N-40](#n-40) |
+| [C-30](#c-30) | Emergencies Only Raise Ceilings | An emergency never lowers a level, waives a factor, or touches the pinned cells (N-42) | [N-42](#n-42) |
+| [C-31](#c-31) | One Joined Audit Trail | Decision records join the interception audit trail on `intent_id` (N-45) | [N-45](#n-45) |
+| [C-32](#c-32) | Reconciliation Classifies Everything | Every executed action is classed into one of the four results, and divergence is recorded as a governance event (N-47, N-48) | [N-47](#n-47), [N-48](#n-48) |
+| [C-33](#c-33) | The Sequence Is Honoured | Adjudication applies the §5.1 steps in order (N-50) | [N-50](#n-50) |
+| [C-34](#c-34) | The Intent ID Travels | Where both modes are deployed, `intent_id` reaches the interception record | [N-46](#n-46) |
 
 ---
 

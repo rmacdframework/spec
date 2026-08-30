@@ -1,16 +1,16 @@
 {
-  "$schema": "https://rmacd-framework.org/schema/v1/intent-decision.json",
+  "$schema": "https://rmacd-framework.org/schema/v2/intent-decision.json",
   "decision_id": "dec-20260815-0114",
   "intent_id": "int-chg-20260815-0032",
   "decided_at": "2026-08-15T10:03:12Z",
-  "shape_key": "sha256:6f1c2a9d4b83e0577c1de92a4f60b8d35ac7194e2f8b06d3a5c74e19bf2d80a6",
+  "action_pattern_key": "sha256:6f1c2a9d4b83e0577c1de92a4f60b8d35ac7194e2f8b06d3a5c74e19bf2d80a6",
   "base_level": "approval",
   "computed_level": "elevated_approval",
   "escalation_factors": [
     {
-      "factor": "novelty",
+      "factor": "precedent",
       "steps": 1,
-      "cause": "No confirmed prior success for this shape; the decision log holds 0 reconciled successes."
+      "cause": "No confirmed prior success for this action pattern; the decision log holds 0 reconciled successes."
     },
     {
       "factor": "environment",

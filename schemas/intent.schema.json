@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://rmacd-framework.org/schema/v1/intent.json",
+  "$id": "https://rmacd-framework.org/schema/v2/intent.json",
   "title": "RMACD Intent",
   "description": "A structured declaration of an action an actor wants to take, submitted for adjudication before it is taken. See docs/intent-specification.md.",
   "type": "object",
