@@ -50,6 +50,14 @@ NEGATION_EXEMPT = {
 }
 MAX_WORDS = 32
 
+# snake_case tokens in normative prose that are not envelope or record fields:
+# enum values, profile-side constraints, and vocabulary defined elsewhere.
+KNOWN_NON_FIELDS = {
+    "autonomy_overrides", "change_controls", "composition_floor", "cooldown_minutes",
+    "disaster_recovery", "elevated_approval", "emergency_escalation", "max_duration_minutes",
+    "rate_limits", "require_post_incident_review", "trigger_conditions", "unresolved_authorization",
+}
+
 # Terms retired in 2.0.0. "Shape" already means a deployment shape (3D / 2D /
 # DC2D) everywhere else in the framework, so using it for the equivalence class
 # overloaded an established word. "Novelty" named the absence of a thing, which
@@ -343,6 +351,41 @@ def run_gates(doc: str, norm: dict, conf: dict, rolls: dict, rec: dict) -> list[
                 r"absence of|nothing other than|no\b[^.]{0,40}\bother than)", s
             ):
                 fail.append(f"[3] {rid} MUST NOT carries a second negative: {s[:70]}...")
+
+    # -- 5b. A bold keyword split across a line is invisible to every tool that
+    # scans for **MUST NOT**, including gate 2's coverage check — an obligation
+    # can silently stop counting as one. Found in N-19 after a re-wrap.
+    for m in re.finditer(r"\*\*(MUST|SHOULD)\s*\n\s*NOT\*\*", doc):
+        line = doc[:m.start()].count("\n") + 1
+        fail.append(f"[5] L{line} keyword span broken across a line; keep **MUST NOT** intact")
+
+    # -- 8. Every field the normative text names must exist in a schema.
+    # N-47 referenced an expiry for intents that had no such field for a whole
+    # revision, and nothing caught it: the gates check structure, not whether
+    # the prose and the schemas describe the same object.
+    schema_fields: set[str] = set()
+
+    def _collect(node: object) -> None:
+        if isinstance(node, dict):
+            for key, value in node.items():
+                if key == "properties" and isinstance(value, dict):
+                    schema_fields.update(value)
+                _collect(value)
+        elif isinstance(node, list):
+            for item in node:
+                _collect(item)
+
+    for name in ("intent.schema.json", "intent-decision.schema.json"):
+        path = ROOT / "schemas" / name
+        if path.exists():
+            _collect(json.loads(path.read_text(encoding="utf-8")))
+    if schema_fields:
+        # Backticked snake_case tokens in requirement bodies are field references.
+        for rid, body in bodies.items():
+            for token in set(re.findall(r"`([a-z][a-z0-9]*(?:_[a-z0-9]+)+)`", body)):
+                root = token.split(".")[0]
+                if root not in schema_fields and root not in KNOWN_NON_FIELDS:
+                    fail.append(f"[8] {rid} names `{token}`, which no schema defines")
 
     # -- 6. Retired vocabulary must not come back, in the spec or anything it ships.
     scanned = [("docs/intent-specification.md", doc)]

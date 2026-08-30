@@ -3,6 +3,7 @@
   "intent_id": "int-rel-20260815-0009",
   "intent_type": "release",
   "submitted_at": "2026-08-15T10:02:00Z",
+  "valid_until": "2026-08-16T06:00:00Z",
   "actor": {
     "kind": "pipeline",
     "id": "ci-release-pipeline",
@@ -27,7 +28,9 @@
     "int-chg-20260815-0033"
   ],
   "justification": "Payments 2026.8.3 — connection pool fix, dependency bumps, and a schema migration.",
-  "compliance_tags": ["PCI-DSS"],
+  "compliance_tags": [
+    "PCI-DSS"
+  ],
   "metadata": {
     "note": "The migration child (int-chg-20260815-0033) is the most severe item. Per N-11 the release inherits that level; the two benign children do not dilute it, and neither is judged more leniently for travelling with them."
   }

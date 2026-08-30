@@ -53,7 +53,7 @@
     "id": "N-6",
     "kind": "normative",
     "name": "Fail Closed on Unknown Actors",
-    "gloss": "Unresolvable authorization escalates everything but Read to at least approval, and is recorded",
+    "gloss": "Unresolvable authorization escalates every operation to at least approval, and Read too on confidential and restricted data",
     "section_anchor": "#n-6",
     "rolls_up_to": [
       "C-9"
@@ -202,8 +202,8 @@
   {
     "id": "N-19",
     "kind": "normative",
-    "name": "No Self-Declared Escape",
-    "gloss": "No factor may subtract steps, or take its value straight from the intent without attestation",
+    "name": "Factors Only Add",
+    "gloss": "No likelihood factor may contribute a negative number of steps",
     "section_anchor": "#n-19",
     "rolls_up_to": [
       "C-23"
@@ -518,6 +518,56 @@
     ]
   },
   {
+    "id": "N-51",
+    "kind": "normative",
+    "name": "Declared Inputs Get Checked",
+    "gloss": "A factor may read a declared value only if that value is attested or reconciled",
+    "section_anchor": "#n-51",
+    "rolls_up_to": [
+      "C-36"
+    ]
+  },
+  {
+    "id": "N-52",
+    "kind": "normative",
+    "name": "Every Intent Expires",
+    "gloss": "A production-plane intent declares a `valid_until` after which its adjudication authorizes nothing",
+    "section_anchor": "#n-52",
+    "rolls_up_to": [
+      "C-35"
+    ]
+  },
+  {
+    "id": "N-53",
+    "kind": "normative",
+    "name": "Same Incident, Same Key",
+    "gloss": "`dedup_key` is computed the same way every time, and the rule that produced it is recorded",
+    "section_anchor": "#n-53",
+    "rolls_up_to": [
+      "C-37"
+    ]
+  },
+  {
+    "id": "N-54",
+    "kind": "normative",
+    "name": "The System's Key Wins",
+    "gloss": "An actor-supplied `dedup_key` may join an existing incident but never mint a new identity",
+    "section_anchor": "#n-54",
+    "rolls_up_to": [
+      "C-37"
+    ]
+  },
+  {
+    "id": "N-55",
+    "kind": "normative",
+    "name": "Caps Count Once",
+    "gloss": "Cap checks and grant lifecycle transitions are atomic and ordered; unresolvable order routes to a human",
+    "section_anchor": "#n-55",
+    "rolls_up_to": [
+      "C-38"
+    ]
+  },
+  {
     "id": "C-1",
     "kind": "conformance",
     "name": "Malformed Intents Rejected",
@@ -795,6 +845,38 @@
     "name": "The Intent ID Travels",
     "gloss": "Where both modes are deployed, `intent_id` reaches the interception record",
     "section_anchor": "#c-34",
+    "rolls_up_to": []
+  },
+  {
+    "id": "C-35",
+    "kind": "conformance",
+    "name": "Intents Carry an Expiry",
+    "gloss": "Production-plane intents declare an expiry, and nothing executes after it",
+    "section_anchor": "#c-35",
+    "rolls_up_to": []
+  },
+  {
+    "id": "C-36",
+    "kind": "conformance",
+    "name": "No Unchecked Self-Declaration",
+    "gloss": "A factor reading a declared value is attested or reconciled",
+    "section_anchor": "#c-36",
+    "rolls_up_to": []
+  },
+  {
+    "id": "C-37",
+    "kind": "conformance",
+    "name": "Incident Keys Are Computed",
+    "gloss": "`dedup_key` is computed, and an actor-supplied key cannot mint a new incident",
+    "section_anchor": "#c-37",
+    "rolls_up_to": []
+  },
+  {
+    "id": "C-38",
+    "kind": "conformance",
+    "name": "Cap Checks Are Atomic",
+    "gloss": "Cap consumption and revocation are ordered, and unresolvable order fails closed",
+    "section_anchor": "#c-38",
     "rolls_up_to": []
   }
 ]

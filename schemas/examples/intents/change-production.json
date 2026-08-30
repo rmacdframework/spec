@@ -3,6 +3,7 @@
   "intent_id": "int-chg-20260815-0031",
   "intent_type": "change",
   "submitted_at": "2026-08-15T09:14:00Z",
+  "valid_until": "2026-08-15T18:00:00Z",
   "actor": {
     "kind": "agent",
     "id": "devops-agent-007",
@@ -26,7 +27,10 @@
     }
   },
   "justification": "Connection pool exhaustion during peak; raise max_connections from 40 to 80.",
-  "compliance_tags": ["PCI-DSS", "SOX"],
+  "compliance_tags": [
+    "PCI-DSS",
+    "SOX"
+  ],
   "provenance": {
     "rationale_ref": "https://wiki.company.com/incident/INC-4471#root-cause",
     "produced_by": "triage-process",

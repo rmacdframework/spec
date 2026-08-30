@@ -107,6 +107,7 @@ Every intent, of every type, is a single JSON object conforming to
 | `grant_ref` | No | `intent_id` | A campaign or exception this intent claims coverage from (§7) |
 | `compliance_tags` | No | array of string | Framework §10 vocabulary; a closed enum in the schema |
 | `provenance` | No | object | `rationale_ref`, `produced_by`, `source_intent_id` |
+| `valid_until` | Conditional | date-time | RFC 3339, UTC; **required** on production-plane types (N-52) |
 | `metadata` | No | object | Organization-local; never an adjudication input |
 
 **N-1 (Reject, Never Default).** <a id="n-1"></a>An implementation **MUST** reject an intent that fails schema
@@ -146,6 +147,13 @@ level is the minimum in every case (§5.2). Where a rollback claim is attested b
 a party other than the requesting actor, `attested_by` **MUST** identify that
 party.
 
+**N-52 (Every Intent Expires).** <a id="n-52"></a>A production-plane intent
+**MUST** declare `valid_until`, an RFC 3339 timestamp after which its
+adjudication authorizes nothing. An implementation **MUST NOT** permit execution
+once `valid_until` has passed, and **MUST** record the reconciliation result
+`unexecuted` where the intent was never executed. Where an intent cites a grant,
+the earlier of `valid_until` and the grant's `expires_at` governs.
+
 ---
 
 ## 3. The actor model
@@ -172,8 +180,10 @@ party.
 **N-6 (Fail Closed on Unknown Actors).** <a id="n-6"></a>Where `authorization`
 cannot be resolved, the implementation **MUST** fail closed. Every operation
 except `R` escalates to at least `approval`, whatever the matrix would
-otherwise compute. The decision record **MUST** record
-`unresolved_authorization` as an escalation factor.
+otherwise compute. `R` escalates the same way on `confidential` and
+`restricted` data, and in any deployment that recognizes no classification
+tier. The decision record **MUST** record `unresolved_authorization` as an
+escalation factor.
 
 **N-7 (Kind Routes, Never Grades).** <a id="n-7"></a>Adjudication **MUST** be actor-kind-agnostic. `kind` **MUST NOT**
 influence the computed level. It **MAY** determine approval routing and
@@ -222,6 +232,15 @@ out of scope for this specification.
 **MUST** be the most restrictive level among the composite itself and all
 intents it composes or requires. Membership in a composite **MUST NOT** lower
 any child's own computed level.
+
+**N-53 (Same Incident, Same Key).** <a id="n-53"></a>`dedup_key` **MUST** be
+computed the same way every time, from the field set the deployment declares in
+its bound profile. An implementation **MUST** record which rule produced it.
+
+**N-54 (The System's Key Wins).** <a id="n-54"></a>A `dedup_key` supplied by
+the actor **MUST NOT** create a new incident identity; it **MAY** only join an
+existing one. Where a supplied key and a computed key disagree, the computed key
+governs and the discrepancy **MUST** be recorded.
 
 ---
 
@@ -335,10 +354,13 @@ remain ≥ 0; a negative weight **MUST** be rejected at configuration load. The
 effective weight table **MUST** carry a version identifier, and that identifier
 **MUST** be stamped into every decision record.
 
-**N-19 (No Self-Declared Escape).** <a id="n-19"></a>An implementation **MUST
-NOT** introduce a factor that can contribute negative steps. It **MUST NOT**
-implement a factor whose value is taken straight from the intent without
-attestation or reconciliation.
+**N-19 (Factors Only Add).** <a id="n-19"></a>An implementation **MUST NOT**
+introduce a factor that can contribute negative steps.
+
+**N-51 (Declared Inputs Get Checked).** <a id="n-51"></a>An implementation
+**MAY** compute a factor from a value the intent declares. Where it does, that
+value **MUST** be attested by a party other than the requesting actor, or
+compared against execution by reconciliation (§10).
 
 ### 5.5 The profile remains a ceiling
 
@@ -493,6 +515,12 @@ dispositioned when the grant is revoked stays validly dispositioned. The
 implementation **MUST** record it as affected by the revocation and mark it
 for human review.
 
+**N-55 (Caps Count Once).** <a id="n-55"></a>Checking a grant's caps and
+consuming capacity against them **MUST** be one atomic operation. A grant's
+lifecycle transitions **MUST** be totally ordered with respect to coverage
+decisions. Where an implementation cannot establish that order, the child
+**MUST** route for individual human disposition.
+
 ### 7.4 The `exception` type
 
 The `exception` type expresses framework §12.3's five-step process. Framework
@@ -632,8 +660,8 @@ of:
 
 | Result | Meaning |
 |---|---|
-| `matched` | Executed action's operation, target class, classification and environment match the declared intent |
-| `divergent` | An executed action carried a different operation, target class, classification or environment |
+| `matched` | Executed action's operation, target class, classification, environment and scope match the declared intent |
+| `divergent` | An executed action carried a different operation, target class, classification, environment or scope |
 | `undeclared` | An executed action carried no `intent_id` and matched no open intent |
 | `unexecuted` | An adjudicated intent was never executed before expiry |
 
@@ -670,7 +698,7 @@ conformance run to assert.
 | <a id="c-6"></a>C-6 | Pattern Key Exactly Six | The action pattern key covers exactly the six fields in §6.1 (N-22) |
 | <a id="c-7"></a>C-7 | Precedent Comes From Checks | Precedent accrues only from reconciled successes (N-25) |
 | <a id="c-8"></a>C-8 | Accountable Human Required | Non-human actors without a resolvable `on_behalf_of` are rejected (N-5) |
-| <a id="c-9"></a>C-9 | Unknown Actors Fail Closed | Unresolvable authorization fails closed to at least `approval` for non-Read operations (N-6) |
+| <a id="c-9"></a>C-9 | Unknown Actors Fail Closed | Unresolvable authorization escalates non-Read operations to at least `approval`, and Read too on `confidential` and `restricted` (N-6) |
 | <a id="c-10"></a>C-10 | Grants Never Change Levels | Grants discharge approval without changing computed levels, and never cover `prohibited` (N-27, N-29) |
 | <a id="c-11"></a>C-11 | Predicates Closed and Declarative | Class predicates match only the closed field set, conjunctively, with no executable code (N-30, N-31) |
 | <a id="c-12"></a>C-12 | Bounded and Expiring Grants | Every grant declares an expiry and a child cap; blanket and indefinite grants are rejected (N-32, N-33) |
@@ -693,9 +721,13 @@ conformance run to assert.
 | <a id="c-29"></a>C-29 | Budgets and Demotion Escalate | Budget standing comes from the bound profile, and breach and demotion escalate rather than deny or reduce (N-38, N-39, N-40) |
 | <a id="c-30"></a>C-30 | Emergencies Only Raise Ceilings | An emergency never lowers a level, waives a factor, or touches the pinned cells (N-42) |
 | <a id="c-31"></a>C-31 | One Joined Audit Trail | Decision records join the interception audit trail on `intent_id` (N-45) |
-| <a id="c-32"></a>C-32 | Reconciliation Classifies Everything | Every executed action is classed into one of the four results; divergence is recorded as a governance event, clears precedent and demotes (N-47, N-48) |
+| <a id="c-32"></a>C-32 | Reconciliation Classifies Everything | Every executed action is classed into one of the four results, including a scope comparison; divergence is recorded as a governance event, clears precedent and demotes (N-47, N-48) |
 | <a id="c-33"></a>C-33 | The Sequence Is Honoured | The nine adjudication steps are applied in the order §5.1 gives them (N-50) |
 | <a id="c-34"></a>C-34 | The Intent ID Travels | Where both modes are deployed, `intent_id` is propagated into the execution path so interception records carry it (N-46) |
+| <a id="c-35"></a>C-35 | Intents Carry an Expiry | Production-plane intents declare `valid_until`; execution after it is refused and the intent reconciles as `unexecuted` (N-52) |
+| <a id="c-36"></a>C-36 | No Unchecked Self-Declaration | Any factor computed from a value the intent declares is attested by another party or compared against execution (N-51) |
+| <a id="c-37"></a>C-37 | Incident Keys Are Computed | `dedup_key` is computed deterministically and recorded; an actor-supplied key may only join an existing incident (N-53, N-54) |
+| <a id="c-38"></a>C-38 | Cap Checks Are Atomic | Grant cap checks consume atomically and lifecycle transitions are ordered against coverage; unresolvable order routes to a human (N-55) |
 
 ---
 
@@ -721,7 +753,7 @@ Edit the registry, not the tables.
 | [N-3](#n-3) | Classification Required, Never Guessed | 3D and DC2D intents must carry a classification; absence resolves to the most sensitive tier | §2.2 | [C-17](#c-17) |
 | [N-4](#n-4) | Rollback Buys No Discount | A declared rollback can never pull the level below base; a third-party attestation must name the party | §2.2 | [C-17](#c-17) |
 | [N-5](#n-5) | Every Agent Has a Human | Agent and pipeline intents need an `on_behalf_of` that resolves to an accountable human or team | §3 | [C-8](#c-8) |
-| [N-6](#n-6) | Fail Closed on Unknown Actors | Unresolvable authorization escalates everything but Read to at least approval, and is recorded | §3 | [C-9](#c-9) |
+| [N-6](#n-6) | Fail Closed on Unknown Actors | Unresolvable authorization escalates every operation to at least approval, and Read too on confidential and restricted data | §3 | [C-9](#c-9) |
 | [N-7](#n-7) | Kind Routes, Never Grades | Actor kind may steer approval routing and must be recorded, but cannot change the level | §3 | [C-18](#c-18) |
 | [N-8](#n-8) | No Self-Assigned Rating | Any level, impact or likelihood grade an actor puts in its own intent is ignored | §3 | [C-18](#c-18) |
 | [N-9](#n-9) | Maturity Is Not Rank | `Stable` and `Incubating` describe semantic stability, not trust, and never feed adjudication | §4 | [C-19](#c-19) |
@@ -736,7 +768,7 @@ Edit the registry, not the tables.
 | [N-16](#n-16) | Declare Any Impact Substitute | A substituted impact basis must be profile-declared, map onto the same four tiers, and be stamped into every record | §5.3 | [C-22](#c-22) |
 | [N-17](#n-17) | The Five Likelihood Factors | All five factors must be implemented, each adding a non-negative number of steps | §5.4 | [C-5](#c-5) |
 | [N-18](#n-18) | Weights Adjustable, Never Negative | Weights may be tuned but never below zero, and the weight table is versioned into every record | §5.4 | [C-5](#c-5) |
-| [N-19](#n-19) | No Self-Declared Escape | No factor may subtract steps, or take its value straight from the intent without attestation | §5.4 | [C-23](#c-23) |
+| [N-19](#n-19) | Factors Only Add | No likelihood factor may contribute a negative number of steps | §5.4 | [C-23](#c-23) |
 | [N-20](#n-20) | Approval Is Not Permission | No adjudication, grant or disposition authorizes what the profile or capability ceiling forbids | §5.5 | [C-13](#c-13) |
 | [N-21](#n-21) | Same Inputs, Same Level | The same intent under the same four recorded version inputs must reproduce the same level | §5.6 | [C-14](#c-14) |
 | [N-22](#n-22) | The Six-Field Pattern Key | The action pattern key hashes exactly six named fields and nothing else | §6.1 | [C-6](#c-6) |
@@ -768,6 +800,11 @@ Edit the registry, not the tables.
 | [N-48](#n-48) | Divergence Is a Governance Event | Divergent and undeclared results are recorded as events, clear the action pattern's precedent, and should demote | §10 | [C-32](#c-32) |
 | [N-49](#n-49) | Unreconciled Is Not Matched | Missing interception coverage leaves `reconciliation.result` unset — never recorded as success | §10 | [C-16](#c-16) |
 | [N-50](#n-50) | Steps Run In Order | The nine adjudication steps are applied in the order §5.1 gives them | §5.1 | [C-33](#c-33) |
+| [N-51](#n-51) | Declared Inputs Get Checked | A factor may read a declared value only if that value is attested or reconciled | §5.4 | [C-36](#c-36) |
+| [N-52](#n-52) | Every Intent Expires | A production-plane intent declares a `valid_until` after which its adjudication authorizes nothing | §2.2 | [C-35](#c-35) |
+| [N-53](#n-53) | Same Incident, Same Key | `dedup_key` is computed the same way every time, and the rule that produced it is recorded | §4 | [C-37](#c-37) |
+| [N-54](#n-54) | The System's Key Wins | An actor-supplied `dedup_key` may join an existing incident but never mint a new identity | §4 | [C-37](#c-37) |
+| [N-55](#n-55) | Caps Count Once | Cap checks and grant lifecycle transitions are atomic and ordered; unresolvable order routes to a human | §7.3 | [C-38](#c-38) |
 
 Every **MUST** and **MUST NOT** above rolls up into a conformance item. The
 entries showing — are permissive (N-41): they grant latitude
@@ -812,6 +849,10 @@ rather than impose an obligation, so §11 has nothing to assert about them.
 | [C-32](#c-32) | Reconciliation Classifies Everything | Every executed action is classed into one of the four results, and divergence is recorded as a governance event (N-47, N-48) | [N-47](#n-47), [N-48](#n-48) |
 | [C-33](#c-33) | The Sequence Is Honoured | Adjudication applies the §5.1 steps in order (N-50) | [N-50](#n-50) |
 | [C-34](#c-34) | The Intent ID Travels | Where both modes are deployed, `intent_id` reaches the interception record | [N-46](#n-46) |
+| [C-35](#c-35) | Intents Carry an Expiry | Production-plane intents declare an expiry, and nothing executes after it | [N-52](#n-52) |
+| [C-36](#c-36) | No Unchecked Self-Declaration | A factor reading a declared value is attested or reconciled | [N-51](#n-51) |
+| [C-37](#c-37) | Incident Keys Are Computed | `dedup_key` is computed, and an actor-supplied key cannot mint a new incident | [N-53](#n-53), [N-54](#n-54) |
+| [C-38](#c-38) | Cap Checks Are Atomic | Cap consumption and revocation are ordered, and unresolvable order fails closed | [N-55](#n-55) |
 
 ---
 

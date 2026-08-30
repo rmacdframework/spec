@@ -38,7 +38,8 @@ requirements:
 - id: N-6
   kind: normative
   name: Fail Closed on Unknown Actors
-  gloss: Unresolvable authorization escalates everything but Read to at least approval, and is recorded
+  gloss: Unresolvable authorization escalates every operation to at least approval, and Read too on confidential
+    and restricted data
   section: '3'
 - id: N-7
   kind: normative
@@ -117,8 +118,8 @@ requirements:
   section: '5.4'
 - id: N-19
   kind: normative
-  name: No Self-Declared Escape
-  gloss: No factor may subtract steps, or take its value straight from the intent without attestation
+  name: Factors Only Add
+  gloss: No likelihood factor may contribute a negative number of steps
   section: '5.4'
 - id: N-20
   kind: normative
@@ -350,8 +351,8 @@ requirements:
   gloss: Unresolvable authorization escalates non-Read operations to at least approval
   bundles:
   - N-6
-  conformance_text: Unresolvable authorization fails closed to at least `approval` for non-Read operations
-    (N-6)
+  conformance_text: Unresolvable authorization escalates non-Read operations to at least `approval`, and
+    Read too on `confidential` and `restricted` (N-6)
 - id: C-10
   kind: conformance
   name: Grants Never Change Levels
@@ -556,8 +557,8 @@ requirements:
   bundles:
   - N-47
   - N-48
-  conformance_text: Every executed action is classed into one of the four results; divergence is recorded
-    as a governance event, clears precedent and demotes (N-47, N-48)
+  conformance_text: Every executed action is classed into one of the four results, including a scope comparison;
+    divergence is recorded as a governance event, clears precedent and demotes (N-47, N-48)
 - id: N-50
   kind: normative
   name: Steps Run In Order
@@ -578,3 +579,62 @@ requirements:
   - N-46
   conformance_text: Where both modes are deployed, `intent_id` is propagated into the execution path so
     interception records carry it (N-46)
+- id: N-51
+  kind: normative
+  name: Declared Inputs Get Checked
+  gloss: A factor may read a declared value only if that value is attested or reconciled
+  section: '5.4'
+- id: N-52
+  kind: normative
+  name: Every Intent Expires
+  gloss: A production-plane intent declares a `valid_until` after which its adjudication authorizes nothing
+  section: '2.2'
+- id: N-53
+  kind: normative
+  name: Same Incident, Same Key
+  gloss: '`dedup_key` is computed the same way every time, and the rule that produced it is recorded'
+  section: '4'
+- id: N-54
+  kind: normative
+  name: The System's Key Wins
+  gloss: An actor-supplied `dedup_key` may join an existing incident but never mint a new identity
+  section: '4'
+- id: N-55
+  kind: normative
+  name: Caps Count Once
+  gloss: Cap checks and grant lifecycle transitions are atomic and ordered; unresolvable order routes
+    to a human
+  section: '7.3'
+- id: C-35
+  kind: conformance
+  name: Intents Carry an Expiry
+  gloss: Production-plane intents declare an expiry, and nothing executes after it
+  bundles:
+  - N-52
+  conformance_text: Production-plane intents declare `valid_until`; execution after it is refused and
+    the intent reconciles as `unexecuted` (N-52)
+- id: C-36
+  kind: conformance
+  name: No Unchecked Self-Declaration
+  gloss: A factor reading a declared value is attested or reconciled
+  bundles:
+  - N-51
+  conformance_text: Any factor computed from a value the intent declares is attested by another party
+    or compared against execution (N-51)
+- id: C-37
+  kind: conformance
+  name: Incident Keys Are Computed
+  gloss: '`dedup_key` is computed, and an actor-supplied key cannot mint a new incident'
+  bundles:
+  - N-53
+  - N-54
+  conformance_text: '`dedup_key` is computed deterministically and recorded; an actor-supplied key may
+    only join an existing incident (N-53, N-54)'
+- id: C-38
+  kind: conformance
+  name: Cap Checks Are Atomic
+  gloss: Cap consumption and revocation are ordered, and unresolvable order fails closed
+  bundles:
+  - N-55
+  conformance_text: Grant cap checks consume atomically and lifecycle transitions are ordered against
+    coverage; unresolvable order routes to a human (N-55)

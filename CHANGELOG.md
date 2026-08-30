@@ -7,6 +7,71 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Intent Specification 2.1.0
+
+Five design gaps found in review, closed together. Every identifier from 2.0.0
+is unchanged; five requirements are added and three amended.
+
+#### Added
+
+- **N-52 (Every Intent Expires).** A production-plane intent declares
+  `valid_until`, after which its adjudication authorizes nothing. Without it an
+  approved `change` was a standing authorization forever, and N-47's
+  `unexecuted` result referenced an expiry no envelope field defined. Where an
+  intent cites a grant, the earlier of `valid_until` and the grant's
+  `expires_at` governs. Rolls up into **C-35**.
+- **N-51 (Declared Inputs Get Checked).** A factor may read a value the intent
+  declares only where that value is attested by another party or compared
+  against execution by reconciliation. Rolls up into **C-36**.
+- **N-53 (Same Incident, Same Key)** and **N-54 (The System's Key Wins).**
+  `dedup_key` is computed deterministically, and an actor-supplied key may only
+  join an existing incident rather than mint a new identity — closing the
+  flooding vector against the first-report invariant. They mirror N-23/N-24
+  deliberately. Roll up into **C-37**.
+- **N-55 (Caps Count Once).** Cap checks consume atomically, grant lifecycle
+  transitions are ordered against coverage decisions, and where that order
+  cannot be established the child routes to a human. Rolls up into **C-38**.
+
+#### Changed
+
+- **N-6 (Fail Closed on Unknown Actors)** no longer exempts Read wholesale. An
+  unresolvable actor still reads `public` and `internal` at base level, but
+  `confidential` and `restricted` escalate to at least `approval` — as does any
+  Read in a deployment with no classification tier to discriminate on. A
+  fail-closed rule that permitted reading Restricted was not failing closed.
+- **N-19** is split and renamed **Factors Only Add**. It carried two duties;
+  the second is now N-51. This also resolves the tension with the likelihood
+  table: L3 (environment) was already reconciled and compliant, but L5 (blast
+  radius) read a declared value that nothing checked.
+- **N-47** adds scope to the comparison set, which is what makes L5 satisfy
+  N-51. `matched` and `divergent` now compare scope alongside operation, target
+  class, classification and environment.
+
+#### Schema
+
+`schema/v2` is **amended in place** rather than superseded. It carries the
+`valid_until` field (required on the seven production-plane types via
+`if`/`then`), the tightened `dedup_key` description, and `scope` in the
+reconciliation comparison set. This is a deliberate exception: v2 was published
+hours earlier with no implementations against it, and burning a major version
+for a schema nobody has built on is worse than amending one. **v2 is amendable
+until the first engine ships, and immutable after.**
+
+#### Gates
+
+- **Gate 8** checks that every field the normative text names exists in a
+  schema. This is the check that would have caught N-52's gap: N-47 referenced
+  an expiry for intents that had no such field, and nothing flagged it because
+  the gates checked structure rather than whether prose and schema described
+  the same object.
+- **Gate 5** now rejects an RFC 2119 keyword split across a line. A wrapped
+  `MUST NOT` matches no keyword scanner, so an obligation can silently stop
+  counting as one — which had already happened to N-19, and only surfaced when
+  the split removed the other keyword in its body.
+- `tools/test_gates.py` covers 19 faults, all caught.
+
+## [Intent Specification 2.0.0] — 2026-08-30
+
 ### Intent Specification 2.0.0
 
 The Intent Specification is versioned independently of the framework. This

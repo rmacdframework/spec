@@ -4,10 +4,18 @@
   "title": "RMACD Intent",
   "description": "A structured declaration of an action an actor wants to take, submitted for adjudication before it is taken. See docs/intent-specification.md.",
   "type": "object",
-  "required": ["intent_id", "intent_type", "submitted_at", "actor", "declaration"],
+  "required": [
+    "intent_id",
+    "intent_type",
+    "submitted_at",
+    "actor",
+    "declaration"
+  ],
   "additionalProperties": false,
   "properties": {
-    "$schema": { "type": "string" },
+    "$schema": {
+      "type": "string"
+    },
     "intent_id": {
       "type": "string",
       "description": "Unique identifier for this intent within the issuing organization.",
@@ -21,8 +29,17 @@
       "format": "date-time",
       "description": "RFC 3339 UTC timestamp of submission."
     },
-    "actor": { "$ref": "#/$defs/actor" },
-    "declaration": { "$ref": "#/$defs/declaration" },
+    "valid_until": {
+      "type": "string",
+      "format": "date-time",
+      "description": "RFC 3339 UTC timestamp after which this intent's adjudication authorizes nothing. Required on production-plane types. Where the intent cites a grant, the earlier of this and the grant's expires_at governs (N-52)."
+    },
+    "actor": {
+      "$ref": "#/$defs/actor"
+    },
+    "declaration": {
+      "$ref": "#/$defs/declaration"
+    },
     "justification": {
       "type": "string",
       "description": "Free text for human readers. Never an adjudication input (N-2)."
@@ -30,12 +47,16 @@
     "composes": {
       "type": "array",
       "description": "Intents this intent bundles. The composite inherits the most restrictive child level (N-11).",
-      "items": { "$ref": "#/$defs/intentRef" }
+      "items": {
+        "$ref": "#/$defs/intentRef"
+      }
     },
     "requires": {
       "type": "array",
       "description": "Intents this intent depends on.",
-      "items": { "$ref": "#/$defs/intentRef" }
+      "items": {
+        "$ref": "#/$defs/intentRef"
+      }
     },
     "grant_ref": {
       "description": "A campaign or exception this intent claims coverage from. Coverage discharges approval; it never lowers the computed level (N-27).",
@@ -46,7 +67,16 @@
       "description": "Framework §10 compliance vocabulary.",
       "items": {
         "type": "string",
-        "enum": ["GDPR", "HIPAA", "PCI-DSS", "SOX", "ISO27001", "CCPA", "FedRAMP", "NIST-CSF"]
+        "enum": [
+          "GDPR",
+          "HIPAA",
+          "PCI-DSS",
+          "SOX",
+          "ISO27001",
+          "CCPA",
+          "FedRAMP",
+          "NIST-CSF"
+        ]
       }
     },
     "provenance": {
@@ -54,9 +84,15 @@
       "description": "Where this intent came from. Recorded, never an adjudication input.",
       "additionalProperties": true,
       "properties": {
-        "rationale_ref": { "type": "string" },
-        "produced_by": { "type": "string" },
-        "source_intent_id": { "$ref": "#/$defs/intentRef" }
+        "rationale_ref": {
+          "type": "string"
+        },
+        "produced_by": {
+          "type": "string"
+        },
+        "source_intent_id": {
+          "$ref": "#/$defs/intentRef"
+        }
       }
     },
     "metadata": {
@@ -64,7 +100,6 @@
       "description": "Organization-local annotations. Never an adjudication input (N-2).",
       "additionalProperties": true
     },
-
     "catalogue_ref": {
       "type": "string",
       "description": "service_request: the catalogue entry being requested."
@@ -75,16 +110,26 @@
       "minItems": 1,
       "items": {
         "type": "object",
-        "required": ["name"],
+        "required": [
+          "name"
+        ],
         "additionalProperties": false,
         "properties": {
-          "name": { "type": "string" },
-          "description": { "type": "string" },
-          "reversible": { "type": "boolean" }
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "reversible": {
+            "type": "boolean"
+          }
         }
       }
     },
-    "window": { "$ref": "#/$defs/window" },
+    "window": {
+      "$ref": "#/$defs/window"
+    },
     "service_commitment": {
       "type": "string",
       "description": "maintenance_window: the SLA or service commitment the window is taken against."
@@ -100,14 +145,24 @@
     "severity": {
       "type": "string",
       "description": "incident: record-plane severity.",
-      "enum": ["sev1", "sev2", "sev3", "sev4", "sev5"]
+      "enum": [
+        "sev1",
+        "sev2",
+        "sev3",
+        "sev4",
+        "sev5"
+      ]
     },
     "dedup_key": {
       "type": "string",
-      "description": "incident: deduplication key. Budgets throttle repeats of this key, never the first report of a distinct key within its window."
+      "description": "incident: deduplication key. Computed deterministically from the field set the deployment declares, never minted by the actor (N-53, N-54). Budgets throttle repeats of this key, never the first report of a distinct key within its window."
     },
-    "class_predicate": { "$ref": "#/$defs/classPredicate" },
-    "caps": { "$ref": "#/$defs/grantCaps" },
+    "class_predicate": {
+      "$ref": "#/$defs/classPredicate"
+    },
+    "caps": {
+      "$ref": "#/$defs/grantCaps"
+    },
     "expires_at": {
       "type": "string",
       "format": "date-time",
@@ -121,10 +176,19 @@
     "exception_category": {
       "type": "string",
       "description": "exception: framework §12.2 category, which fixes the maximum duration and approval authority.",
-      "enum": ["emergency", "urgent", "planned", "extended"]
+      "enum": [
+        "emergency",
+        "urgent",
+        "planned",
+        "extended"
+      ]
     },
-    "escalated_permissions": { "$ref": "#/$defs/escalatedPermissions" },
-    "compensating_controls": { "$ref": "#/$defs/compensatingControls" },
+    "escalated_permissions": {
+      "$ref": "#/$defs/escalatedPermissions"
+    },
+    "compensating_controls": {
+      "$ref": "#/$defs/compensatingControls"
+    },
     "rollback_plan": {
       "type": "string",
       "description": "exception: how the widening is undone if it causes issues."
@@ -132,85 +196,312 @@
     "status": {
       "type": "string",
       "description": "Grant lifecycle state.",
-      "enum": ["requested", "active", "expired", "revoked", "closed"]
+      "enum": [
+        "requested",
+        "active",
+        "expired",
+        "revoked",
+        "closed"
+      ]
     }
   },
-
   "allOf": [
     {
-      "if": { "properties": { "intent_type": { "const": "release" } }, "required": ["intent_type"] },
-      "then": { "required": ["composes"], "properties": { "composes": { "minItems": 1 } } }
-    },
-    {
-      "if": { "properties": { "intent_type": { "const": "deployment" } }, "required": ["intent_type"] },
-      "then": { "required": ["requires"], "properties": { "requires": { "minItems": 1, "maxItems": 1 } } }
-    },
-    {
-      "if": { "properties": { "intent_type": { "const": "service_request" } }, "required": ["intent_type"] },
-      "then": { "required": ["catalogue_ref"] }
-    },
-    {
-      "if": { "properties": { "intent_type": { "const": "decommission" } }, "required": ["intent_type"] },
-      "then": { "required": ["composes", "stages"], "properties": { "composes": { "minItems": 1 } } }
-    },
-    {
-      "if": { "properties": { "intent_type": { "const": "maintenance_window" } }, "required": ["intent_type"] },
-      "then": { "required": ["window", "service_commitment"] }
-    },
-    {
-      "if": { "properties": { "intent_type": { "const": "continuity_invocation" } }, "required": ["intent_type"] },
-      "then": { "required": ["plan_ref", "trigger"] }
-    },
-    {
-      "if": { "properties": { "intent_type": { "const": "incident" } }, "required": ["intent_type"] },
-      "then": { "required": ["severity", "dedup_key"] }
-    },
-    {
-      "if": { "properties": { "intent_type": { "const": "campaign" } }, "required": ["intent_type"] },
-      "then": { "required": ["class_predicate", "caps", "expires_at"] }
-    },
-    {
-      "if": { "properties": { "intent_type": { "const": "exception" } }, "required": ["intent_type"] },
+      "if": {
+        "properties": {
+          "intent_type": {
+            "const": "release"
+          }
+        },
+        "required": [
+          "intent_type"
+        ]
+      },
       "then": {
-        "required": ["base_profile_id", "exception_category", "escalated_permissions", "expires_at"]
+        "required": [
+          "composes"
+        ],
+        "properties": {
+          "composes": {
+            "minItems": 1
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "intent_type": {
+            "const": "deployment"
+          }
+        },
+        "required": [
+          "intent_type"
+        ]
+      },
+      "then": {
+        "required": [
+          "requires"
+        ],
+        "properties": {
+          "requires": {
+            "minItems": 1,
+            "maxItems": 1
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "intent_type": {
+            "const": "service_request"
+          }
+        },
+        "required": [
+          "intent_type"
+        ]
+      },
+      "then": {
+        "required": [
+          "catalogue_ref"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "intent_type": {
+            "const": "decommission"
+          }
+        },
+        "required": [
+          "intent_type"
+        ]
+      },
+      "then": {
+        "required": [
+          "composes",
+          "stages"
+        ],
+        "properties": {
+          "composes": {
+            "minItems": 1
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "intent_type": {
+            "const": "maintenance_window"
+          }
+        },
+        "required": [
+          "intent_type"
+        ]
+      },
+      "then": {
+        "required": [
+          "window",
+          "service_commitment"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "intent_type": {
+            "const": "continuity_invocation"
+          }
+        },
+        "required": [
+          "intent_type"
+        ]
+      },
+      "then": {
+        "required": [
+          "plan_ref",
+          "trigger"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "intent_type": {
+            "const": "incident"
+          }
+        },
+        "required": [
+          "intent_type"
+        ]
+      },
+      "then": {
+        "required": [
+          "severity",
+          "dedup_key"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "intent_type": {
+            "const": "campaign"
+          }
+        },
+        "required": [
+          "intent_type"
+        ]
+      },
+      "then": {
+        "required": [
+          "class_predicate",
+          "caps",
+          "expires_at"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "intent_type": {
+            "const": "exception"
+          }
+        },
+        "required": [
+          "intent_type"
+        ]
+      },
+      "then": {
+        "required": [
+          "base_profile_id",
+          "exception_category",
+          "escalated_permissions",
+          "expires_at"
+        ]
       }
     },
     {
       "$comment": "N-8 / N-30: privilege-bearing fields belong only to grant types. A production-plane intent that carried them could otherwise imply a self-issued grant.",
       "if": {
-        "properties": { "intent_type": { "enum": ["campaign", "exception"] } },
-        "required": ["intent_type"]
+        "properties": {
+          "intent_type": {
+            "enum": [
+              "campaign",
+              "exception"
+            ]
+          }
+        },
+        "required": [
+          "intent_type"
+        ]
       },
       "else": {
         "allOf": [
-          { "not": { "required": ["class_predicate"] } },
-          { "not": { "required": ["escalated_permissions"] } },
-          { "not": { "required": ["caps"] } },
-          { "not": { "required": ["base_profile_id"] } }
+          {
+            "not": {
+              "required": [
+                "class_predicate"
+              ]
+            }
+          },
+          {
+            "not": {
+              "required": [
+                "escalated_permissions"
+              ]
+            }
+          },
+          {
+            "not": {
+              "required": [
+                "caps"
+              ]
+            }
+          },
+          {
+            "not": {
+              "required": [
+                "base_profile_id"
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "$comment": "N-52: a production-plane intent expires. Without it an approved change is a standing authorization forever, and N-47's `unexecuted` has no trigger.",
+      "if": {
+        "properties": {
+          "intent_type": {
+            "enum": [
+              "change",
+              "release",
+              "deployment",
+              "service_request",
+              "decommission",
+              "maintenance_window",
+              "continuity_invocation"
+            ]
+          }
+        },
+        "required": [
+          "intent_type"
+        ]
+      },
+      "then": {
+        "required": [
+          "valid_until"
         ]
       }
     }
   ],
-
   "$defs": {
     "operation": {
       "type": "string",
-      "enum": ["R", "M", "A", "C", "D"],
+      "enum": [
+        "R",
+        "M",
+        "A",
+        "C",
+        "D"
+      ],
       "description": "RMACD operation: R=Read, M=Move, A=Add, C=Change, D=Delete."
     },
     "tier": {
       "type": "string",
-      "enum": ["public", "internal", "confidential", "restricted"],
+      "enum": [
+        "public",
+        "internal",
+        "confidential",
+        "restricted"
+      ],
       "description": "RMACD data classification tier."
     },
     "environment": {
       "type": "string",
-      "enum": ["development", "staging", "production", "disaster-recovery", "sandbox"],
+      "enum": [
+        "development",
+        "staging",
+        "production",
+        "disaster-recovery",
+        "sandbox"
+      ],
       "description": "Deployment environment. production and disaster-recovery raise likelihood (factor L3)."
     },
     "autonomyLevel": {
       "type": "string",
-      "enum": ["autonomous", "logged", "notification", "approval", "elevated_approval", "prohibited"],
+      "enum": [
+        "autonomous",
+        "logged",
+        "notification",
+        "approval",
+        "elevated_approval",
+        "prohibited"
+      ],
       "description": "Framework §2.4 autonomy level. Intents add no oversight vocabulary."
     },
     "intentType": {
@@ -236,14 +527,25 @@
     "actor": {
       "type": "object",
       "description": "Who is asking. Adjudication is actor-agnostic; kind affects routing and accountability only (N-7).",
-      "required": ["kind", "id", "authorization"],
+      "required": [
+        "kind",
+        "id",
+        "authorization"
+      ],
       "additionalProperties": false,
       "properties": {
         "kind": {
           "type": "string",
-          "enum": ["agent", "pipeline", "human"]
+          "enum": [
+            "agent",
+            "pipeline",
+            "human"
+          ]
         },
-        "id": { "type": "string", "minLength": 1 },
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
         "authorization": {
           "type": "string",
           "minLength": 1,
@@ -258,20 +560,39 @@
       "allOf": [
         {
           "if": {
-            "properties": { "kind": { "enum": ["agent", "pipeline"] } },
-            "required": ["kind"]
+            "properties": {
+              "kind": {
+                "enum": [
+                  "agent",
+                  "pipeline"
+                ]
+              }
+            },
+            "required": [
+              "kind"
+            ]
           },
-          "then": { "required": ["on_behalf_of"] }
+          "then": {
+            "required": [
+              "on_behalf_of"
+            ]
+          }
         }
       ]
     },
     "declaration": {
       "type": "object",
       "description": "The facts the engine grades. Contains no rating of any kind and no impact axis: a substitute impact basis is declared in the bound profile and stamped into the decision record, never supplied here (N-8, N-16).",
-      "required": ["operation", "target", "environment"],
+      "required": [
+        "operation",
+        "target",
+        "environment"
+      ],
       "additionalProperties": false,
       "properties": {
-        "operation": { "$ref": "#/$defs/operation" },
+        "operation": {
+          "$ref": "#/$defs/operation"
+        },
         "target": {
           "type": "string",
           "minLength": 1,
@@ -285,14 +606,20 @@
           "description": "Required in 3D and DC2D deployments (N-3). This is the impact dimension.",
           "$ref": "#/$defs/tier"
         },
-        "environment": { "$ref": "#/$defs/environment" },
+        "environment": {
+          "$ref": "#/$defs/environment"
+        },
         "reversibility": {
           "type": "object",
           "description": "An attested rollback path fails to add an escalation step; it never subtracts one (N-4).",
           "additionalProperties": false,
           "properties": {
-            "rollback_declared": { "type": "boolean" },
-            "rollback_plan": { "type": "string" },
+            "rollback_declared": {
+              "type": "boolean"
+            },
+            "rollback_plan": {
+              "type": "string"
+            },
             "attested_by": {
               "type": "string",
               "description": "A party other than the requesting actor. Self-attestation does not satisfy factor L2."
@@ -304,8 +631,15 @@
           "description": "Declared scope, compared against the profile's max_blast_radius_percentage (factor L5).",
           "additionalProperties": false,
           "properties": {
-            "scope_percentage": { "type": "number", "minimum": 0, "maximum": 100 },
-            "affected_count": { "type": "integer", "minimum": 0 }
+            "scope_percentage": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 100
+            },
+            "affected_count": {
+              "type": "integer",
+              "minimum": 0
+            }
           }
         }
       }
@@ -313,11 +647,20 @@
     "window": {
       "type": "object",
       "description": "maintenance_window: the planned period of unavailability.",
-      "required": ["start", "end"],
+      "required": [
+        "start",
+        "end"
+      ],
       "additionalProperties": false,
       "properties": {
-        "start": { "type": "string", "format": "date-time" },
-        "end": { "type": "string", "format": "date-time" }
+        "start": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "end": {
+          "type": "string",
+          "format": "date-time"
+        }
       }
     },
     "classPredicate": {
@@ -326,19 +669,39 @@
       "minProperties": 1,
       "additionalProperties": false,
       "properties": {
-        "intent_type": { "$ref": "#/$defs/intentType" },
-        "operation": { "$ref": "#/$defs/operation" },
-        "data_classification": { "$ref": "#/$defs/tier" },
-        "environment": { "$ref": "#/$defs/environment" },
-        "target_class": { "type": "string", "minLength": 1 },
-        "actor_id": { "type": "string", "minLength": 1 },
-        "on_behalf_of": { "type": "string", "minLength": 1 }
+        "intent_type": {
+          "$ref": "#/$defs/intentType"
+        },
+        "operation": {
+          "$ref": "#/$defs/operation"
+        },
+        "data_classification": {
+          "$ref": "#/$defs/tier"
+        },
+        "environment": {
+          "$ref": "#/$defs/environment"
+        },
+        "target_class": {
+          "type": "string",
+          "minLength": 1
+        },
+        "actor_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "on_behalf_of": {
+          "type": "string",
+          "minLength": 1
+        }
       }
     },
     "grantCaps": {
       "type": "object",
       "description": "Hard bounds on what a grant may cover. Exhausting any cap ends coverage (N-28).",
-      "required": ["max_children", "max_level"],
+      "required": [
+        "max_children",
+        "max_level"
+      ],
       "additionalProperties": false,
       "properties": {
         "max_children": {
@@ -349,8 +712,14 @@
         "max_level": {
           "description": "The level the approving human granted at. A child computing above this level is not covered and routes individually (N-28).",
           "allOf": [
-            { "$ref": "#/$defs/autonomyLevel" },
-            { "not": { "const": "prohibited" } }
+            {
+              "$ref": "#/$defs/autonomyLevel"
+            },
+            {
+              "not": {
+                "const": "prohibited"
+              }
+            }
           ]
         },
         "max_blast_radius_percentage": {
@@ -365,13 +734,34 @@
       "description": "Temporary widening granted by an exception. Restricted is capped at R and M: Add, Change and Delete on Restricted are the framework §12.5 immutable floor and are never grantable (N-36).",
       "additionalProperties": false,
       "properties": {
-        "public": { "type": "array", "items": { "$ref": "#/$defs/operation" } },
-        "internal": { "type": "array", "items": { "$ref": "#/$defs/operation" } },
-        "confidential": { "type": "array", "items": { "$ref": "#/$defs/operation" } },
+        "public": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/operation"
+          }
+        },
+        "internal": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/operation"
+          }
+        },
+        "confidential": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/operation"
+          }
+        },
         "restricted": {
           "type": "array",
           "description": "Read and Move only. A, C and D on Restricted cannot be granted by any mechanism.",
-          "items": { "type": "string", "enum": ["R", "M"] }
+          "items": {
+            "type": "string",
+            "enum": [
+              "R",
+              "M"
+            ]
+          }
         }
       }
     },
@@ -380,12 +770,21 @@
       "description": "Additional monitoring or restriction applied for the life of a grant. Audit logging can never be removed (framework §12.5).",
       "additionalProperties": true,
       "properties": {
-        "enhanced_logging": { "type": "boolean", "const": true },
-        "real_time_alerts": { "type": "boolean" },
-        "human_shadow": { "type": "string" },
+        "enhanced_logging": {
+          "type": "boolean",
+          "const": true
+        },
+        "real_time_alerts": {
+          "type": "boolean"
+        },
+        "human_shadow": {
+          "type": "string"
+        },
         "restricted_targets": {
           "type": "array",
-          "items": { "type": "string" }
+          "items": {
+            "type": "string"
+          }
         }
       }
     }

@@ -21,7 +21,9 @@
   ],
   "additionalProperties": false,
   "properties": {
-    "$schema": { "type": "string" },
+    "$schema": {
+      "type": "string"
+    },
     "decision_id": {
       "type": "string",
       "pattern": "^dec-[a-z0-9][a-z0-9-]*$"
@@ -51,12 +53,17 @@
     "escalation_factors": {
       "type": "array",
       "description": "Every factor that fired, with its step contribution. Empty when the computed level equals the base level.",
-      "items": { "$ref": "#/$defs/escalationFactor" }
+      "items": {
+        "$ref": "#/$defs/escalationFactor"
+      }
     },
     "impact_basis": {
       "type": "object",
       "description": "The impact axis used. Classification by default, or the organization's declared substitute (N-16).",
-      "required": ["scheme", "value"],
+      "required": [
+        "scheme",
+        "value"
+      ],
       "additionalProperties": false,
       "properties": {
         "scheme": {
@@ -64,7 +71,9 @@
           "description": "'data_classification' by default.",
           "default": "data_classification"
         },
-        "value": { "type": "string" }
+        "value": {
+          "type": "string"
+        }
       }
     },
     "profile_id": {
@@ -96,76 +105,137 @@
     "disposition": {
       "type": "object",
       "description": "A human decision recorded against the computed level.",
-      "required": ["outcome", "decided_at"],
+      "required": [
+        "outcome",
+        "decided_at"
+      ],
       "additionalProperties": false,
       "properties": {
         "outcome": {
           "type": "string",
-          "enum": ["approved", "approved_with_modifications", "deferred", "denied"]
+          "enum": [
+            "approved",
+            "approved_with_modifications",
+            "deferred",
+            "denied"
+          ]
         },
-        "approver": { "type": "string" },
-        "decided_at": { "type": "string", "format": "date-time" },
-        "note": { "type": "string" }
+        "approver": {
+          "type": "string"
+        },
+        "decided_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "note": {
+          "type": "string"
+        }
       }
     },
     "prohibition_source": {
       "type": "string",
       "description": "Required when computed_level is prohibited. 'pinned' is the framework §12.5 floor and can never be removed or narrowed; 'extended' is an organization's own declared prohibition, which extends the floor outward but never shrinks it. Escalation is never a source: likelihood saturates at elevated_approval and cannot reach prohibited (N-14a, N-14b, N-44).",
-      "enum": ["pinned", "extended"]
+      "enum": [
+        "pinned",
+        "extended"
+      ]
     },
     "reconciliation": {
       "type": "object",
       "description": "Attached after execution. Absent means unreconciled — which must never be recorded as a match (N-49).",
-      "required": ["result"],
+      "required": [
+        "result"
+      ],
       "additionalProperties": false,
       "properties": {
         "result": {
           "type": "string",
-          "enum": ["matched", "divergent", "undeclared", "unexecuted"]
+          "enum": [
+            "matched",
+            "divergent",
+            "undeclared",
+            "unexecuted"
+          ]
         },
-        "reconciled_at": { "type": "string", "format": "date-time" },
+        "reconciled_at": {
+          "type": "string",
+          "format": "date-time"
+        },
         "audit_record_id": {
           "type": "string",
           "description": "The interception-side audit record this was joined against."
         },
         "discrepancies": {
           "type": "array",
-          "description": "Fields where the executed action differed from the declared intent.",
+          "description": "Fields where the executed action differed from the declared intent. The comparison set is fixed by N-47: scope is included so a self-declared blast radius is checked rather than trusted (N-51).",
           "items": {
             "type": "object",
-            "required": ["field"],
+            "required": [
+              "field"
+            ],
             "additionalProperties": false,
             "properties": {
-              "field": { "type": "string" },
-              "declared": { "type": "string" },
-              "executed": { "type": "string" }
+              "field": {
+                "type": "string",
+                "enum": [
+                  "operation",
+                  "target_class",
+                  "data_classification",
+                  "environment",
+                  "scope"
+                ]
+              },
+              "declared": {
+                "type": "string"
+              },
+              "executed": {
+                "type": "string"
+              }
             }
           }
         }
       }
     }
   },
-
   "allOf": [
     {
       "$comment": "N-44: a prohibited decision must say which kind of prohibition it is.",
       "if": {
-        "properties": { "computed_level": { "const": "prohibited" } },
-        "required": ["computed_level"]
+        "properties": {
+          "computed_level": {
+            "const": "prohibited"
+          }
+        },
+        "required": [
+          "computed_level"
+        ]
       },
-      "then": { "required": ["prohibition_source"] }
+      "then": {
+        "required": [
+          "prohibition_source"
+        ]
+      }
     }
   ],
-
   "$defs": {
     "autonomyLevel": {
       "type": "string",
-      "enum": ["autonomous", "logged", "notification", "approval", "elevated_approval", "prohibited"],
+      "enum": [
+        "autonomous",
+        "logged",
+        "notification",
+        "approval",
+        "elevated_approval",
+        "prohibited"
+      ],
       "description": "Framework §2.4 autonomy level. Intents add no oversight vocabulary."
     },
     "escalationFactor": {
       "type": "object",
-      "required": ["factor", "steps"],
+      "required": [
+        "factor",
+        "steps"
+      ],
       "additionalProperties": false,
       "properties": {
         "factor": {
