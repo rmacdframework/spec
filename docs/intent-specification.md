@@ -702,11 +702,11 @@ conformance run to assert.
 ## Appendix A: Requirement Quick Reference
 
 Every normative requirement and conformance item carries a short plain-English
-name. The names are additive: they are a reading aid, and they are **not**
-identifiers. `N-14` and `C-5` are the stable references that external documents
-cite, and they never change. A name **MAY** be revised; a number **MUST NOT** be.
+name. A name is a reading aid, not an identifier: `N-14` and `C-5` are the
+stable references external documents cite, and they never change. A name can be
+revised; a number cannot.
 
-Anchors are keyed to the identifier, not the name, for the same reason:
+Anchors are keyed to the identifier rather than the name, for the same reason:
 `#n-14` resolves to N-14 whatever it comes to be called.
 
 This appendix is generated from `requirements.yaml` by `tools/check_spec.py`.
