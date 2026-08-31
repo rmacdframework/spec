@@ -5,6 +5,33 @@ All notable changes to the RMACD Framework will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Intent Specification 2.1.1
+
+#### Added
+
+- **§1.1 and §1.2 define the vocabulary §4's table assumes.** The type registry
+  classified every type by plane, maturity and composition role, and none of
+  those words was defined anywhere. "Lattice root" appeared exactly once in the
+  document, in a table cell, with no explanation. "Plane" was used seven times
+  and gates a requirement — N-52 obliges production-plane intents to carry
+  `valid_until` — while never being defined at all, so a conformance obligation
+  rested on an undefined term.
+- **§1.2 defines the ten intent types** in service-management terms, stating for
+  each what it means, what changes when the actor is an agent, and which facts
+  it has to declare.
+
+#### Fixed
+
+- **`service_request` sat on different planes in the two documents.** The
+  specification classed it Production; `intents.md` listed submitting a service
+  request as record-plane work. Both were describing something real: raising a
+  request is a record-plane act, and *fulfilling* it is production work, which
+  is what the type governs. The companion now draws that distinction rather than
+  contradicting the registry. N-52 correctly continues to require `valid_until`
+  on it.
+
 ## [Intent Specification 2.1.0] — 2026-08-31
 
 ### Intent Specification 2.1.0

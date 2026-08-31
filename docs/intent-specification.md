@@ -84,6 +84,47 @@ Escalation moves along this list toward higher indices only, and saturates
 at index 4. Index 5 is not an escalation destination: `prohibited` is reached
 only via the pinned or extended floor (N-14a, N-14b).
 
+### 1.1 Planes, maturity and composition
+
+The type registry in §4 classifies every type along three axes. This is the
+vocabulary it uses.
+
+| Term | Definition |
+|---|---|
+| **Plane** | Which part of the estate a type acts on. It determines what obligations attach to that type — expiry, deduplication, caps — but never how much oversight a given action receives. That comes from the matrix and the likelihood factors. |
+| **Production plane** | Acts on infrastructure, applications or data. These types carry an expiry, because an approved-but-unexecuted change is otherwise a standing authorization (N-52). |
+| **Record plane** | Creates or updates ITSM records themselves — raising an incident, opening a problem. Adjudicated because a fleet raising fifty thousand incidents is a denial of service on human attention. Bounded by the first-report invariant: throttling may limit repeats, never the first report of a distinct condition. |
+| **Grant plane** | Pre-authorizes a bounded class of future work rather than performing any. `campaign` and `exception` only. Always carries caps and an expiry (§7). |
+| **Maturity** | How settled a type's required-field contract is. Deliberately not a trust signal — an `Incubating` type is enforced exactly as strictly as a `Stable` one (N-9). |
+| **Stable** | The required-field set is fixed. Changes need a major revision, so it is safe to build an integration against. |
+| **Incubating** | The required-field set may still change between minor revisions. Usable in production, but pin the integration and expect to revisit it. |
+| **Lattice root** | The atomic unit of production work. Every other production type either bundles it, depends on something that does, or authorizes it. `change` only. |
+| **Composite** | Gathers one or more child intents and inherits the most restrictive level among them. A release carrying one risky migration is adjudicated at that migration's level, not at an average of its contents (N-11). |
+| **Dependent** | Cites exactly one upstream intent it cannot proceed without. A deployment names the release it deploys. |
+| **Grants over `change`** | Pre-authorizes future `change` intents within declared bounds instead of performing work. The human approval is recorded once, up front; covered children do not queue for individual sign-off (N-27). |
+| **Cited by `deployment`** | Referenced by a deployment as context it must fall inside. It does not become part of the deployment and is adjudicated separately. |
+| **Produces `change`** | Resolving one of these normally results in a separate `change` intent. The type records a condition; it does not remediate it. |
+| **Grant + trigger** | Pre-authorized outside this system, and activated by a declared condition rather than by a request. `continuity_invocation` only. |
+
+### 1.2 The intent types
+
+Each type carries its familiar service-management meaning. What changes when
+the actor is an agent is that the declaration is graded before the work runs,
+and the type fixes which facts have to be declared.
+
+| Type | Definition |
+|---|---|
+| **`change`** | A single unit of production work against one target: add, modify or remove. The atomic unit — every other production type either bundles changes, depends on something that does, or authorizes them. Where an existing change record maps. |
+| **`release`** | A set of changes packaged to ship together. Bundles one or more `change` intents and inherits the most restrictive level among them, so one risky migration sets the level for the whole release. |
+| **`deployment`** | Moving one release into one environment. Cites exactly one `release`. Kept separate from release precisely so the same release deploys to staging and production under different adjudications — environment is a likelihood factor, so production costs a step that staging does not. |
+| **`service_request`** | Fulfilment of a catalogue item, which is production work. Cites the `catalogue_ref` it came from. Raising the request is a record-plane act; fulfilling it is what this type governs. Pre-authorized in the sense that the approval already lives in the catalogue entry, so §7's grant rules do not apply. |
+| **`decommission`** | Retiring a service or asset. Bundles the changes that make it up, plus `stages`, because decommissioning is ordered and largely one-way: the staging is the point, not an optional extra. |
+| **`maintenance_window`** | An agreed period during which disruption is permitted. Declares `window.start`, `window.end` and the `service_commitment` that holds during it. A deployment names the window it must fall inside; the window is adjudicated on its own. |
+| **`continuity_invocation`** | Invoking an approved continuity or disaster-recovery plan. Cites the `plan_ref` and the `trigger` that fired. Pre-authorized because the approval lives in the plan itself. Citing an emergency raises the permission ceiling only: it never lowers a computed level and never reaches the pinned cells (N-41, N-42). |
+| **`incident`** | An unplanned interruption or degradation. Declares `severity` and a `dedup_key`. Lives on the record plane and produces work rather than doing it: raising an incident fixes nothing, and the remediation is its own adjudicated `change`. |
+| **`campaign`** | A standing approval for a bounded class of future changes — the fleet equivalent of a pre-approved standard change. Declares which children it covers (`class_predicate`), how far it goes (`caps`, including a child cap and a maximum level), and when it lapses (`expires_at`). It never lowers a child's level; it supplies the human approval in advance so covered children skip individual sign-off. |
+| **`exception`** | A time-boxed widening of a profile — framework §12.3's exception process expressed as an intent. Declares the profile being widened, the category that fixes its maximum duration and approving authority, the permissions being escalated, and an expiry. Restricted data still admits only Read and Move: the permanent prohibitions cannot be reached through an exception. |
+
 ---
 
 ## 2. The intent envelope

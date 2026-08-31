@@ -120,7 +120,9 @@ deployments, decommissions. This is where the framework's operations
 
 **The record plane** — intents that create or update the constructs of IT
 service management itself: raising an incident, submitting a service request,
-opening a problem record. These are real `(operation, target)` actions —
+opening a problem record. Raising a request is a record-plane act; *fulfilling*
+it is production work, which is why the `service_request` type sits on the
+production plane. These are real `(operation, target)` actions —
 creating an incident is an Add on the incident record system — and they are
 adjudicated for real reasons: an agent fleet raising fifty thousand incidents
 is a denial-of-service on human attention, so the same budgets, deduplication,
