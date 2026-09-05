@@ -2064,13 +2064,13 @@ integrator wires it together at the call site:
 - **`docs/intents.md`** (§12) — the intent model: adjudication as a second,
   out-of-band enforcement mode complementing runtime interception; the intent
   ladder, the production and record planes, the type registry, the actor model,
-  and how likelihood escalates the §3.1 matrix monotonically — saturating at
+  and how likelihood escalates the §3.1 matrix one way only — stopping at
   Elevated Approval — without introducing a second one.
-- **`docs/intent-specification.md`** (§12.4) — the normative companion to the
+- **`docs/intent-specification.md`** (§12.4) — the binding companion to the
   above, and the document §12.4's exception template is written against: the
   intent envelope, the actor model, the adjudication contract, the shape key
   over which novelty is computed, grants and campaigns, budgets, the decision
-  record, reconciliation with interception, and conformance requirements.
+  record, reconciliation with interception, and the implementation checklist.
 
 # **Appendix D: The Data-Classification Two-Dimensional Variant (DC2D)**
 

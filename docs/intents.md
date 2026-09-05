@@ -1,7 +1,7 @@
 # RMACD Intents — The Intent Model
 
 **Companion to:** `RMACD_Framework_v1.4.md` (§2.4, §3, §12)
-**Normative companion:** [`intent-specification.md`](intent-specification.md) — envelope, actor model, adjudication contract, conformance
+**The rules:** [`intent-specification.md`](intent-specification.md) — envelope, actor model, adjudication contract, the checklist
 **Status:** Capability definition. No SDK implementation ships with this revision.
 
 The framework's original enforcement mode is *interception*: a hook inside the
@@ -10,10 +10,11 @@ profile before the tool runs. Interception is powerful, but it governs only
 what it can instrument.
 
 This document defines a second, complementary mode — *adjudication* — in which
-an actor declares what it intends to do and receives a computed oversight
-level before it acts. It describes the model, the vocabulary, and the
-reasoning. It does not restate the governance matrix, the six autonomy levels,
-or the §12.5 immutable floor; Intents change none of them.
+an actor declares what it wants to do and a deterministic engine grades the
+declaration before the action runs. This document explains the model and why
+it is built this way; the [Intent
+Specification](intent-specification.md) states the rules an implementation
+has to follow.
 
 ## Contents
 
@@ -27,8 +28,9 @@ or the §12.5 immutable floor; Intents change none of them.
 - [8. Campaigns, budgets and emergencies](#8-campaigns-budgets-and-emergencies)
 - [9. What intents change about oversight](#9-what-intents-change-about-oversight)
 - [10. Relationship to the exception process](#10-relationship-to-the-exception-process)
-
----
+- [11. A worked example](#11-a-worked-example)
+- [12. Adopting intents in stages](#12-adopting-intents-in-stages)
+- [See also](#see-also)
 
 ## 1. What an RMACD Intent is
 
@@ -44,6 +46,8 @@ oversee where the grade demands it.
 One sentence for the whole capability: **every actor in the organization —
 agent, pipeline, or human — asks first, in a form a deterministic engine can
 answer.**
+
+![The intent flow: an actor declares, the engine grades, a human decides where the grade demands it, execution is intercepted, and reconciliation joins the two records](RMACD_Intent_Flow.drawio.png)
 
 ---
 
@@ -90,23 +94,25 @@ composition.
 | Rung | Governs | Evaluated | Notes |
 |---|---|---|---|
 | **Action intent** | One tool call | At execution time, by interception | The tool call *is* the intent, discovered rather than declared |
-| **Change intent** | One declared operation on one target | Before execution, out-of-band | The lattice root; decoupled from any runtime |
+| **Change intent** | One declared operation on one target | Before execution, out-of-band | The building block; decoupled from any runtime |
 | **Release intent** | A manifest of change intents shipping together | Before execution, one gate | Inherits the scrutiny of its most severe item |
 | **Campaign intent** | A bounded *class* of changes | Once, in advance | Humans approve classes, not instances |
 
 The action intent is what interception already evaluates implicitly. The change
 intent makes it explicit and moves adjudication ahead of execution. The release
 intent bundles changes that ship together, and **no item is ever judged more
-leniently for travelling in benign company** — the composite inherits the most
+leniently for travelling in benign company** — the bundle inherits the most
 restrictive level among its children. The campaign intent is how the model
 survives fleet scale: one human decision authorizes a bounded class, and
 matching child intents adjudicate against that grant deterministically.
 
-The composition rule generalizes beyond releases. For *any* composite intent,
-the computed level is the most restrictive of its children, and membership in a
-composite never lowers a child's own level. This is the same floor semantics
-that already governs Governance Pack composition, where adding a pack can only
-ever make a call look more dangerous.
+The bundling rule generalizes beyond releases. For *any* intent that bundles
+others, the computed level is the most restrictive of its children, and
+membership in a bundle never lowers a child's own level. This is the same
+floor semantics that already governs Governance Pack composition, where adding
+a pack can only ever make a call look more dangerous. A bundle is also decided
+children-first: no release is approved while a change inside it is still
+ungraded — N-63 (Children Are Graded First).
 
 ---
 
@@ -160,12 +166,12 @@ while the thinking in between remains human and machine process.
 Intent types form an open registry. Every registered type is a first-class
 citizen of the type system — one common envelope, one actor model, one
 adjudication contract, one audit trail, and composition with each other. No type
-outranks another; the only structure is the dependency lattice, and the only
+outranks another; the only structure is the dependency tree, and the only
 labels are maturity, which signal semantic stability, never rank.
 
 | Intent type | Governs | Plane | Composes / requires |
 |---|---|---|---|
-| `change` | One operation on one target | Production | — (the lattice root) |
+| `change` | One operation on one target | Production | — (the building block) |
 | `release` | A unit of change intents approved to ship | Production | composes `change` |
 | `deployment` | Moving an approved release into an environment | Production | requires `release` |
 | `service_request` | A catalogued, pre-authorized request | Production | grants over `change` |
@@ -177,13 +183,13 @@ labels are maturity, which signal semantic stability, never rank.
 | `exception` | Temporary, expiring widening of a profile | Grant | grants over `change` |
 
 Grant is not a third plane of action. `campaign` and `exception` are
-meta-intents: they carry a human disposition over a bounded class of future
+meta-intents: they carry a human decision over a bounded class of future
 production-plane intents, and they are the only two types that carry the grant
-machinery the normative companion specifies in its §7.
+machinery the rules specify in their §7.
 
 The registry is open by design: new types register against the common envelope
 and contract without amending the model's core. The `change` intent is the
-lattice root not because it contains the others, but because one
+building block not because it contains the others, but because one
 `(operation, target)` is the quantum of adjudicable action — every other type's
 effect decomposes into it, which is what lets one deterministic engine
 adjudicate every type.
@@ -231,18 +237,18 @@ where the level comes from.
 The framework already grades an action: the §3.1 matrix maps
 `(data classification, operation)` to a required autonomy level, adjusted by the
 actor's profile. Intents do not introduce a competing grade — N-13 (One Matrix, No Second). They compute a
-**base level** from the existing matrix and then apply **monotonic escalation**
+**base level** from the existing matrix and then apply **one-way escalation**
 driven by likelihood:
 
 ```
 base  = effective_matrix[classification][operation]   # §3.1, unchanged
 level = escalate(base, likelihood_steps)              # one-way, toward more oversight
-                                                      # saturates at Elevated Approval
+                                                      # stops at Elevated Approval
 ```
 
 `escalate` moves the level along the §2.4 ladder toward more oversight, never
 less — and stops at Elevated Approval. Likelihood can demand the CISO; it can
-never reach Prohibited. Prohibited means *no human disposition can authorize
+never reach Prohibited. Prohibited means *no human decision can authorize
 this for an agent*, which is a categorical statement about an action, not a
 verdict on how novel one request happened to be. Were escalation allowed to run
 to the end of the ladder, an ordinary production change on confidential data —
@@ -258,7 +264,7 @@ This yields the property that makes the model safe to build on:
 
 That closes what would otherwise be the model's soft centre. Because the actor
 supplies the facts, any factor capable of *lowering* a level would be
-self-rating with extra steps. Under monotonic escalation, no such factor exists.
+self-rating with extra steps. Under one-way escalation, no such factor exists.
 
 ### 7.2 The two dimensions
 
@@ -286,8 +292,9 @@ Precedent is memory: the decision log is simultaneously the evidence artifact an
 the input that lets a well-trodden action stop costing human attention. The
 *action pattern* over which precedent is counted is the security-critical definition in
 the whole model — whatever the action pattern key ignores becomes a gradient an actor can
-walk down to erode its own scrutiny — and the normative companion defines it
-exactly.
+walk down to erode its own scrutiny — and the rules define it exactly,
+down to the byte form of the hash, so that two implementations counting
+precedent count the same thing (N-22, N-56).
 
 ### 7.3 Determinism is not statelessness
 
@@ -297,7 +304,9 @@ claim is that adjudication is reproducible given the intent together with the
 matrix version, the likelihood weight-table version, the policy version, and
 the decision-log epoch — all four versions the decision record stamps, so that
 any past decision can be recomputed and defended years later — N-21 (Same
-Inputs, Same Level).
+Inputs, Same Level). The epoch is what pins the stateful half: it names the
+decision-log state the grading read, and it moves whenever that state does —
+N-60 (The Epoch Names the State).
 
 ### 7.4 The prohibited floor carries forward
 
@@ -333,11 +342,14 @@ interception is a correctly functioning system, not a contradiction — N-20
 
 ### 7.6 The decision record
 
-Every adjudication produces a durable decision record — the declared facts,
+Every adjudication produces a permanent decision record — the declared facts,
 the computed base and final levels, every escalation factor that fired, the
-matrix and policy versions, the log epoch, and any approver's disposition. It
-joins the same audit trail as interception decisions, on `intent_id` — N-43
-(The Durable Decision Record) and N-45 (One Audit Trail).
+matrix and policy versions, the log epoch, and any approver's recorded
+decision. It joins the same audit trail as interception decisions, on
+`intent_id` — N-43 (The Permanent Decision Record) and N-45 (One Audit Trail).
+Rejections are recorded too, in the same trail but never as decision records,
+so an auditor can count what was refused at the door as easily as what was
+graded — N-59 (Rejections Leave a Trace).
 
 ---
 
@@ -349,12 +361,12 @@ humans or quietly weakening itself.
 ### 8.1 Campaigns are pre-recorded approval, not waived approval
 
 A campaign grant does **not** lower a child intent's computed level — that
-would break monotonicity. Instead it supplies a human disposition *in
+would break the one-way rule. Instead it supplies a human decision *in
 advance*: the approval requirement is satisfied by a recorded human decision
 rather than waived — N-27 (Grants Approve, Never Lower). A matching child is
 covered only when every condition holds:
 
-- the child matches the campaign's class predicate deterministically;
+- the child matches the campaign's class match rule deterministically;
 - the child's computed level is no more restrictive than the level the human
   approved the campaign at;
 - the campaign's caps — child count, blast radius, expiry — are not exhausted;
@@ -366,10 +378,11 @@ routes to a human individually. This is the same idea as an ITIL standard
 change: still governed, its approval pre-granted by an approved model.
 
 Campaigns are the highest-leverage object in the model and therefore the most
-dangerous: a loose class predicate turns a single approval into a permission
-laundering channel. The normative companion constrains predicates to a closed
-set of matchable fields, makes expiry mandatory, and requires that revocation
-take effect immediately.
+dangerous: a loose class match rule turns a single approval into a permission
+laundering channel. The rules constrain match rules to a closed
+set of matchable fields, make expiry mandatory, require that revocation
+take effect immediately, and make cap checks atomic so that concurrent
+children cannot spend the same capacity twice — N-55 (Caps Count Once).
 
 ### 8.2 Budgets give teeth to controls the framework already declares
 
@@ -430,7 +443,7 @@ unpublished `exception.json` URL is retired rather than filled in.
 |---|---|
 | 1. Request Submission | Submit an `exception` intent |
 | 2. Risk Assessment | Adjudication computes the level deterministically |
-| 3. Approval Decision | Human disposition recorded against the computed level |
+| 3. Approval Decision | Human decision recorded against the computed level |
 | 4. Exception Activation | Grant becomes active; caps and expiry enforced |
 | 5. Exception Closure | Expiry or revocation; decision record closes the loop |
 
@@ -444,17 +457,134 @@ audit logging, no cross-environment exception, no blanket grant — are not
 expressible in a per-document schema and remain the implementation's duty at
 grant submission — N-36 (The Five Named Prohibitions).
 
-Nothing in §12 changes semantically. This document and the normative companion
+Nothing in §12 changes semantically. This document and the rules
 describe the same process in the intent envelope's terms.
+
+---
+
+## 11. A worked example
+
+The repository carries worked JSON for every major object —
+[`schemas/examples/intents/`](../schemas/examples/intents/) holds a production
+change, a composed release, a record-plane incident, a campaign grant, an
+urgent exception and a decision record, each validating against the published
+schemas. This section walks the production change through the nine steps of
+the adjudication algorithm (spec §5.1), so the machinery is visible end to
+end.
+
+The intent, abridged from
+[`change-production.json`](../schemas/examples/intents/change-production.json):
+a DevOps agent, acting for the platform team, wants to raise a connection-pool
+limit on the payments API in production.
+
+```json
+{
+  "intent_id": "int-chg-20260815-0031",
+  "intent_type": "change",
+  "valid_until": "2026-08-15T18:00:00Z",
+  "actor": {
+    "kind": "agent",
+    "id": "devops-agent-007",
+    "on_behalf_of": "platform-team@company.com"
+  },
+  "declaration": {
+    "operation": "C",
+    "target": "svc://payments-api/config/connection-pool",
+    "target_class": "svc://payments-api/config/*",
+    "data_classification": "confidential",
+    "environment": "production",
+    "reversibility": {
+      "rollback_declared": true,
+      "attested_by": "release-engineering@company.com"
+    },
+    "blast_radius": { "scope_percentage": 4 }
+  }
+}
+```
+
+The trace, under the shipped `rmacd-3d-devops-v1` profile and the default
+weight table:
+
+| Step | What happens | Result |
+|---|---|---|
+| 1. Validate | The envelope conforms; `valid_until` present, as required on a production-plane type | accepted |
+| 2. Resolve the actor | `authorization` resolves; `on_behalf_of` names an accountable team | resolved |
+| 3. Prohibited floor | Change on *confidential* is not in the §12.5 set (that set is A, C, D on *restricted*) | continue |
+| 4. Base level | The devops profile declares no override for Change on confidential, so the §3.1 default applies | `elevated_approval` |
+| 5. Likelihood | Unprecedented: no reconciled success for this pattern yet, **+1**. Reversibility: rollback attested by release engineering, +0. Environment: production, **+1**. Budget: in good standing, +0. Blast radius: 4%, well inside the cap, +0 | 2 steps |
+| 6. Escalate | `elevated_approval` is already the top of the escalable ladder; two steps move it nowhere — escalation stops below Prohibited | `elevated_approval` |
+| 7. Bundle floor | A `change` bundles nothing | unchanged |
+| 8. Grant coverage | No `grant_ref` claimed | routes to a human |
+| 9. Emit | One decision record: base, computed level, both factors that fired, all four version inputs | permanent record |
+
+Two things are worth noticing in that trace. The two escalation steps were
+*absorbed* — the base was already at the ceiling — yet they still appear in
+the decision record, because the record captures what fired, not only what
+moved the needle. And the rollback attestation bought no discount; what it did
+was *fail to add* the reversibility step, which is the one-way rule doing its
+job quietly.
+
+Run the same intent again after this one succeeds and reconciles, and step 5
+loses the unprecedented factor. Run it in staging, and it loses the
+environment step and the base drops to whatever the matrix requires there.
+Cover it with a campaign approved at `elevated_approval`, and step 8 satisfies
+the approval in advance instead of routing to a human — the level never
+changes, only who already said yes.
+[`decision-record.json`](../schemas/examples/intents/decision-record.json)
+shows a complete record for a neighbouring change on internal data, where
+the same two factors *did* move the level, from `approval` to
+`elevated_approval`.
+
+---
+
+## 12. Adopting intents in stages
+
+The checklist in the specification is split into three cumulative
+implementation levels (spec §11.1), and they are also the sensible adoption
+path — each stage is useful on its own and none requires the next.
+
+**Stage 1 — Adjudicate (L1).** Grade declarations and keep records. Every L1
+checklist item can be met with paper, which is deliberate: a change advisory
+board with a form, a register and a filing discipline is already an L1
+implementation. Start on whichever plane hurts most — for most fleets that is
+the record plane, because incident flooding arrives before production
+autonomy does. What you get: every ask lands pre-classified, and the decision
+log starts accumulating the precedent that later stages spend.
+
+**Stage 2 — Reconcile (L2).** Join execution back to declarations. This is
+where interception and adjudication meet: `intent_id` travels into the
+execution path, interception records join the decision log, and
+declared-one-thing-did-another becomes a detectable event. Precedent becomes
+trustworthy at exactly this point — which is why the specification refuses to
+count unreconciled successes at any level (N-25). What you get: the
+unprecedented factor starts retiring itself, and routine work stops costing
+human attention.
+
+**Stage 3 — Delegate (L3).** Turn repeated individual approvals into
+campaigns, and profile widenings into exception intents. Grants are the
+highest-leverage and most dangerous object in the model, which is why they
+come last: a campaign over a class you have never reconciled is an approval
+nobody will ever check up on. What you get: humans govern classes and
+envelopes, the approval queue becomes a policy-defect signal, and fleet scale
+stops being a governance problem.
+
+A useful discipline at every stage is *shadow mode*: grade real declarations
+and write real records while enforcing nothing, then read the decision stream
+for a few weeks. The stream tells you which overrides your profiles are
+missing, which action patterns dominate, and what your approval load will be —
+before a single actor is gated on it.
 
 ---
 
 ## See also
 
-- [`intent-specification.md`](intent-specification.md) — the normative
-  companion: envelope, actor model, adjudication contract, decision record,
-  conformance requirements.
+- [`intent-specification.md`](intent-specification.md) — the rules: envelope,
+  actor model, adjudication contract, decision record, the checklist and its
+  three implementation levels, security considerations.
 - `schemas/intent.schema.json` — the intent envelope and per-type constraints.
 - `schemas/intent-decision.schema.json` — the decision record.
+- [`schemas/examples/intents/`](../schemas/examples/intents/) — worked JSON:
+  a production change, a composed release, an incident, a campaign, an urgent
+  exception, a decision record.
 - `RMACD_Framework_v1.4.md` §2.4 (autonomy levels), §3 (the matrix),
   §12 (exceptions and the immutable floor).

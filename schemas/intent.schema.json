@@ -58,6 +58,11 @@
         "$ref": "#/$defs/intentRef"
       }
     },
+    "window_ref": {
+      "type": "string",
+      "pattern": "^int-[a-z0-9][a-z0-9-]*$",
+      "description": "deployment: a maintenance_window intent this deployment commits to fall inside (N-62)."
+    },
     "grant_ref": {
       "description": "A campaign or exception this intent claims coverage from. Coverage discharges approval; it never lowers the computed level (N-27).",
       "$ref": "#/$defs/intentRef"

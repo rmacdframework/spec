@@ -22,7 +22,7 @@ PY = sys.executable
 # (label, file, old, new, expected gate, regenerate_first)
 FAULTS = [
     ("a requirement renamed in the doc but not the registry", "docs/intent-specification.md",
-     "**N-14 (The Monotonicity Rule).**", "**N-14 (The Ratchet Rule).**", "[1]", False),
+     "**N-14 (The One-Way Rule).**", "**N-14 (The Ratchet Rule).**", "[1]", False),
     ("an anchor deleted", "docs/intent-specification.md",
      '<a id="n-30"></a>', "", "[1]", False),
     ("a citation to a requirement that does not exist", "docs/intent-specification.md",
@@ -48,6 +48,8 @@ FAULTS = [
      "an implementation **SHOULD** propagate `intent_id`", "[5]", False),
     ("an unknown record kind in the registry", "requirements.yaml",
      "- id: C-34\n  kind: conformance", "- id: C-34\n  kind: recommended", "[1]", False),
+    ("a checklist item with no level", "requirements.yaml",
+     "  level: 1\n  bundles:\n  - N-59\n", "  bundles:\n  - N-59\n", "[1]", False),
     ("an RFC 2119 keyword used in explanatory prose", "docs/intent-specification.md",
      "Misdeclaration is then handled by reconciliation (§10) and",
      "Misdeclaration **SHOULD** then be handled by reconciliation (§10) and", "[5]", False),
@@ -68,7 +70,7 @@ FAULTS = [
      "An implementation **MUST NOT**\nintroduce a factor",
      "An implementation **MUST\nNOT** introduce a factor", "[5]", False),
     ("a link pointing at a missing anchor", "docs/intent-specification.md",
-     "[`intents.md`](intents.md) — the model and its rationale",
+     "[`intents.md`](intents.md) — the model and why it is built this way",
      "[the shape key](#n-22-shape-key) — the model and its rationale", "[4]", False),
 ]
 

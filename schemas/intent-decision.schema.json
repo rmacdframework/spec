@@ -81,6 +81,15 @@
       "description": "The bound profile that supplied the permission ceiling. Adjudication never grants beyond it (N-20).",
       "pattern": "^rmacd-(2d|3d|dc2d)-[a-z0-9-]+$"
     },
+    "implementation_level": {
+      "type": "string",
+      "enum": [
+        "L1",
+        "L2",
+        "L3"
+      ],
+      "description": "The implementation level the emitting implementation claims (N-65, spec 11.1)."
+    },
     "matrix_version": {
       "type": "string",
       "description": "Reproducibility input (N-21)."

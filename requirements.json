@@ -102,8 +102,8 @@
   {
     "id": "N-11",
     "kind": "normative",
-    "name": "Composites Inherit the Worst",
-    "gloss": "A composite takes the most restrictive level among itself and its children; membership never softens a child",
+    "name": "Bundles Inherit the Worst",
+    "gloss": "A bundle takes the most restrictive level among itself and its children; membership never softens a child",
     "section_anchor": "#n-11",
     "rolls_up_to": [
       "C-20"
@@ -132,7 +132,7 @@
   {
     "id": "N-14",
     "kind": "normative",
-    "name": "The Monotonicity Rule",
+    "name": "The One-Way Rule",
     "gloss": "Nothing — factor, grant, emergency, attestation or configuration — may move a level toward less oversight",
     "section_anchor": "#n-14",
     "rolls_up_to": [
@@ -143,7 +143,7 @@
     "id": "N-14a",
     "kind": "normative",
     "name": "Escalation Stops Below Prohibited",
-    "gloss": "Likelihood saturates at `elevated_approval` and can never reach the end of the ladder",
+    "gloss": "Likelihood stops at elevated_approval and can never reach the end of the ladder",
     "section_anchor": "#n-14a",
     "rolls_up_to": [
       "C-4a"
@@ -213,7 +213,7 @@
     "id": "N-20",
     "kind": "normative",
     "name": "Approval Is Not Permission",
-    "gloss": "No adjudication, grant or disposition authorizes what the profile or capability ceiling forbids",
+    "gloss": "No adjudication, grant or human decision authorizes what the profile or capability ceiling forbids",
     "section_anchor": "#n-20",
     "rolls_up_to": [
       "C-13"
@@ -263,7 +263,7 @@
     "id": "N-25",
     "kind": "normative",
     "name": "Only Checked Successes Count",
-    "gloss": "Precedent needs a disposition permitting execution, a checked execution, and no material mismatch",
+    "gloss": "Precedent needs a recorded human decision permitting execution, a checked execution, and no material mismatch",
     "section_anchor": "#n-25",
     "rolls_up_to": [
       "C-7"
@@ -273,7 +273,7 @@
     "id": "N-26",
     "kind": "normative",
     "name": "A Mismatch Wipes Precedent",
-    "gloss": "A material mismatch clears the action pattern's precedent and should demote the actor",
+    "gloss": "A material mismatch clears the action pattern’s precedent and demotes the actor",
     "section_anchor": "#n-26",
     "rolls_up_to": [
       "C-25"
@@ -293,7 +293,7 @@
     "id": "N-28",
     "kind": "normative",
     "name": "Coverage Is All or Nothing",
-    "gloss": "All five coverage conditions must hold, or the child routes for individual human disposition",
+    "gloss": "All five coverage conditions must hold, or the child routes to a human individually",
     "section_anchor": "#n-28",
     "rolls_up_to": [
       "C-26"
@@ -312,8 +312,8 @@
   {
     "id": "N-30",
     "kind": "normative",
-    "name": "The Closed Predicate Fields",
-    "gloss": "A class predicate matches only on the seven named fields; the schema admits no other key",
+    "name": "The Closed Match-Rule Fields",
+    "gloss": "A class match rule matches only on the seven named fields; the schema admits no other key",
     "section_anchor": "#n-30",
     "rolls_up_to": [
       "C-11"
@@ -323,7 +323,7 @@
     "id": "N-31",
     "kind": "normative",
     "name": "Match All, Never Execute",
-    "gloss": "Predicate fields match conjunctively, wildcards only in `target_class`, no free text and no code",
+    "gloss": "Every named field must match; wildcards only in target_class, no free text and no code",
     "section_anchor": "#n-31",
     "rolls_up_to": [
       "C-11"
@@ -333,7 +333,7 @@
     "id": "N-32",
     "kind": "normative",
     "name": "No Blanket Grants",
-    "gloss": "An empty or catch-all predicate is rejected at grant submission",
+    "gloss": "An empty or catch-all match rule is rejected at grant submission",
     "section_anchor": "#n-32",
     "rolls_up_to": [
       "C-12"
@@ -363,7 +363,7 @@
     "id": "N-35",
     "kind": "normative",
     "name": "Past Dispositions Stand",
-    "gloss": "Children dispositioned before revocation stay valid, but are recorded as affected and surfaced for review",
+    "gloss": "Children decided before revocation stay valid, but are recorded as affected and surfaced for review",
     "section_anchor": "#n-35",
     "rolls_up_to": [
       "C-27"
@@ -440,8 +440,8 @@
   {
     "id": "N-43",
     "kind": "normative",
-    "name": "The Durable Decision Record",
-    "gloss": "Decision records are append-only; only a disposition or a reconciliation result may be attached",
+    "name": "The Permanent Decision Record",
+    "gloss": "Decision records are append-only; only a human decision or a reconciliation result may be attached",
     "section_anchor": "#n-43",
     "rolls_up_to": [
       "C-14"
@@ -471,7 +471,7 @@
     "id": "N-46",
     "kind": "normative",
     "name": "Carry the Intent ID Through",
-    "gloss": "Where both modes run, `intent_id` should propagate into the execution path",
+    "gloss": "Where both modes run, intent_id propagates into the execution path",
     "section_anchor": "#n-46",
     "rolls_up_to": [
       "C-34"
@@ -491,7 +491,7 @@
     "id": "N-48",
     "kind": "normative",
     "name": "Divergence Is a Governance Event",
-    "gloss": "Divergent and undeclared results are recorded as events, clear the action pattern's precedent, and should demote",
+    "gloss": "Divergent and undeclared results are recorded as events, clear the action pattern’s precedent, and demote",
     "section_anchor": "#n-48",
     "rolls_up_to": [
       "C-32"
@@ -568,6 +568,106 @@
     ]
   },
   {
+    "id": "N-56",
+    "kind": "normative",
+    "name": "One Byte Stream, One Hash",
+    "gloss": "The pattern key hashes RFC 8785 canonical bytes, so every implementation computes the same key",
+    "section_anchor": "#n-56",
+    "rolls_up_to": [
+      "C-6"
+    ]
+  },
+  {
+    "id": "N-57",
+    "kind": "normative",
+    "name": "One Id, One Intent",
+    "gloss": "A second intent bearing an already-accepted id is refused; changed facts arrive as a new intent",
+    "section_anchor": "#n-57",
+    "rolls_up_to": [
+      "C-39"
+    ]
+  },
+  {
+    "id": "N-58",
+    "kind": "normative",
+    "name": "No Second Grading",
+    "gloss": "An accepted intent is graded once; an emitted decision record is never replaced by a recomputed one",
+    "section_anchor": "#n-58",
+    "rolls_up_to": [
+      "C-39"
+    ]
+  },
+  {
+    "id": "N-59",
+    "kind": "normative",
+    "name": "Rejections Leave a Trace",
+    "gloss": "Every rejection is recorded in the audit trail with its reason; a rejection never produces a decision record",
+    "section_anchor": "#n-59",
+    "rolls_up_to": [
+      "C-40"
+    ]
+  },
+  {
+    "id": "N-60",
+    "kind": "normative",
+    "name": "The Epoch Names the State",
+    "gloss": "log_epoch identifies the decision-log state the grading read, and advances whenever that state changes",
+    "section_anchor": "#n-60",
+    "rolls_up_to": [
+      "C-14"
+    ]
+  },
+  {
+    "id": "N-61",
+    "kind": "normative",
+    "name": "Precedent Ages Only by Policy",
+    "gloss": "An organization may expire precedent by age; where it does, the bound lives in the versioned weight table",
+    "section_anchor": "#n-61",
+    "rolls_up_to": [
+      "C-5"
+    ]
+  },
+  {
+    "id": "N-62",
+    "kind": "normative",
+    "name": "A Deployment Names Its Window",
+    "gloss": "A deployment may cite one maintenance window; execution outside the cited window reconciles as divergent",
+    "section_anchor": "#n-62",
+    "rolls_up_to": [
+      "C-41"
+    ]
+  },
+  {
+    "id": "N-63",
+    "kind": "normative",
+    "name": "Children Are Graded First",
+    "gloss": "A bundle is not decided until every intent it composes or requires has been graded",
+    "section_anchor": "#n-63",
+    "rolls_up_to": [
+      "C-20"
+    ]
+  },
+  {
+    "id": "N-64",
+    "kind": "normative",
+    "name": "No One Grades Their Own Ask",
+    "gloss": "Where grading is done by hand, the person grading is never the requesting actor or its accountable human",
+    "section_anchor": "#n-64",
+    "rolls_up_to": [
+      "C-42"
+    ]
+  },
+  {
+    "id": "N-65",
+    "kind": "normative",
+    "name": "Say the Level You Claim",
+    "gloss": "An implementation claiming a level stamps that level into every decision record it emits",
+    "section_anchor": "#n-65",
+    "rolls_up_to": [
+      "C-43"
+    ]
+  },
+  {
     "id": "C-1",
     "kind": "conformance",
     "name": "Malformed Intents Rejected",
@@ -602,7 +702,7 @@
   {
     "id": "C-4a",
     "kind": "conformance",
-    "name": "Escalation Saturates",
+    "name": "Escalation Stops Early",
     "gloss": "Escalation stops at `elevated_approval`; likelihood never reaches `prohibited`",
     "section_anchor": "#c-4a",
     "rolls_up_to": []
@@ -658,8 +758,8 @@
   {
     "id": "C-11",
     "kind": "conformance",
-    "name": "Predicates Closed and Declarative",
-    "gloss": "Predicates match the closed field set, conjunctively, with no executable code",
+    "name": "Match Rules Closed and Declarative",
+    "gloss": "Match rules match the closed field set, all fields at once, with no executable code",
     "section_anchor": "#c-11",
     "rolls_up_to": []
   },
@@ -682,8 +782,8 @@
   {
     "id": "C-14",
     "kind": "conformance",
-    "name": "Reproducible Durable Records",
-    "gloss": "Every adjudication emits a durable record carrying all four reproducibility inputs",
+    "name": "Reproducible Permanent Records",
+    "gloss": "Every adjudication emits a permanent record carrying all four reproducibility inputs",
     "section_anchor": "#c-14",
     "rolls_up_to": []
   },
@@ -730,8 +830,8 @@
   {
     "id": "C-20",
     "kind": "conformance",
-    "name": "Composites Take the Worst",
-    "gloss": "A composite computes to the most restrictive level among itself and its children, and never softens a child (N-11)",
+    "name": "Bundles Take the Worst",
+    "gloss": "A bundle computes to the most restrictive level among itself and its children, and never softens a child (N-11)",
     "section_anchor": "#c-20",
     "rolls_up_to": []
   },
@@ -787,7 +887,7 @@
     "id": "C-27",
     "kind": "conformance",
     "name": "Grants End Cleanly",
-    "gloss": "Revocation takes effect immediately, and children already dispositioned are recorded as affected (N-34, N-35)",
+    "gloss": "Revocation takes effect immediately, and children already decided are recorded as affected (N-34, N-35)",
     "section_anchor": "#c-27",
     "rolls_up_to": []
   },
@@ -877,6 +977,46 @@
     "name": "Cap Checks Are Atomic",
     "gloss": "Cap consumption and revocation are ordered, and unresolvable order fails closed",
     "section_anchor": "#c-38",
+    "rolls_up_to": []
+  },
+  {
+    "id": "C-39",
+    "kind": "conformance",
+    "name": "The Lifecycle Is Enforced",
+    "gloss": "Ids are accepted once and emitted decision records are never re-graded",
+    "section_anchor": "#c-39",
+    "rolls_up_to": []
+  },
+  {
+    "id": "C-40",
+    "kind": "conformance",
+    "name": "Rejections Are Recorded",
+    "gloss": "Every rejection lands in the audit trail; none produces a decision record",
+    "section_anchor": "#c-40",
+    "rolls_up_to": []
+  },
+  {
+    "id": "C-41",
+    "kind": "conformance",
+    "name": "Windows Bind Deployments",
+    "gloss": "A deployment that cites a maintenance window is held to it at reconciliation",
+    "section_anchor": "#c-41",
+    "rolls_up_to": []
+  },
+  {
+    "id": "C-42",
+    "kind": "conformance",
+    "name": "Graders Are Not Requesters",
+    "gloss": "Hand grading is never done by the actor who asked",
+    "section_anchor": "#c-42",
+    "rolls_up_to": []
+  },
+  {
+    "id": "C-43",
+    "kind": "conformance",
+    "name": "Claimed Levels Are Stamped",
+    "gloss": "A claimed implementation level appears in every decision record",
+    "section_anchor": "#c-43",
     "rolls_up_to": []
   }
 ]

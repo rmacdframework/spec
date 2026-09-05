@@ -67,13 +67,33 @@ RETIRED_TERMS = {
     "shapes": "action patterns",
     "shape_key": "action_pattern_key",
     "novelty": "precedent",
+    # Retired in 2.2.0's plain-language pass: every one of these has a common
+    # word that carries the same meaning. RFC 2119 keywords are unaffected.
+    "normative": "binding",
+    "conformance": "checklist",
+    "monotonic": "one-way",
+    "monotonically": "one way only",
+    "monotonicity": "the one-way rule",
+    "composite": "bundle",
+    "composites": "bundles",
+    "lattice": "building block",
+    "durable": "permanent",
+    "durably": "permanently",
+    "saturate": "stop",
+    "saturates": "stops",
+    "saturating": "stopping",
+    "predicate": "match rule",
+    "predicates": "match rules",
+    "discharge": "satisfy in advance",
+    "discharges": "satisfies in advance",
+    "discharged": "satisfied in advance",
 }
 
 # Sections where a capitalised keyword appears as a quoted token rather than as an
 # imperative: the BCP 14 declaration, and the two places that count keywords.
 KEYWORD_PROSE_OK = {
     "(preamble)",
-    "11. Conformance",
+    "11. The checklist",
     "Appendix A: Requirement Quick Reference",
 }
 
@@ -128,6 +148,8 @@ def load_registry() -> tuple[dict, dict, dict]:
     for r in data:
         if r["kind"] not in ("normative", "conformance"):
             errors.append(f"[1] registry: {r['id']} has unknown kind {r['kind']!r}")
+        if r["kind"] == "conformance" and r.get("level") not in (1, 2, 3):
+            errors.append(f"[1] registry: {r['id']} needs a level of 1, 2 or 3")
     rec: dict = {}
     rolls: dict[str, list[str]] = {}
     for cid, c in conf.items():
@@ -147,10 +169,10 @@ def load_registry() -> tuple[dict, dict, dict]:
 
 def render_conformance_table(conf: dict) -> str:
     rows = [
-        f'| <a id="{cid.lower()}"></a>{cid} | {c["name"]} | {c["conformance_text"]} |'
+        f'| <a id="{cid.lower()}"></a>{cid} | L{c.get("level", "?")} | {c["name"]} | {c["conformance_text"]} |'
         for cid, c in conf.items()
     ]
-    return "| # | Name | Requirement |\n|---|---|---|\n" + "\n".join(rows) + "\n"
+    return "| # | Level | Name | Requirement |\n|---|---|---|---|\n" + "\n".join(rows) + "\n"
 
 
 def render_appendix(norm: dict, conf: dict, rolls: dict, rec: dict) -> str:
@@ -163,17 +185,18 @@ def render_appendix(norm: dict, conf: dict, rolls: dict, rec: dict) -> str:
         for rid, r in norm.items()
     )
     rows_c = "\n".join(
-        f'| {link(cid)} | {c["name"]} | {c["gloss"]} | '
+        f'| {link(cid)} | L{c.get("level", "?")} | {c["name"]} | {c["gloss"]} | '
         f'{", ".join(link(n) for n in c["bundles"])} |'
         for cid, c in conf.items()
     )
     permissive = sorted(r for r in norm if r not in rolls)
     return f"""## Appendix A: Requirement Quick Reference
 
-Every normative requirement and conformance item carries a short plain-English
-name. A name is a reading aid, not an identifier: `N-14` and `C-5` are the
-stable references external documents cite, and they never change. A name can be
-revised; a number cannot.
+Every rule and checklist item carries a short plain-English name. A name is a
+reading aid, not an identifier: `N-14` and `C-5` are the stable references
+external documents cite, and they never change. A name can be revised; a
+number cannot. The three implementation levels are pinned the same way: L1, L2
+and L3 keep their numbers and their meaning — add a level, never renumber one.
 
 Anchors are keyed to the identifier rather than the name, for the same reason:
 `#n-14` resolves to N-14 whatever it comes to be called.
@@ -181,20 +204,23 @@ Anchors are keyed to the identifier rather than the name, for the same reason:
 This appendix is generated from `requirements.yaml` by `tools/check_spec.py`.
 Edit the registry, not the tables.
 
-### A.1 Normative requirements
+### A.1 The rules
 
-| # | Name | What it says | Section | Rolls up to |
+| # | Name | What it says | Section | Checked by |
 |---|---|---|---|---|
 {rows_n}
 
-Every **MUST** and **MUST NOT** above rolls up into a conformance item. The
-entries showing — are permissive ({", ".join(permissive)}): they grant latitude
-rather than impose an obligation, so §11 has nothing to assert about them.
+Every **MUST** and **MUST NOT** above is checked by an item in §11. The
+entries showing — ({", ".join(permissive)}) leave a choice open rather than
+impose an obligation, so §11 has nothing to assert about them.
 
-### A.2 Conformance checklist
+### A.2 The checklist
 
-| # | Name | What it says | Bundles |
-|---|---|---|---|
+An L1 item can be met with paper, an L2 item needs execution feedback, and an
+L3 item needs the grant machinery; §11.1 defines the levels.
+
+| # | Level | Name | What it says | Checks |
+|---|---|---|---|---|
 {rows_c}
 
 ---
@@ -211,7 +237,7 @@ def regenerate(doc: str, norm: dict, conf: dict, rolls: dict, rec: dict) -> str:
 
     doc = re.sub(r"\*\*(N-\d+[a-z]?) \([^)]+\)\.\*\*", _inline, doc)
     doc = re.sub(
-        r"\| # \| Name \| Requirement \|\n\|---\|---\|---\|\n(?:\|.*\n)+",
+        r"\| # \| Level \| Name \| Requirement \|\n\|---\|---\|---\|---\|\n(?:\|.*\n)+",
         lambda _: render_conformance_table(conf),
         doc,
         count=1,

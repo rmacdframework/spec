@@ -7,6 +7,93 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [Intent Specification 2.2.0] — 2026-09-05
+
+### Intent Specification 2.2.0
+
+A robustness revision with two halves: a plain-language pass over both intent
+documents, and eight closed gaps an implementer would otherwise have hit. Every
+identifier from 2.1.x is unchanged; ten rules and five checklist items are
+added, and the checklist gains three implementation levels.
+
+#### Changed
+
+- **Plain-language pass, enforced.** Standards jargon is replaced with common
+  words throughout both documents — *normative* → binding, *conformance* →
+  checklist, *monotonic* → one-way, *saturates* → stops, *composite* → bundle,
+  *lattice root* → building block, *predicate* → match rule, *durable* →
+  permanent, *disposition* (in prose) → human decision — and the retired terms
+  are added to `check_spec.py`'s banned list so they cannot creep back. RFC
+  2119's **MUST / MUST NOT / MAY** are deliberately kept: they are the
+  load-bearing interoperability vocabulary. Renamed rules: N-14 is The One-Way
+  Rule, N-11 Bundles Inherit the Worst, N-43 The Permanent Decision Record.
+  Identifiers never changed; only names did, which Appendix A has always
+  declared revisable.
+- **The specification now carries a revision history and a versioning policy**,
+  and the version header is maintained again — it had sat at 2.0.0 through two
+  releases.
+
+#### Added
+
+- **§2.3 The intent lifecycle.** The states an intent can be in, and three
+  rules the state machine implies: a duplicate `intent_id` is refused (N-57),
+  an accepted intent is graded exactly once and its record is never displaced
+  by a recomputation (N-58), and every rejection is recorded in the audit
+  trail without producing a decision record (N-59). Rolls up into **C-39** and
+  **C-40**.
+- **N-56 (One Byte Stream, One Hash).** N-22's "canonical JSON serialization"
+  was undefined, so two honest implementations could hash the same six fields
+  to different pattern keys and precedent would not transfer between them. The
+  byte form is now pinned to RFC 8785. Rolls up into **C-6**.
+- **N-60 (The Epoch Names the State).** `log_epoch` was a required
+  reproducibility input that no rule defined. It now names the decision-log
+  state the grading read, and advances whenever precedent, budget standing,
+  demotion or grant state changes. Rolls up into **C-14**.
+- **N-61 (Precedent Ages Only by Policy).** One reconciled success retires the
+  unprecedented factor, and it stays retired until a mismatch wipes it or a
+  declared, weight-table-versioned age bound expires it — never an
+  undocumented engine rule. Rolls up into **C-5**.
+- **N-62 (A Deployment Names Its Window).** The prose promised that a
+  deployment names the window it must fall inside, but no envelope field
+  carried the citation. `window_ref` now does, and execution outside a cited
+  window reconciles as `divergent`. New **C-41**.
+- **N-63 (Children Are Graded First).** A bundle cannot receive a human
+  decision while a child is ungraded — N-11's floor cannot be computed over
+  children that have no level yet. Rolls up into **C-20**.
+- **N-53 amended:** where the bound profile declares no deduplication field
+  set, the default is `target_class` + `environment`, so two implementations
+  without profile guidance compute the same incident identity.
+- **§11.1 The three implementation levels.** L1 Adjudicating (every item
+  meetable on paper — the pattern-key hash deliberately sits at L2), L2
+  Reconciling (execution feedback), L3 Delegating (grants). Levels are
+  cumulative, pinned identifiers. Two new rules: hand grading is never done by
+  the requester or its accountable human (N-64, new **C-42**), and a claimed
+  level is stamped into every decision record via the new
+  `implementation_level` field (N-65, new **C-43**).
+- **§12 Security considerations.** The threat model in one place: self-rating,
+  scrutiny erosion, precedent farming, privilege laundering, incident
+  flooding, races, evidence tampering and floor probing, each mapped to the
+  rules that answer it — plus the three limits the specification does not
+  defend against (colluding approvers, compromised profiles, actors that
+  never declare).
+- **`docs/RMACD_Intent_Flow.drawio(.png)`** — the two-lane flow: declare,
+  grade, decide, execute, intercept, reconcile, with the precedent loop back
+  into the engine.
+- **`intents.md` §11 A worked example** — `change-production.json` traced
+  through all nine algorithm steps under the shipped devops profile, showing
+  escalation being absorbed at the ceiling and attestation buying no discount
+  — **and §12 Adopting intents in stages**, mapping the adoption path onto
+  the three levels, with shadow mode as the standing recommendation.
+- **Schemas:** `intent.schema.json` adds optional `window_ref`;
+  `intent-decision.schema.json` adds optional `implementation_level`. Both
+  additive; no existing document is invalidated.
+- **Tooling:** the §11 table and Appendix A now carry a Level column,
+  generated from a required `level:` field in `requirements.yaml`; the
+  registry gains the ten new rules and five new checklist items (67 rules, 44
+  checklist items).
+
+## [Intent Specification 2.1.1] — 2026-08-31
+
 ### Intent Specification 2.1.1
 
 #### Added

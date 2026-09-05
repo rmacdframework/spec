@@ -1,0 +1,75 @@
+<mxfile host="app.diagrams.net" agent="rmacd-framework" version="29.3.0">
+  <diagram id="rmacd-intent-flow" name="RMACD Intent Flow">
+    <mxGraphModel dx="1400" dy="700" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1500" pageHeight="560" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <mxCell id="title" value="RMACD Intent Flow" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=20;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="40" y="16" width="1420" height="32" as="geometry" />
+        </mxCell>
+        <mxCell id="subtitle" value="Declare first, grade deterministically, decide where the grade demands it, reconcile what actually ran" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=12;fontStyle=2;fontColor=#666666" vertex="1" parent="1">
+          <mxGeometry x="40" y="50" width="1420" height="20" as="geometry" />
+        </mxCell>
+
+        <mxCell id="lane_adj" value="Adjudication — before execution, out of band" style="text;html=1;align=left;verticalAlign=middle;fontSize=11;fontStyle=2;fontColor=#3070b0" vertex="1" parent="1">
+          <mxGeometry x="60" y="92" width="500" height="18" as="geometry" />
+        </mxCell>
+
+        <mxCell id="actor" value="Actor&#10;&#10;agent, pipeline or human;&#10;always acts for an&#10;accountable human (N-5)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#444444;fontSize=11;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="60" y="130" width="200" height="100" as="geometry" />
+        </mxCell>
+
+        <mxCell id="envelope" value="Intent&#10;&#10;declared facts only:&#10;operation, target, tier,&#10;environment, rollback,&#10;blast radius (N-8)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#444444;fontSize=11;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="320" y="130" width="210" height="100" as="geometry" />
+        </mxCell>
+
+        <mxCell id="engine" value="Adjudication engine&#10;&#10;1 validate · 2 resolve actor&#10;3 §12.5 floor · 4 base level&#10;5 likelihood · 6 escalate one-way&#10;7 bundle floor · 8 grants&#10;9 emit the record (N-50)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D6E4F1;strokeColor=#3070b0;strokeWidth=2;fontSize=11;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="590" y="118" width="260" height="124" as="geometry" />
+        </mxCell>
+
+        <mxCell id="record" value="Decision record&#10;&#10;permanent, append-only;&#10;base + computed level,&#10;factors fired, four&#10;version inputs (N-43)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E8E8E8;strokeColor=#666666;fontSize=11;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="910" y="130" width="210" height="100" as="geometry" />
+        </mxCell>
+
+        <mxCell id="human" value="Human decision&#10;&#10;where the grade demands it;&#10;a grant can satisfy it&#10;in advance (N-27)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FDF2D0;strokeColor=#b08c30;fontSize=11;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="1180" y="130" width="220" height="100" as="geometry" />
+        </mxCell>
+
+        <mxCell id="lane_exec" value="Execution and reconciliation — in band" style="text;html=1;align=left;verticalAlign=middle;fontSize=11;fontStyle=2;fontColor=#3070b0" vertex="1" parent="1">
+          <mxGeometry x="60" y="322" width="500" height="18" as="geometry" />
+        </mxCell>
+
+        <mxCell id="execute" value="Execution&#10;&#10;before valid_until (N-52);&#10;intent_id travels with&#10;the action (N-46)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#444444;fontSize=11;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="1180" y="360" width="220" height="100" as="geometry" />
+        </mxCell>
+
+        <mxCell id="intercept" value="Interception&#10;&#10;the profile still gates the call:&#10;approval is not&#10;permission (N-20)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#444444;fontSize=11;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="910" y="360" width="210" height="100" as="geometry" />
+        </mxCell>
+
+        <mxCell id="audit" value="One audit trail&#10;&#10;decision + interception&#10;records joined on&#10;intent_id (N-45)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E8E8E8;strokeColor=#666666;fontSize=11;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="590" y="360" width="260" height="100" as="geometry" />
+        </mxCell>
+
+        <mxCell id="reconcile" value="Reconciliation&#10;&#10;matched · divergent ·&#10;undeclared · unexecuted&#10;(N-47)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D6E4F1;strokeColor=#3070b0;strokeWidth=2;fontSize=11;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="320" y="360" width="210" height="100" as="geometry" />
+        </mxCell>
+
+        <mxCell id="feedback" value="Precedent grows on matched;&#10;a mismatch wipes it and&#10;demotes (N-25, N-26)" style="text;html=1;align=center;verticalAlign=middle;fontSize=10;fontStyle=2;fontColor=#3070b0" vertex="1" parent="1">
+          <mxGeometry x="60" y="260" width="220" height="60" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=1;exitY=0.5;entryX=0;entryY=0.5;strokeColor=#444444" edge="1" parent="1" source="actor" target="envelope"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=1;exitY=0.5;entryX=0;entryY=0.5;strokeColor=#444444" edge="1" parent="1" source="envelope" target="engine"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=1;exitY=0.5;entryX=0;entryY=0.5;strokeColor=#444444" edge="1" parent="1" source="engine" target="record"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e4" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=1;exitY=0.5;entryX=0;entryY=0.5;strokeColor=#444444" edge="1" parent="1" source="record" target="human"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e5" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=0.5;exitY=1;entryX=0.5;entryY=0;strokeColor=#444444" edge="1" parent="1" source="human" target="execute"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e6" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=0;exitY=0.5;entryX=1;entryY=0.5;strokeColor=#444444" edge="1" parent="1" source="execute" target="intercept"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e7" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=0;exitY=0.5;entryX=1;entryY=0.5;strokeColor=#444444" edge="1" parent="1" source="intercept" target="audit"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e8" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=0;exitY=0.5;entryX=1;entryY=0.5;strokeColor=#444444" edge="1" parent="1" source="audit" target="reconcile"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e9" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=0.5;exitY=0;entryX=0.35;entryY=1;dashed=1;strokeColor=#3070b0" edge="1" parent="1" source="reconcile" target="engine"><mxGeometry relative="1" as="geometry" /></mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

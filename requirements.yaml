@@ -11,630 +11,710 @@
 requirements:
 - id: N-1
   kind: normative
-  name: Reject, Never Default
-  gloss: A malformed intent is rejected outright, never adjudicated at a fallback level
+  name: "Reject, Never Default"
+  gloss: "A malformed intent is rejected outright, never adjudicated at a fallback level"
   section: '2.1'
 - id: N-2
   kind: normative
-  name: Unlisted Fields Are Inert
-  gloss: Anything outside the spec and schema is recorded but cannot move the grade
+  name: "Unlisted Fields Are Inert"
+  gloss: "Anything outside the spec and schema is recorded but cannot move the grade"
   section: '2.1'
 - id: N-3
   kind: normative
-  name: Classification Required, Never Guessed
-  gloss: 3D and DC2D intents must carry a classification; absence resolves to the most sensitive tier
+  name: "Classification Required, Never Guessed"
+  gloss: "3D and DC2D intents must carry a classification; absence resolves to the most sensitive tier"
   section: '2.2'
 - id: N-4
   kind: normative
-  name: Rollback Buys No Discount
-  gloss: A declared rollback can never pull the level below base; a third-party attestation must name
-    the party
+  name: "Rollback Buys No Discount"
+  gloss: "A declared rollback can never pull the level below base; a third-party attestation must name the party"
   section: '2.2'
 - id: N-5
   kind: normative
-  name: Every Agent Has a Human
-  gloss: Agent and pipeline intents need an `on_behalf_of` that resolves to an accountable human or team
+  name: "Every Agent Has a Human"
+  gloss: "Agent and pipeline intents need an `on_behalf_of` that resolves to an accountable human or team"
   section: '3'
 - id: N-6
   kind: normative
-  name: Fail Closed on Unknown Actors
-  gloss: Unresolvable authorization escalates every operation to at least approval, and Read too on confidential
-    and restricted data
+  name: "Fail Closed on Unknown Actors"
+  gloss: "Unresolvable authorization escalates every operation to at least approval, and Read too on confidential and restricted data"
   section: '3'
 - id: N-7
   kind: normative
-  name: Kind Routes, Never Grades
-  gloss: Actor kind may steer approval routing and must be recorded, but cannot change the level
+  name: "Kind Routes, Never Grades"
+  gloss: "Actor kind may steer approval routing and must be recorded, but cannot change the level"
   section: '3'
 - id: N-8
   kind: normative
-  name: No Self-Assigned Rating
-  gloss: Any level, impact or likelihood grade an actor puts in its own intent is ignored
+  name: "No Self-Assigned Rating"
+  gloss: "Any level, impact or likelihood grade an actor puts in its own intent is ignored"
   section: '3'
 - id: N-9
   kind: normative
-  name: Maturity Is Not Rank
-  gloss: '`Stable` and `Incubating` describe semantic stability, not trust, and never feed adjudication'
+  name: "Maturity Is Not Rank"
+  gloss: "`Stable` and `Incubating` describe semantic stability, not trust, and never feed adjudication"
   section: '4'
 - id: N-10
   kind: normative
-  name: One Envelope, One Contract
-  gloss: A new type registers against the common envelope and this adjudication contract, or stays out
-    of scope
+  name: "One Envelope, One Contract"
+  gloss: "A new type registers against the common envelope and this adjudication contract, or stays out of scope"
   section: '4'
 - id: N-11
   kind: normative
-  name: Composites Inherit the Worst
-  gloss: A composite takes the most restrictive level among itself and its children; membership never
-    softens a child
+  name: "Bundles Inherit the Worst"
+  gloss: "A bundle takes the most restrictive level among itself and its children; membership never softens a child"
   section: '4'
 - id: N-12
   kind: normative
-  name: The Permanent No
-  gloss: Add, Change and Delete on Restricted return `prohibited` before anything else runs, and no override
-    reaches them
+  name: "The Permanent No"
+  gloss: "Add, Change and Delete on Restricted return `prohibited` before anything else runs, and no override reaches them"
   section: '5.1'
 - id: N-13
   kind: normative
-  name: One Matrix, No Second
-  gloss: The base level comes from the bound profile's effective matrix and from nowhere else
+  name: "One Matrix, No Second"
+  gloss: "The base level comes from the bound profile's effective matrix and from nowhere else"
   section: '5.1'
 - id: N-14
   kind: normative
-  name: The Monotonicity Rule
-  gloss: Nothing — factor, grant, emergency, attestation or configuration — may move a level toward less
-    oversight
+  name: "The One-Way Rule"
+  gloss: "Nothing — factor, grant, emergency, attestation or configuration — may move a level toward less oversight"
   section: '5.1'
 - id: N-14a
   kind: normative
-  name: Escalation Stops Below Prohibited
-  gloss: Likelihood saturates at `elevated_approval` and can never reach the end of the ladder
+  name: "Escalation Stops Below Prohibited"
+  gloss: "Likelihood stops at elevated_approval and can never reach the end of the ladder"
   section: '5.1'
 - id: N-14b
   kind: normative
-  name: Two Sources of Prohibited
-  gloss: '`prohibited` arises only as `pinned` or `extended`; the pinned set may be grown, never shrunk'
+  name: "Two Sources of Prohibited"
+  gloss: "`prohibited` arises only as `pinned` or `extended`; the pinned set may be grown, never shrunk"
   section: '5.1'
 - id: N-15
   kind: normative
-  name: Classification Is Impact
-  gloss: The impact dimension is the four-tier classification ordering
+  name: "Classification Is Impact"
+  gloss: "The impact dimension is the four-tier classification ordering"
   section: '5.3'
 - id: N-16
   kind: normative
-  name: Declare Any Impact Substitute
-  gloss: A substituted impact basis must be profile-declared, map onto the same four tiers, and be stamped
-    into every record
+  name: "Declare Any Impact Substitute"
+  gloss: "A substituted impact basis must be profile-declared, map onto the same four tiers, and be stamped into every record"
   section: '5.3'
 - id: N-17
   kind: normative
-  name: The Five Likelihood Factors
-  gloss: All five factors must be implemented, each adding a non-negative number of steps
+  name: "The Five Likelihood Factors"
+  gloss: "All five factors must be implemented, each adding a non-negative number of steps"
   section: '5.4'
 - id: N-18
   kind: normative
-  name: Weights Adjustable, Never Negative
-  gloss: Weights may be tuned but never below zero, and the weight table is versioned into every record
+  name: "Weights Adjustable, Never Negative"
+  gloss: "Weights may be tuned but never below zero, and the weight table is versioned into every record"
   section: '5.4'
 - id: N-19
   kind: normative
-  name: Factors Only Add
-  gloss: No likelihood factor may contribute a negative number of steps
+  name: "Factors Only Add"
+  gloss: "No likelihood factor may contribute a negative number of steps"
   section: '5.4'
 - id: N-20
   kind: normative
-  name: Approval Is Not Permission
-  gloss: No adjudication, grant or disposition authorizes what the profile or capability ceiling forbids
+  name: "Approval Is Not Permission"
+  gloss: "No adjudication, grant or human decision authorizes what the profile or capability ceiling forbids"
   section: '5.5'
 - id: N-21
   kind: normative
-  name: Same Inputs, Same Level
-  gloss: The same intent under the same four recorded version inputs must reproduce the same level
+  name: "Same Inputs, Same Level"
+  gloss: "The same intent under the same four recorded version inputs must reproduce the same level"
   section: '5.6'
 - id: N-22
   kind: normative
-  name: The Six-Field Pattern Key
-  gloss: The action pattern key hashes exactly six named fields and nothing else
+  name: "The Six-Field Pattern Key"
+  gloss: "The action pattern key hashes exactly six named fields and nothing else"
   section: '6.1'
 - id: N-23
   kind: normative
-  name: Same Target, Same Class
-  gloss: '`target_class` is worked out the same way every time — the matching rule, else last-segment
-    wildcarding — and the source is recorded'
+  name: "Same Target, Same Class"
+  gloss: "`target_class` is worked out the same way every time — the matching rule, else last-segment wildcarding — and the source is recorded"
   section: '6.2'
 - id: N-24
   kind: normative
-  name: The System's Class Wins
-  gloss: A `target_class` supplied by the actor never beats the one the system works out; any disagreement
-    is recorded
+  name: "The System's Class Wins"
+  gloss: "A `target_class` supplied by the actor never beats the one the system works out; any disagreement is recorded"
   section: '6.2'
 - id: N-25
   kind: normative
-  name: Only Checked Successes Count
-  gloss: Precedent needs a disposition permitting execution, a checked execution, and no material mismatch
+  name: "Only Checked Successes Count"
+  gloss: "Precedent needs a recorded human decision permitting execution, a checked execution, and no material mismatch"
   section: '6.3'
 - id: N-26
   kind: normative
-  name: A Mismatch Wipes Precedent
-  gloss: A material mismatch clears the action pattern's precedent and should demote the actor
+  name: "A Mismatch Wipes Precedent"
+  gloss: "A material mismatch clears the action pattern’s precedent and demotes the actor"
   section: '6.3'
 - id: N-27
   kind: normative
-  name: Grants Approve, Never Lower
-  gloss: A grant supplies the human approval in advance; it never changes the child's computed level
+  name: "Grants Approve, Never Lower"
+  gloss: "A grant supplies the human approval in advance; it never changes the child's computed level"
   section: '7.1'
 - id: N-28
   kind: normative
-  name: Coverage Is All or Nothing
-  gloss: All five coverage conditions must hold, or the child routes for individual human disposition
+  name: "Coverage Is All or Nothing"
+  gloss: "All five coverage conditions must hold, or the child routes to a human individually"
   section: '7.1'
 - id: N-29
   kind: normative
-  name: No Grant Covers Prohibited
-  gloss: No grant reaches a prohibited child, and none is an exception to framework §12.5
+  name: "No Grant Covers Prohibited"
+  gloss: "No grant reaches a prohibited child, and none is an exception to framework §12.5"
   section: '7.1'
 - id: N-30
   kind: normative
-  name: The Closed Predicate Fields
-  gloss: A class predicate matches only on the seven named fields; the schema admits no other key
+  name: "The Closed Match-Rule Fields"
+  gloss: "A class match rule matches only on the seven named fields; the schema admits no other key"
   section: '7.2'
 - id: N-31
   kind: normative
-  name: Match All, Never Execute
-  gloss: Predicate fields match conjunctively, wildcards only in `target_class`, no free text and no code
+  name: "Match All, Never Execute"
+  gloss: "Every named field must match; wildcards only in target_class, no free text and no code"
   section: '7.2'
 - id: N-32
   kind: normative
-  name: No Blanket Grants
-  gloss: An empty or catch-all predicate is rejected at grant submission
+  name: "No Blanket Grants"
+  gloss: "An empty or catch-all match rule is rejected at grant submission"
   section: '7.2'
 - id: N-33
   kind: normative
-  name: Every Grant Expires and Caps
-  gloss: Every grant declares an expiry; a campaign additionally declares a child cap and a maximum level
+  name: "Every Grant Expires and Caps"
+  gloss: "Every grant declares an expiry; a campaign additionally declares a child cap and a maximum level"
   section: '7.3'
 - id: N-34
   kind: normative
-  name: Revocation Is Immediate
-  gloss: Nothing adjudicated after revocation is covered
+  name: "Revocation Is Immediate"
+  gloss: "Nothing adjudicated after revocation is covered"
   section: '7.3'
 - id: N-35
   kind: normative
-  name: Past Dispositions Stand
-  gloss: Children dispositioned before revocation stay valid, but are recorded as affected and surfaced
-    for review
+  name: "Past Dispositions Stand"
+  gloss: "Children decided before revocation stay valid, but are recorded as affected and surfaced for review"
   section: '7.3'
 - id: N-36
   kind: normative
-  name: The Five Named Prohibitions
-  gloss: An exception is rejected if it trips any of framework §12.5's five prohibitions, whether the
-    schema catches it or not
+  name: "The Five Named Prohibitions"
+  gloss: "An exception is rejected if it trips any of framework §12.5's five prohibitions, whether the schema catches it or not"
   section: '7.4'
 - id: N-37
   kind: normative
-  name: Scrutiny, Not the Decision
-  gloss: Adjudicating an exception sizes the scrutiny required; the §12.2 authority decides whether to
-    grant it
+  name: "Scrutiny, Not the Decision"
+  gloss: "Adjudicating an exception sizes the scrutiny required; the §12.2 authority decides whether to grant it"
   section: '7.4'
 - id: N-38
   kind: normative
-  name: Budgets Come From the Profile
-  gloss: Budget standing comes from bound-profile constraints; no parallel budget vocabulary exists
+  name: "Budgets Come From the Profile"
+  gloss: "Budget standing comes from bound-profile constraints; no parallel budget vocabulary exists"
   section: '8.1'
 - id: N-39
   kind: normative
-  name: Breach Escalates, Never Denies
-  gloss: A budget breach fires L4 escalation rather than a silent denial or a reduction
+  name: "Breach Escalates, Never Denies"
+  gloss: "A budget breach fires L4 escalation rather than a silent denial or a reduction"
   section: '8.1'
 - id: N-40
   kind: normative
-  name: Demotion Is Escalation
-  gloss: Demotion is the L4 weight applied until it lifts, recorded with its cause — not a new state
+  name: "Demotion Is Escalation"
+  gloss: "Demotion is the L4 weight applied until it lifts, recorded with its cause — not a new state"
   section: '8.2'
 - id: N-41
   kind: normative
-  name: Emergencies Raise the Ceiling
-  gloss: Citing an active emergency escalation raises the permission ceiling and nothing else
+  name: "Emergencies Raise the Ceiling"
+  gloss: "Citing an active emergency escalation raises the permission ceiling and nothing else"
   section: '8.3'
 - id: N-42
   kind: normative
-  name: Emergencies Never Lower Grades
-  gloss: An emergency cannot lower a level, waive a factor, or touch the pinned cells
+  name: "Emergencies Never Lower Grades"
+  gloss: "An emergency cannot lower a level, waive a factor, or touch the pinned cells"
   section: '8.3'
 - id: N-43
   kind: normative
-  name: The Durable Decision Record
-  gloss: Decision records are append-only; only a disposition or a reconciliation result may be attached
+  name: "The Permanent Decision Record"
+  gloss: "Decision records are append-only; only a human decision or a reconciliation result may be attached"
   section: '9'
 - id: N-44
   kind: normative
-  name: Name the Prohibition Source
-  gloss: Every prohibited decision states `pinned` or `extended`; escalation is never a source
+  name: "Name the Prohibition Source"
+  gloss: "Every prohibited decision states `pinned` or `extended`; escalation is never a source"
   section: '9'
 - id: N-45
   kind: normative
-  name: One Audit Trail
-  gloss: Decision records join the interception records' audit trail on `intent_id`
+  name: "One Audit Trail"
+  gloss: "Decision records join the interception records' audit trail on `intent_id`"
   section: '9'
 - id: N-46
   kind: normative
-  name: Carry the Intent ID Through
-  gloss: Where both modes run, `intent_id` should propagate into the execution path
+  name: "Carry the Intent ID Through"
+  gloss: "Where both modes run, intent_id propagates into the execution path"
   section: '10'
 - id: N-47
   kind: normative
-  name: The Four Reconciliation Results
-  gloss: Every executed action is classed as matched, divergent, undeclared or unexecuted
+  name: "The Four Reconciliation Results"
+  gloss: "Every executed action is classed as matched, divergent, undeclared or unexecuted"
   section: '10'
 - id: N-48
   kind: normative
-  name: Divergence Is a Governance Event
-  gloss: Divergent and undeclared results are recorded as events, clear the action pattern's precedent,
-    and should demote
+  name: "Divergence Is a Governance Event"
+  gloss: "Divergent and undeclared results are recorded as events, clear the action pattern’s precedent, and demote"
   section: '10'
 - id: N-49
   kind: normative
-  name: Unreconciled Is Not Matched
-  gloss: Missing interception coverage leaves `reconciliation.result` unset — never recorded as success
+  name: "Unreconciled Is Not Matched"
+  gloss: "Missing interception coverage leaves `reconciliation.result` unset — never recorded as success"
   section: '10'
+- id: N-50
+  kind: normative
+  name: "Steps Run In Order"
+  gloss: "The nine adjudication steps are applied in the order §5.1 gives them"
+  section: '5.1'
+- id: N-51
+  kind: normative
+  name: "Declared Inputs Get Checked"
+  gloss: "A factor may read a declared value only if that value is attested or reconciled"
+  section: '5.4'
+- id: N-52
+  kind: normative
+  name: "Every Intent Expires"
+  gloss: "A production-plane intent declares a `valid_until` after which its adjudication authorizes nothing"
+  section: '2.2'
+- id: N-53
+  kind: normative
+  name: "Same Incident, Same Key"
+  gloss: "`dedup_key` is computed the same way every time, and the rule that produced it is recorded"
+  section: '4'
+- id: N-54
+  kind: normative
+  name: "The System's Key Wins"
+  gloss: "An actor-supplied `dedup_key` may join an existing incident but never mint a new identity"
+  section: '4'
+- id: N-55
+  kind: normative
+  name: "Caps Count Once"
+  gloss: "Cap checks and grant lifecycle transitions are atomic and ordered; unresolvable order routes to a human"
+  section: '7.3'
+- id: N-56
+  kind: normative
+  name: "One Byte Stream, One Hash"
+  gloss: "The pattern key hashes RFC 8785 canonical bytes, so every implementation computes the same key"
+  section: '6.1'
+- id: N-57
+  kind: normative
+  name: "One Id, One Intent"
+  gloss: "A second intent bearing an already-accepted id is refused; changed facts arrive as a new intent"
+  section: '2.3'
+- id: N-58
+  kind: normative
+  name: "No Second Grading"
+  gloss: "An accepted intent is graded once; an emitted decision record is never replaced by a recomputed one"
+  section: '2.3'
+- id: N-59
+  kind: normative
+  name: "Rejections Leave a Trace"
+  gloss: "Every rejection is recorded in the audit trail with its reason; a rejection never produces a decision record"
+  section: '2.3'
+- id: N-60
+  kind: normative
+  name: "The Epoch Names the State"
+  gloss: "log_epoch identifies the decision-log state the grading read, and advances whenever that state changes"
+  section: '5.6'
+- id: N-61
+  kind: normative
+  name: "Precedent Ages Only by Policy"
+  gloss: "An organization may expire precedent by age; where it does, the bound lives in the versioned weight table"
+  section: '6.3'
+- id: N-62
+  kind: normative
+  name: "A Deployment Names Its Window"
+  gloss: "A deployment may cite one maintenance window; execution outside the cited window reconciles as divergent"
+  section: '4'
+- id: N-63
+  kind: normative
+  name: "Children Are Graded First"
+  gloss: "A bundle is not decided until every intent it composes or requires has been graded"
+  section: '4'
+- id: N-64
+  kind: normative
+  name: "No One Grades Their Own Ask"
+  gloss: "Where grading is done by hand, the person grading is never the requesting actor or its accountable human"
+  section: '11.1'
+- id: N-65
+  kind: normative
+  name: "Say the Level You Claim"
+  gloss: "An implementation claiming a level stamps that level into every decision record it emits"
+  section: '11.1'
 - id: C-1
   kind: conformance
-  name: Malformed Intents Rejected
-  gloss: Schema validation gates adjudication, with no defaulting
+  name: "Malformed Intents Rejected"
+  gloss: "Schema validation gates adjudication, with no defaulting"
+  level: 1
   bundles:
   - N-1
-  conformance_text: Intents are validated against `intent.schema.json`; malformed intents are rejected,
-    never defaulted (N-1)
+  conformance_text: "Intents are validated against `intent.schema.json`; malformed intents are rejected, never defaulted (N-1)"
 - id: C-2
   kind: conformance
-  name: The Permanent No Comes First
-  gloss: Framework §12.5's prohibition is checked before everything and survives every override
+  name: "The Permanent No Comes First"
+  gloss: "Framework §12.5's prohibition is checked before everything and survives every override"
+  level: 1
   bundles:
   - N-12
-  conformance_text: The §12.5 immutable floor is checked before any other computation and is unreachable
-    by any override (N-12)
+  conformance_text: "The §12.5 immutable floor is checked before any other computation and is unreachable by any override (N-12)"
 - id: C-3
   kind: conformance
-  name: Single Source Matrix
-  gloss: One effective matrix supplies the base level; no second matrix exists
+  name: "Single Source Matrix"
+  gloss: "One effective matrix supplies the base level; no second matrix exists"
+  level: 1
   bundles:
   - N-13
-  conformance_text: The base level comes from the framework's effective matrix; no second matrix exists
-    (N-13)
+  conformance_text: "The base level comes from the framework's effective matrix; no second matrix exists (N-13)"
 - id: C-4
   kind: conformance
-  name: Never Less Restrictive
-  gloss: No mechanism produces a level below base
+  name: "Never Less Restrictive"
+  gloss: "No mechanism produces a level below base"
+  level: 1
   bundles:
   - N-14
-  conformance_text: No mechanism can produce a level less restrictive than the base level (N-14)
+  conformance_text: "No mechanism can produce a level less restrictive than the base level (N-14)"
 - id: C-4a
   kind: conformance
-  name: Escalation Saturates
-  gloss: Escalation stops at `elevated_approval`; likelihood never reaches `prohibited`
+  name: "Escalation Stops Early"
+  gloss: "Escalation stops at `elevated_approval`; likelihood never reaches `prohibited`"
+  level: 1
   bundles:
   - N-14a
-  conformance_text: Escalation saturates at `elevated_approval`; likelihood never reaches `prohibited`
-    (N-14a)
+  conformance_text: "Escalation stops at `elevated_approval`; likelihood never reaches `prohibited` (N-14a)"
 - id: C-5
   kind: conformance
-  name: Five Factors, No Negatives
-  gloss: All five likelihood factors are implemented and every weight is non-negative
+  name: "Five Factors, No Negatives"
+  gloss: "All five likelihood factors are implemented and every weight is non-negative"
+  level: 1
   bundles:
   - N-17
   - N-18
-  conformance_text: All five likelihood factors are implemented; no weight is negative (N-17, N-18)
+  - N-61
+  conformance_text: "All five likelihood factors are implemented, no weight is negative, and any precedent age bound lives in the versioned weight table (N-17, N-18, N-61)"
 - id: C-6
   kind: conformance
-  name: Pattern Key Exactly Six
-  gloss: The action pattern key covers the six §6.1 fields, no more and no fewer
+  name: "Pattern Key Exactly Six"
+  gloss: "The action pattern key covers the six §6.1 fields, no more and no fewer"
+  level: 2
   bundles:
   - N-22
-  conformance_text: The action pattern key covers exactly the six fields in §6.1 (N-22)
+  - N-56
+  conformance_text: "The action pattern key covers exactly the six fields in §6.1, serialized per RFC 8785, so every implementation computes the same key (N-22, N-56)"
 - id: C-7
   kind: conformance
-  name: Precedent Comes From Checks
-  gloss: Precedent comes only from executions that were checked and succeeded
+  name: "Precedent Comes From Checks"
+  gloss: "Precedent comes only from executions that were checked and succeeded"
+  level: 2
   bundles:
   - N-25
-  conformance_text: Precedent accrues only from reconciled successes (N-25)
+  conformance_text: "Precedent accrues only from reconciled successes (N-25)"
 - id: C-8
   kind: conformance
-  name: Accountable Human Required
-  gloss: Non-human actors without a resolvable `on_behalf_of` are rejected
+  name: "Accountable Human Required"
+  gloss: "Non-human actors without a resolvable `on_behalf_of` are rejected"
+  level: 1
   bundles:
   - N-5
-  conformance_text: Non-human actors without a resolvable `on_behalf_of` are rejected (N-5)
+  conformance_text: "Non-human actors without a resolvable `on_behalf_of` are rejected (N-5)"
 - id: C-9
   kind: conformance
-  name: Unknown Actors Fail Closed
-  gloss: Unresolvable authorization escalates non-Read operations to at least approval
+  name: "Unknown Actors Fail Closed"
+  gloss: "Unresolvable authorization escalates non-Read operations to at least approval"
+  level: 1
   bundles:
   - N-6
-  conformance_text: Unresolvable authorization escalates non-Read operations to at least `approval`, and
-    Read too on `confidential` and `restricted` (N-6)
+  conformance_text: "Unresolvable authorization escalates non-Read operations to at least `approval`, and Read too on `confidential` and `restricted` (N-6)"
 - id: C-10
   kind: conformance
-  name: Grants Never Change Levels
-  gloss: Grants leave computed levels untouched and never cover `prohibited`
+  name: "Grants Never Change Levels"
+  gloss: "Grants leave computed levels untouched and never cover `prohibited`"
+  level: 3
   bundles:
   - N-27
   - N-29
-  conformance_text: Grants discharge approval without changing computed levels, and never cover `prohibited`
-    (N-27, N-29)
+  conformance_text: "Grants satisfy approval in advance without changing computed levels, and never cover prohibited children (N-27, N-29)"
 - id: C-11
   kind: conformance
-  name: Predicates Closed and Declarative
-  gloss: Predicates match the closed field set, conjunctively, with no executable code
+  name: "Match Rules Closed and Declarative"
+  gloss: "Match rules match the closed field set, all fields at once, with no executable code"
+  level: 3
   bundles:
   - N-30
   - N-31
-  conformance_text: Class predicates match only the closed field set, conjunctively, with no executable
-    code (N-30, N-31)
+  conformance_text: "Class match rules match only the closed field set, all fields at once, with no executable code (N-30, N-31)"
 - id: C-12
   kind: conformance
-  name: Bounded and Expiring Grants
-  gloss: Every grant carries an expiry and a child cap; blanket and indefinite grants are rejected
+  name: "Bounded and Expiring Grants"
+  gloss: "Every grant carries an expiry and a child cap; blanket and indefinite grants are rejected"
+  level: 3
   bundles:
   - N-32
   - N-33
-  conformance_text: Every grant declares an expiry and a child cap; blanket and indefinite grants are
-    rejected (N-32, N-33)
+  conformance_text: "Every grant declares an expiry and a child cap; blanket and indefinite grants are rejected (N-32, N-33)"
 - id: C-13
   kind: conformance
-  name: Profile Ceiling Holds
-  gloss: Adjudication never grants what the bound profile withholds
+  name: "Profile Ceiling Holds"
+  gloss: "Adjudication never grants what the bound profile withholds"
+  level: 1
   bundles:
   - N-20
-  conformance_text: Adjudication never grants permission the bound profile withholds (N-20)
+  conformance_text: "Adjudication never grants permission the bound profile withholds (N-20)"
 - id: C-14
   kind: conformance
-  name: Reproducible Durable Records
-  gloss: Every adjudication emits a durable record carrying all four reproducibility inputs
+  name: "Reproducible Permanent Records"
+  gloss: "Every adjudication emits a permanent record carrying all four reproducibility inputs"
+  level: 1
   bundles:
   - N-21
   - N-43
-  conformance_text: Every adjudication emits a durable decision record carrying all four reproducibility
-    inputs (N-21, N-43)
+  - N-60
+  conformance_text: "Every adjudication emits a permanent decision record carrying all four reproducibility inputs, and the log epoch names real state (N-21, N-43, N-60)"
 - id: C-15
   kind: conformance
-  name: Prohibition Source Recorded
-  gloss: Prohibited decisions distinguish `pinned` from `extended`
+  name: "Prohibition Source Recorded"
+  gloss: "Prohibited decisions distinguish `pinned` from `extended`"
+  level: 1
   bundles:
   - N-44
-  conformance_text: Prohibited decisions distinguish `pinned` from `extended` (N-44)
+  conformance_text: "Prohibited decisions distinguish `pinned` from `extended` (N-44)"
 - id: C-16
   kind: conformance
-  name: No False Matches
-  gloss: Unreconcilable executions are never recorded as `matched`
+  name: "No False Matches"
+  gloss: "Unreconcilable executions are never recorded as `matched`"
+  level: 2
   bundles:
   - N-49
-  conformance_text: Unreconcilable executions are never recorded as `matched` (N-49)
+  conformance_text: "Unreconcilable executions are never recorded as `matched` (N-49)"
 - id: C-17
   kind: conformance
-  name: The Envelope Is the Whole Input
-  gloss: Only fields this specification and the schema define may grade an intent; a missing classification
-    resolves to the most sensitive tier; a rollback claim never lowers the level (N-2, N-3, N-4)
+  name: "The Envelope Is the Whole Input"
+  gloss: "Only fields this specification and the schema define may grade an intent; a missing classification resolves to the most sensitive tier; a rollback claim never lowers the level (N-2, N-3, N-4)"
+  level: 1
   bundles:
   - N-2
   - N-3
   - N-4
-  conformance_text: Only fields this specification and the schema define may grade an intent; a missing
-    classification resolves to the most sensitive tier; a rollback claim never lowers the level (N-2,
-    N-3, N-4)
+  conformance_text: "Only fields this specification and the schema define may grade an intent; a missing classification resolves to the most sensitive tier; a rollback claim never lowers the level (N-2, N-3, N-4)"
 - id: C-18
   kind: conformance
-  name: Actors Are Recorded, Not Trusted
-  gloss: Actor kind never changes the computed level, and no grade an actor asserts about itself is honoured
-    (N-7, N-8)
+  name: "Actors Are Recorded, Not Trusted"
+  gloss: "Actor kind never changes the computed level, and no grade an actor asserts about itself is honoured (N-7, N-8)"
+  level: 1
   bundles:
   - N-7
   - N-8
-  conformance_text: Actor kind never changes the computed level, and no grade an actor asserts about itself
-    is honoured (N-7, N-8)
+  conformance_text: "Actor kind never changes the computed level, and no grade an actor asserts about itself is honoured (N-7, N-8)"
 - id: C-19
   kind: conformance
-  name: The Type Registry Is Flat
-  gloss: Maturity is never a rank, and every registered type uses the common envelope and adjudication
-    contract (N-9, N-10)
+  name: "The Type Registry Is Flat"
+  gloss: "Maturity is never a rank, and every registered type uses the common envelope and adjudication contract (N-9, N-10)"
+  level: 1
   bundles:
   - N-9
   - N-10
-  conformance_text: Maturity is never a rank, and every registered type uses the common envelope and adjudication
-    contract (N-9, N-10)
+  conformance_text: "Maturity is never a rank, and every registered type uses the common envelope and adjudication contract (N-9, N-10)"
 - id: C-20
   kind: conformance
-  name: Composites Take the Worst
-  gloss: A composite computes to the most restrictive level among itself and its children, and never softens
-    a child (N-11)
+  name: "Bundles Take the Worst"
+  gloss: "A bundle computes to the most restrictive level among itself and its children, and never softens a child (N-11)"
+  level: 1
   bundles:
   - N-11
-  conformance_text: A composite computes to the most restrictive level among itself and its children,
-    and never softens a child (N-11)
+  - N-63
+  conformance_text: "A bundle computes to the most restrictive level among itself and its children, never softens a child, and is decided only after every child is graded (N-11, N-63)"
 - id: C-21
   kind: conformance
-  name: Prohibited Has Two Sources
-  gloss: '`prohibited` is reachable only as `pinned` or `extended`, and the pinned set is never narrowed
-    (N-14b)'
+  name: "Prohibited Has Two Sources"
+  gloss: "`prohibited` is reachable only as `pinned` or `extended`, and the pinned set is never narrowed (N-14b)"
+  level: 1
   bundles:
   - N-14b
-  conformance_text: '`prohibited` is reachable only as `pinned` or `extended`, and the pinned set is never
-    narrowed (N-14b)'
+  conformance_text: "`prohibited` is reachable only as `pinned` or `extended`, and the pinned set is never narrowed (N-14b)"
 - id: C-22
   kind: conformance
-  name: Impact Is Declared, Not Supplied
-  gloss: Impact is the four-tier classification ordering, and any substitute is profile-declared and stamped
-    into every record (N-15, N-16)
+  name: "Impact Is Declared, Not Supplied"
+  gloss: "Impact is the four-tier classification ordering, and any substitute is profile-declared and stamped into every record (N-15, N-16)"
+  level: 1
   bundles:
   - N-15
   - N-16
-  conformance_text: Impact is the four-tier classification ordering, and any substitute is profile-declared
-    and stamped into every record (N-15, N-16)
+  conformance_text: "Impact is the four-tier classification ordering, and any substitute is profile-declared and stamped into every record (N-15, N-16)"
 - id: C-23
   kind: conformance
-  name: No Factor Subtracts
-  gloss: No likelihood factor contributes negative steps or takes its value from the intent without attestation
-    (N-19)
+  name: "No Factor Subtracts"
+  gloss: "No likelihood factor contributes negative steps or takes its value from the intent without attestation (N-19)"
+  level: 1
   bundles:
   - N-19
-  conformance_text: No likelihood factor contributes negative steps or takes its value from the intent
-    without attestation (N-19)
+  conformance_text: "No likelihood factor contributes negative steps or takes its value from the intent without attestation (N-19)"
 - id: C-24
   kind: conformance
-  name: One Target, One Class
-  gloss: '`target_class` is computed the same way every time, and a value the actor supplies never wins
-    (N-23, N-24)'
+  name: "One Target, One Class"
+  gloss: "`target_class` is computed the same way every time, and a value the actor supplies never wins (N-23, N-24)"
+  level: 1
   bundles:
   - N-23
   - N-24
-  conformance_text: '`target_class` is computed the same way every time, and a value the actor supplies
-    never wins (N-23, N-24)'
+  conformance_text: "`target_class` is computed the same way every time, and a value the actor supplies never wins (N-23, N-24)"
 - id: C-25
   kind: conformance
-  name: A Mismatch Clears Precedent
-  gloss: A material mismatch clears the action pattern's precedent and demotes the actor
+  name: "A Mismatch Clears Precedent"
+  gloss: "A material mismatch clears the action pattern's precedent and demotes the actor"
+  level: 2
   bundles:
   - N-26
-  conformance_text: A material mismatch found at reconciliation clears the affected action pattern's precedent
-    and demotes the actor (N-26)
+  conformance_text: "A material mismatch found at reconciliation clears the affected action pattern's precedent and demotes the actor (N-26)"
 - id: C-26
   kind: conformance
-  name: Coverage Needs Every Condition
-  gloss: A child is covered only when every one of the five coverage conditions holds (N-28)
+  name: "Coverage Needs Every Condition"
+  gloss: "A child is covered only when every one of the five coverage conditions holds (N-28)"
+  level: 3
   bundles:
   - N-28
-  conformance_text: A child is covered only when every one of the five coverage conditions holds (N-28)
+  conformance_text: "A child is covered only when every one of the five coverage conditions holds; otherwise it routes to a human individually (N-28)"
 - id: C-27
   kind: conformance
-  name: Grants End Cleanly
-  gloss: Revocation takes effect immediately, and children already dispositioned are recorded as affected
-    (N-34, N-35)
+  name: "Grants End Cleanly"
+  gloss: "Revocation takes effect immediately, and children already decided are recorded as affected (N-34, N-35)"
+  level: 3
   bundles:
   - N-34
   - N-35
-  conformance_text: Revocation takes effect immediately; children already dispositioned are recorded as
-    affected and marked for human review (N-34, N-35)
+  conformance_text: "Revocation takes effect immediately; children already decided are recorded as affected and marked for human review (N-34, N-35)"
 - id: C-28
   kind: conformance
-  name: Exceptions Stay Inside §12.5
-  gloss: An exception tripping any of framework §12.5's five prohibitions is rejected, and adjudication
-    never decides the grant (N-36, N-37)
+  name: "Exceptions Stay Inside §12.5"
+  gloss: "An exception tripping any of framework §12.5's five prohibitions is rejected, and adjudication never decides the grant (N-36, N-37)"
+  level: 3
   bundles:
   - N-36
   - N-37
-  conformance_text: An exception tripping any of framework §12.5's five prohibitions is rejected, and
-    adjudication never decides the grant (N-36, N-37)
+  conformance_text: "An exception tripping any of framework §12.5's five prohibitions is rejected, and adjudication never decides the grant (N-36, N-37)"
 - id: C-29
   kind: conformance
-  name: Budgets and Demotion Escalate
-  gloss: Budget standing comes from the bound profile, and breach and demotion escalate rather than deny
-    or reduce (N-38, N-39, N-40)
+  name: "Budgets and Demotion Escalate"
+  gloss: "Budget standing comes from the bound profile, and breach and demotion escalate rather than deny or reduce (N-38, N-39, N-40)"
+  level: 2
   bundles:
   - N-38
   - N-39
   - N-40
-  conformance_text: Budget standing comes from the bound profile, and breach and demotion escalate rather
-    than deny or reduce (N-38, N-39, N-40)
+  conformance_text: "Budget standing comes from the bound profile, and breach and demotion escalate rather than deny or reduce (N-38, N-39, N-40)"
 - id: C-30
   kind: conformance
-  name: Emergencies Only Raise Ceilings
-  gloss: An emergency never lowers a level, waives a factor, or touches the pinned cells (N-42)
+  name: "Emergencies Only Raise Ceilings"
+  gloss: "An emergency never lowers a level, waives a factor, or touches the pinned cells (N-42)"
+  level: 1
   bundles:
   - N-42
-  conformance_text: An emergency never lowers a level, waives a factor, or touches the pinned cells (N-42)
+  conformance_text: "An emergency never lowers a level, waives a factor, or touches the pinned cells (N-42)"
 - id: C-31
   kind: conformance
-  name: One Joined Audit Trail
-  gloss: Decision records join the interception audit trail on `intent_id` (N-45)
+  name: "One Joined Audit Trail"
+  gloss: "Decision records join the interception audit trail on `intent_id` (N-45)"
+  level: 2
   bundles:
   - N-45
-  conformance_text: Decision records join the interception audit trail on `intent_id` (N-45)
+  conformance_text: "Decision records join the interception audit trail on `intent_id` (N-45)"
 - id: C-32
   kind: conformance
-  name: Reconciliation Classifies Everything
-  gloss: Every executed action is classed into one of the four results, and divergence is recorded as
-    a governance event (N-47, N-48)
+  name: "Reconciliation Classifies Everything"
+  gloss: "Every executed action is classed into one of the four results, and divergence is recorded as a governance event (N-47, N-48)"
+  level: 2
   bundles:
   - N-47
   - N-48
-  conformance_text: Every executed action is classed into one of the four results, including a scope comparison;
-    divergence is recorded as a governance event, clears precedent and demotes (N-47, N-48)
-- id: N-50
-  kind: normative
-  name: Steps Run In Order
-  gloss: The nine adjudication steps are applied in the order §5.1 gives them
-  section: '5.1'
+  conformance_text: "Every executed action is classed into one of the four results, including a scope comparison; divergence is recorded as a governance event, clears precedent and demotes (N-47, N-48)"
 - id: C-33
   kind: conformance
-  name: The Sequence Is Honoured
-  gloss: Adjudication applies the §5.1 steps in order (N-50)
+  name: "The Sequence Is Honoured"
+  gloss: "Adjudication applies the §5.1 steps in order (N-50)"
+  level: 1
   bundles:
   - N-50
-  conformance_text: The nine adjudication steps are applied in the order §5.1 gives them (N-50)
+  conformance_text: "The nine adjudication steps are applied in the order §5.1 gives them (N-50)"
 - id: C-34
   kind: conformance
-  name: The Intent ID Travels
-  gloss: Where both modes are deployed, `intent_id` reaches the interception record
+  name: "The Intent ID Travels"
+  gloss: "Where both modes are deployed, `intent_id` reaches the interception record"
+  level: 2
   bundles:
   - N-46
-  conformance_text: Where both modes are deployed, `intent_id` is propagated into the execution path so
-    interception records carry it (N-46)
-- id: N-51
-  kind: normative
-  name: Declared Inputs Get Checked
-  gloss: A factor may read a declared value only if that value is attested or reconciled
-  section: '5.4'
-- id: N-52
-  kind: normative
-  name: Every Intent Expires
-  gloss: A production-plane intent declares a `valid_until` after which its adjudication authorizes nothing
-  section: '2.2'
-- id: N-53
-  kind: normative
-  name: Same Incident, Same Key
-  gloss: '`dedup_key` is computed the same way every time, and the rule that produced it is recorded'
-  section: '4'
-- id: N-54
-  kind: normative
-  name: The System's Key Wins
-  gloss: An actor-supplied `dedup_key` may join an existing incident but never mint a new identity
-  section: '4'
-- id: N-55
-  kind: normative
-  name: Caps Count Once
-  gloss: Cap checks and grant lifecycle transitions are atomic and ordered; unresolvable order routes
-    to a human
-  section: '7.3'
+  conformance_text: "Where both modes are deployed, `intent_id` is propagated into the execution path so interception records carry it (N-46)"
 - id: C-35
   kind: conformance
-  name: Intents Carry an Expiry
-  gloss: Production-plane intents declare an expiry, and nothing executes after it
+  name: "Intents Carry an Expiry"
+  gloss: "Production-plane intents declare an expiry, and nothing executes after it"
+  level: 2
   bundles:
   - N-52
-  conformance_text: Production-plane intents declare `valid_until`; execution after it is refused and
-    the intent reconciles as `unexecuted` (N-52)
+  conformance_text: "Production-plane intents declare `valid_until`; execution after it is refused and the intent reconciles as `unexecuted` (N-52)"
 - id: C-36
   kind: conformance
-  name: No Unchecked Self-Declaration
-  gloss: A factor reading a declared value is attested or reconciled
+  name: "No Unchecked Self-Declaration"
+  gloss: "A factor reading a declared value is attested or reconciled"
+  level: 2
   bundles:
   - N-51
-  conformance_text: Any factor computed from a value the intent declares is attested by another party
-    or compared against execution (N-51)
+  conformance_text: "Any factor computed from a value the intent declares is attested by another party or compared against execution (N-51)"
 - id: C-37
   kind: conformance
-  name: Incident Keys Are Computed
-  gloss: '`dedup_key` is computed, and an actor-supplied key cannot mint a new incident'
+  name: "Incident Keys Are Computed"
+  gloss: "`dedup_key` is computed, and an actor-supplied key cannot mint a new incident"
+  level: 1
   bundles:
   - N-53
   - N-54
-  conformance_text: '`dedup_key` is computed deterministically and recorded; an actor-supplied key may
-    only join an existing incident (N-53, N-54)'
+  conformance_text: "`dedup_key` is computed deterministically and recorded; an actor-supplied key may only join an existing incident (N-53, N-54)"
 - id: C-38
   kind: conformance
-  name: Cap Checks Are Atomic
-  gloss: Cap consumption and revocation are ordered, and unresolvable order fails closed
+  name: "Cap Checks Are Atomic"
+  gloss: "Cap consumption and revocation are ordered, and unresolvable order fails closed"
+  level: 3
   bundles:
   - N-55
-  conformance_text: Grant cap checks consume atomically and lifecycle transitions are ordered against
-    coverage; unresolvable order routes to a human (N-55)
+  conformance_text: "Grant cap checks consume atomically and lifecycle transitions are ordered against coverage; unresolvable order routes to a human (N-55)"
+- id: C-39
+  kind: conformance
+  name: "The Lifecycle Is Enforced"
+  gloss: "Ids are accepted once and emitted decision records are never re-graded"
+  level: 1
+  bundles:
+  - N-57
+  - N-58
+  conformance_text: "A duplicate intent_id is refused, and an emitted decision record is never replaced by a recomputed one (N-57, N-58)"
+- id: C-40
+  kind: conformance
+  name: "Rejections Are Recorded"
+  gloss: "Every rejection lands in the audit trail; none produces a decision record"
+  level: 1
+  bundles:
+  - N-59
+  conformance_text: "Every rejection is recorded in the audit trail with its reason, and no rejection produces a decision record (N-59)"
+- id: C-41
+  kind: conformance
+  name: "Windows Bind Deployments"
+  gloss: "A deployment that cites a maintenance window is held to it at reconciliation"
+  level: 2
+  bundles:
+  - N-62
+  conformance_text: "A deployment executed outside the maintenance window it cited reconciles as divergent (N-62)"
+- id: C-42
+  kind: conformance
+  name: "Graders Are Not Requesters"
+  gloss: "Hand grading is never done by the actor who asked"
+  level: 1
+  bundles:
+  - N-64
+  conformance_text: "Where grading is done by hand, the grader is never the requesting actor or its accountable human (N-64)"
+- id: C-43
+  kind: conformance
+  name: "Claimed Levels Are Stamped"
+  gloss: "A claimed implementation level appears in every decision record"
+  level: 1
+  bundles:
+  - N-65
+  conformance_text: "An implementation claiming a level stamps implementation_level into every decision record it emits (N-65)"
