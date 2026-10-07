@@ -22,6 +22,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   existing records stay byte-identical to Appendix C.6. Documented in
   `docs/audit-evidence.md` §1.3. `EvaluationContext` is now exported from the
   package root.
+- **`PolicyEvaluator.required_autonomy(operation, classification)`** — the
+  effective-matrix cell for one `(classification, operation)`: the §3.1
+  default as adjusted by the profile's overrides, with the §12.5 floor applied
+  first, and nothing else. It never says whether the operation is allowed;
+  `evaluate` does. It exists for adjudication (Intent Specification N-13,
+  N-20): an intent is graded from the matrix even when the profile withholds
+  the permission, and reading the cell through `evaluate` would fold the two
+  together. DC2D reads the tier policy and requires a tier; 2D ignores one.
 
 ## [Intent Specification 2.4.0] — 2026-10-07
 

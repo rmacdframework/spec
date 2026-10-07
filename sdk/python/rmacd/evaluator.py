@@ -578,6 +578,48 @@ class PolicyEvaluator:
             ]
         }
 
+    def required_autonomy(
+        self,
+        operation: Operation | str,
+        data_classification: DataClassification | str | None = None,
+    ) -> AutonomyLevel:
+        """The autonomy level the effective matrix requires for one cell.
+
+        This is the framework's §3.1 default for ``(classification, operation)``
+        as adjusted by the bound profile's overrides, with the §12.5 immutable
+        floor applied first — and nothing else. It does not consult
+        permissions, constraints, emergency escalation or time windows, and it
+        never says whether the operation is *allowed*; :meth:`evaluate` does.
+
+        It exists for adjudication (Intent Specification N-13): an intent is
+        graded from the effective matrix even when the profile withholds the
+        permission, because adjudication grades and interception refuses
+        (N-20). Reading the cell through :meth:`evaluate` would fold the two
+        together.
+
+        For a DC2D profile the matrix is indexed by tier alone, so
+        ``data_classification`` is required; for a 2D profile it is ignored.
+        """
+        op = Operation(operation) if isinstance(operation, str) else operation
+        tier = (
+            DataClassification(data_classification)
+            if isinstance(data_classification, str)
+            else data_classification
+        )
+        if self._is_dc2d:
+            assert isinstance(self.profile, ProfileDC2D)
+            if tier is None:
+                raise ValueError(
+                    "required_autonomy on a DC2D profile needs a data_classification; "
+                    "the DC2D matrix is indexed by tier alone."
+                )
+            if (tier, op) in IMMUTABLE_PROHIBITIONS:
+                return AutonomyLevel.PROHIBITED
+            return self.profile.data_access.for_tier(tier).autonomy
+        if not self._is_3d:
+            tier = None
+        return self._get_autonomy_level(op, tier, EvaluationContext())
+
     def get_effective_autonomy_matrix(
         self,
     ) -> dict[str, dict[str, str]] | dict[str, str]:
