@@ -147,8 +147,8 @@ but it governs only what it can instrument.
 **RMACD Intents** define the complementary mode. An actor — agent, pipeline or
 human — declares what it intends to do *before* acting, and a deterministic
 engine computes the required oversight level from the same §3.1 matrix,
-escalating it monotonically for novelty, irreversibility, environment, budget
-standing and blast radius. Nothing declared can produce less oversight than the
+escalating it one way only for lack of precedent, irreversibility, environment,
+budget standing and blast radius. Nothing declared can produce less oversight than the
 matrix already required, and the §12.5 floor is checked before anything else.
 
 Adjudication never grants: the profile remains a ceiling, so an intent that
@@ -166,7 +166,7 @@ is defined by the spec and its two schemas:
 | Artifact | What it gives you |
 |---|---|
 | [`docs/intents.md`](intents.md) | The model and its rationale: the intent ladder, the production and record planes, the ten registered types, campaigns, budgets and emergencies |
-| [`docs/intent-specification.md`](intent-specification.md) | The normative contract: envelope, actor model, the adjudication algorithm, shape and novelty, grants, the decision record, reconciliation, conformance |
+| [`docs/intent-specification.md`](intent-specification.md) | The binding rules: envelope, actor model, the adjudication algorithm, action patterns and precedent, grants, the decision record, reconciliation, the checklist |
 | [`schemas/intent.schema.json`](../schemas/intent.schema.json) · [`schemas/intent-decision.schema.json`](../schemas/intent-decision.schema.json) | The intent envelope and the decision record, with worked examples in [`schemas/examples/intents/`](../schemas/examples/intents/) |
 
 ## Step 4: Integrate Approval Workflows
@@ -298,7 +298,7 @@ Runnable end-to-end examples in `examples/`:
 | [`docs/claude-code.md`](claude-code.md) | Governing a Claude Code session itself — the `rmacd` plugin, its `SessionStart` / `PreToolUse` / `PostToolUse` hooks, the session audit trail, and enterprise managed-settings rollout |
 | [`docs/audit-evidence.md`](audit-evidence.md) | `rmacd audit summarize`, SIEM shipping recipes, and the SOC 2 / ISO 27001 / GDPR control mapping |
 | [`docs/intents.md`](intents.md) | The adjudication mode: declaring an action before taking it, the intent ladder, the ten-type registry, and how likelihood escalates the §3.1 matrix (spec-level; no SDK implementation yet) |
-| [`docs/intent-specification.md`](intent-specification.md) | The normative intent contract: envelope, actor model, adjudication algorithm, grants, decision record, reconciliation with interception, conformance |
+| [`docs/intent-specification.md`](intent-specification.md) | The binding intent rules: envelope, actor model, adjudication algorithm, grants, decision record, reconciliation with interception, the checklist and its three levels |
 
 ## Tools registry
 

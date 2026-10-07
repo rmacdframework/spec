@@ -7,6 +7,88 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [Intent Specification 2.3.0] — 2026-10-07
+
+### Intent Specification 2.3.0
+
+A review revision. Two findings reopened the self-rating hole N-8 closes, one
+level up, at the grant; the rest are places where the two documents, the
+schemas and the registry had drifted apart. Every identifier from 2.2.x is
+unchanged; six rules and one checklist item are added (73 rules, 45 items).
+
+#### Added
+
+- **§7.5 Grading the grant itself.** A campaign was graded from its own
+  `declaration`, which the requester chose independently of its
+  `class_predicate` and `caps.max_level` — so a harmless declaration on a
+  campaign reaching production could land the grant at a level no human looks
+  at. **N-66 (A Grant Is Graded by Its Reach):** a grant's base level is the
+  most restrictive effective-matrix cell its match rule or permission grid can
+  cover, never its own declaration. **N-67 (A Grant Is Never Graded Below Its
+  Cap):** a computation below `caps.max_level` is raised to it and recorded
+  as the new `grant_cap` escalation factor. **N-68 (Every Grant Gets a Human
+  Decision):** no grant becomes `active` without a recorded `disposition`,
+  whatever level it computed to. Rolls up into new **C-44** (L3).
+- **N-28 gains a sixth coverage condition.** An `exception` covered any child
+  whose `(classification, operation)` sat inside its grid — `base_profile_id`
+  was never compared with the child's bound profile, and nothing bound the
+  exception to an actor, so any actor could claim any active exception. An
+  exception now covers only a child bound to the profile it names and acting
+  as the actor it names. **C-26** widened.
+- **N-69 (The Register Keeps the Six Fields).** §9 required every record to
+  conform to the schema, C-14 (L1) required emitting one, the schema required
+  a SHA-256 pattern key, and §11.1 said an L1 register keeps the six fields
+  verbatim because the hash is L2 — so an L1 implementation could not emit a
+  valid record. `action_pattern_key` is now required unless
+  `implementation_level` is `L1`, and the new `action_pattern_fields` object
+  is required when it is. Rolls up into **C-14**.
+- **N-70 (First Reports Are Never Gated).** `intents.md` stated the
+  first-report invariant as binding, and §12 claimed every defence in its
+  table was a rule elsewhere, but it cited §1.1 — a definitions table with no
+  MUST. It is now a rule, rolled into **C-37**.
+- **N-71 (Lifecycle Changes Leave a Trace).** The schema has carried a grant
+  `status` field through three revisions that no table listed and no rule
+  governed. It is documented in §7.3; an actor submits only `requested`, and
+  every later transition is made by the implementation and recorded. Rolls
+  up into **C-27**.
+- **N-52 amended:** `valid_until` is later than `submitted_at`.
+
+#### Changed
+
+- **`intents.md` no longer promises automatic demotion on budget breach.**
+  The specification escalates on breach (N-39) and demotes on mismatch (N-26,
+  N-48); the companion now says the same. Its §6 picks up N-6's Read clause,
+  §7.6 lists all four version inputs, §8.1 describes how a grant is graded,
+  the first-report invariant cites N-70, and the §11 worked intent shows the
+  required fields its trace relies on.
+- **Registry glosses reconciled with the rules they summarise.** C-23's L1
+  gloss described N-51, which is C-36 at L2; C-5, C-6, C-14 and C-20 omitted
+  the rules 2.2.0 added; C-9 dropped N-6's Read clause; several glosses
+  repeated the Checks column in parentheses.
+- **The plain-language pass now reaches past the two intent documents.**
+  Retired words survived in framework Appendix C.8 ("the shape key over which
+  novelty is computed"), `implementation.md`, the examples README and both
+  schema descriptions. All reworded; gate 6 now scans the schemas and the
+  examples directory in full, and every paragraph, list item or table row
+  that mentions intents in `implementation.md`, the framework specification
+  and the README.
+
+#### Schema
+
+`schema/v2` amended in place, additively except for one relaxation:
+`intent-decision.schema.json` no longer lists `action_pattern_key` in its
+top-level `required` — it is required by an `if`/`then`/`else` on
+`implementation_level` instead — and adds `action_pattern_fields`, `window`
+in the reconciliation discrepancy set, and `grant_cap` in the escalation
+factor set. `intent.schema.json` type-gates `status` to grant types and
+`window_ref` to `deployment`. All six worked examples still validate.
+
+#### Gates
+
+Gate 8 now runs in both directions: every top-level schema field has to be
+named in the specification, which is the check that would have caught
+`status`. `tools/test_gates.py` covers 23 injected faults, all caught.
+
 ## [Intent Specification 2.2.0] — 2026-09-05
 
 ### Intent Specification 2.2.0

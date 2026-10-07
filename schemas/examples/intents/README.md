@@ -13,9 +13,9 @@ reach.
 
 | File | Type | Demonstrates |
 |---|---|---|
-| `change-production.json` | `change` | The lattice root; a production change with an attested rollback |
+| `change-production.json` | `change` | The building block; a production change with an attested rollback |
 | `release-composed.json` | `release` | Composition — the release inherits its most severe child |
-| `campaign-cert-rotation.json` | `campaign` | A bounded grant: closed predicate, hard caps, mandatory expiry |
+| `campaign-cert-rotation.json` | `campaign` | A bounded grant: closed match rule, hard caps, mandatory expiry |
 | `exception-urgent.json` | `exception` | Framework §12.3–12.4 expressed as an intent; Restricted capped at R/M |
 | `incident-record-plane.json` | `incident` | The record plane and the first-report invariant |
 | `decision-record.json` | — | The evidence artifact, showing escalation factors and reproducibility inputs |

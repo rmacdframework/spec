@@ -8,7 +8,7 @@ conformance table inside `docs/intent-specification.md`, plus
 
   1. Document and registry agree, in both directions.
   2. Every MUST/MUST NOT requirement rolls up into a conformance item.
-  3. Normative prose stays inside the readability budget.
+  3. Binding prose stays inside the readability budget.
   4. Every anchor resolves, and every heading slugifies identically under
      GitHub's rules and Python-Markdown's.
 
@@ -54,6 +54,7 @@ MAX_WORDS = 32
 # enum values, profile-side constraints, and vocabulary defined elsewhere.
 KNOWN_NON_FIELDS = {
     "autonomy_overrides", "change_controls", "composition_floor", "cooldown_minutes",
+    "grant_cap",
     "disaster_recovery", "elevated_approval", "emergency_escalation", "max_duration_minutes",
     "rate_limits", "require_post_incident_review", "trigger_conditions", "unresolved_authorization",
 }
@@ -412,14 +413,53 @@ def run_gates(doc: str, norm: dict, conf: dict, rolls: dict, rec: dict) -> list[
                 root = token.split(".")[0]
                 if root not in schema_fields and root not in KNOWN_NON_FIELDS:
                     fail.append(f"[8] {rid} names `{token}`, which no schema defines")
+        # And the reverse: every top-level field a schema defines is named somewhere
+        # in the document. `status` shipped in the schema for three revisions
+        # with no table row and no rule saying who may set it, because this
+        # check only ran one way.
+        for name in ("intent.schema.json", "intent-decision.schema.json"):
+            path = ROOT / "schemas" / name
+            if not path.exists():
+                continue
+            for field in json.loads(path.read_text(encoding="utf-8")).get("properties", {}):
+                if field == "$schema":
+                    continue
+                if not re.search(rf"`{re.escape(field)}(?:[.`])", doc):
+                    fail.append(f"[8] {name} defines `{field}`, which the document never names")
 
     # -- 6. Retired vocabulary must not come back, in the spec or anything it ships.
     scanned = [("docs/intent-specification.md", doc)]
     companion = ROOT / "docs" / "intents.md"
     if companion.exists():
         scanned.append(("docs/intents.md", companion.read_text(encoding="utf-8")))
-    for ex in sorted((ROOT / "schemas" / "examples" / "intents").glob("*.json")):
+    for ex in sorted((ROOT / "schemas" / "examples" / "intents").glob("*")):
         scanned.append((f"schemas/examples/intents/{ex.name}", ex.read_text(encoding="utf-8")))
+    for name in ("intent.schema.json", "intent-decision.schema.json"):
+        path = ROOT / "schemas" / name
+        if path.exists():
+            scanned.append((f"schemas/{name}", path.read_text(encoding="utf-8")))
+    # The wider documents use "shape" for a deployment shape and "conformance"
+    # for profiles, legitimately. Only the paragraphs that talk about intents
+    # are held to this vocabulary, so the 2.2.0 plain-language pass cannot
+    # quietly stop at the two intent documents again.
+    for rel in ("docs/implementation.md", "docs/RMACD_Framework_v1.4.md", "README.md"):
+        path = ROOT / rel
+        if not path.exists():
+            continue
+        # A unit is a prose paragraph, a single list item, or a single table
+        # row — so a bullet about another document is not held to this
+        # vocabulary because a neighbouring bullet mentions intents.
+        lines = path.read_text(encoding="utf-8").split("\n")
+        unit_start, units = 0, []
+        for i, ln in enumerate(lines + [""]):
+            boundary = not ln.strip() or ln.startswith(("- ", "* ", "|"))
+            if boundary and i > unit_start:
+                units.append((unit_start, "\n".join(lines[unit_start:i])))
+            if boundary:
+                unit_start = i if ln.strip() else i + 1
+        for start, unit in units:
+            if re.search(r"(?i)\bintents?\b", unit):
+                scanned.append((rel, "\n" * start + unit))
     for label, text in scanned:
         for term, replacement in RETIRED_TERMS.items():
             for m in re.finditer(rf"(?i)\b{re.escape(term)}\b", text):

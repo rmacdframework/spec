@@ -1208,7 +1208,7 @@ At expiration or upon completion:
 An exception request is a declared, justified, time-bounded ask submitted for
 adjudication before it takes effect — which is precisely an RMACD Intent. It is
 therefore expressed as the `exception` intent type rather than as a separate
-record shape, so the framework carries one request path rather than two. See
+record format, so the framework carries one request path rather than two. See
 `docs/intent-specification.md` §7.4.
 
 ```json
@@ -1253,7 +1253,7 @@ record shape, so the framework carries one request path rather than two. See
 }
 ```
 
-Two points of shape are deliberate. The **approval fields are absent from the
+Two points of form are deliberate. The **approval fields are absent from the
 request**: who approved, when, and from what effective time are recorded as the
 *disposition* on the adjudication's decision record (`intent-decision.schema.json`),
 not asserted by the requester — an actor declares facts and never records its own
@@ -2068,9 +2068,10 @@ integrator wires it together at the call site:
   Elevated Approval — without introducing a second one.
 - **`docs/intent-specification.md`** (§12.4) — the binding companion to the
   above, and the document §12.4's exception template is written against: the
-  intent envelope, the actor model, the adjudication contract, the shape key
-  over which novelty is computed, grants and campaigns, budgets, the decision
-  record, reconciliation with interception, and the implementation checklist.
+  intent envelope, the actor model, the adjudication contract, the action
+  pattern key over which precedent is counted, grants and campaigns, budgets,
+  the decision record, reconciliation with interception, and the checklist
+  with its three implementation levels.
 
 # **Appendix D: The Data-Classification Two-Dimensional Variant (DC2D)**
 

@@ -46,7 +46,7 @@
     },
     "composes": {
       "type": "array",
-      "description": "Intents this intent bundles. The composite inherits the most restrictive child level (N-11).",
+      "description": "Intents this intent bundles. The bundle inherits the most restrictive child level (N-11).",
       "items": {
         "$ref": "#/$defs/intentRef"
       }
@@ -64,7 +64,7 @@
       "description": "deployment: a maintenance_window intent this deployment commits to fall inside (N-62)."
     },
     "grant_ref": {
-      "description": "A campaign or exception this intent claims coverage from. Coverage discharges approval; it never lowers the computed level (N-27).",
+      "description": "A campaign or exception this intent claims coverage from. Coverage satisfies approval in advance; it never lowers the computed level (N-27).",
       "$ref": "#/$defs/intentRef"
     },
     "compliance_tags": {
@@ -200,7 +200,7 @@
     },
     "status": {
       "type": "string",
-      "description": "Grant lifecycle state.",
+      "description": "Grant lifecycle state. An actor submits `requested` or nothing; every later transition is made by the implementation and recorded (N-71).",
       "enum": [
         "requested",
         "active",
@@ -390,7 +390,7 @@
       }
     },
     {
-      "$comment": "N-8 / N-30: privilege-bearing fields belong only to grant types. A production-plane intent that carried them could otherwise imply a self-issued grant.",
+      "$comment": "N-8 / N-30 / N-71: privilege-bearing fields and the grant lifecycle state belong only to grant types. A production-plane intent that carried them could otherwise imply a self-issued grant.",
       "if": {
         "properties": {
           "intent_type": {
@@ -433,6 +433,13 @@
                 "base_profile_id"
               ]
             }
+          },
+          {
+            "not": {
+              "required": [
+                "status"
+              ]
+            }
           }
         ]
       }
@@ -461,6 +468,27 @@
         "required": [
           "valid_until"
         ]
+      }
+    },
+    {
+      "$comment": "N-62: only a deployment commits to a maintenance window.",
+      "if": {
+        "properties": {
+          "intent_type": {
+            "const": "deployment"
+          }
+        },
+        "required": [
+          "intent_type"
+        ]
+      },
+      "then": {},
+      "else": {
+        "not": {
+          "required": [
+            "window_ref"
+          ]
+        }
       }
     }
   ],
@@ -670,7 +698,7 @@
     },
     "classPredicate": {
       "type": "object",
-      "description": "The bounded class a grant covers. Matched conjunctively over a closed field set; wildcards are permitted only in target_class (N-30, N-31). A predicate that would match every intent of a type must be rejected (N-32).",
+      "description": "The bounded class a grant covers. Matched over a closed field set, every named field at once; wildcards are permitted only in target_class (N-30, N-31). A match rule that would match every intent of a type must be rejected (N-32). The grant itself is graded by the most restrictive cell this rule can cover (N-66).",
       "minProperties": 1,
       "additionalProperties": false,
       "properties": {

@@ -293,7 +293,7 @@
     "id": "N-28",
     "kind": "normative",
     "name": "Coverage Is All or Nothing",
-    "gloss": "All five coverage conditions must hold, or the child routes to a human individually",
+    "gloss": "All six coverage conditions must hold, or the child routes to a human individually",
     "section_anchor": "#n-28",
     "rolls_up_to": [
       "C-26"
@@ -668,6 +668,66 @@
     ]
   },
   {
+    "id": "N-66",
+    "kind": "normative",
+    "name": "A Grant Is Graded by Its Reach",
+    "gloss": "A grant's base level is the most restrictive cell its match rule or permission grid can cover, never its own declaration",
+    "section_anchor": "#n-66",
+    "rolls_up_to": [
+      "C-44"
+    ]
+  },
+  {
+    "id": "N-67",
+    "kind": "normative",
+    "name": "A Grant Is Never Graded Below Its Cap",
+    "gloss": "A grant's computed level is at least as restrictive as `caps.max_level`; a lower computation is raised to it and recorded",
+    "section_anchor": "#n-67",
+    "rolls_up_to": [
+      "C-44"
+    ]
+  },
+  {
+    "id": "N-68",
+    "kind": "normative",
+    "name": "Every Grant Gets a Human Decision",
+    "gloss": "No grant becomes active without a recorded human decision permitting it, whatever level it computed to",
+    "section_anchor": "#n-68",
+    "rolls_up_to": [
+      "C-44"
+    ]
+  },
+  {
+    "id": "N-69",
+    "kind": "normative",
+    "name": "The Register Keeps the Six Fields",
+    "gloss": "An L1 record keeps the six pattern fields verbatim in place of the hash; L2 and L3 records keep the hash",
+    "section_anchor": "#n-69",
+    "rolls_up_to": [
+      "C-14"
+    ]
+  },
+  {
+    "id": "N-70",
+    "kind": "normative",
+    "name": "First Reports Are Never Gated",
+    "gloss": "Record-plane throttling may limit repeats of a `dedup_key`, never the first report of a distinct one within its window",
+    "section_anchor": "#n-70",
+    "rolls_up_to": [
+      "C-37"
+    ]
+  },
+  {
+    "id": "N-71",
+    "kind": "normative",
+    "name": "Lifecycle Changes Leave a Trace",
+    "gloss": "A grant is submitted only as `requested`; every later status transition is made by the implementation and recorded",
+    "section_anchor": "#n-71",
+    "rolls_up_to": [
+      "C-27"
+    ]
+  },
+  {
     "id": "C-1",
     "kind": "conformance",
     "name": "Malformed Intents Rejected",
@@ -711,7 +771,7 @@
     "id": "C-5",
     "kind": "conformance",
     "name": "Five Factors, No Negatives",
-    "gloss": "All five likelihood factors are implemented and every weight is non-negative",
+    "gloss": "All five likelihood factors are implemented, no weight is negative, and any precedent age bound lives in the versioned weight table",
     "section_anchor": "#c-5",
     "rolls_up_to": []
   },
@@ -719,7 +779,7 @@
     "id": "C-6",
     "kind": "conformance",
     "name": "Pattern Key Exactly Six",
-    "gloss": "The action pattern key covers the six §6.1 fields, no more and no fewer",
+    "gloss": "The action pattern key covers the six §6.1 fields, no more and no fewer, serialized per RFC 8785",
     "section_anchor": "#c-6",
     "rolls_up_to": []
   },
@@ -743,7 +803,7 @@
     "id": "C-9",
     "kind": "conformance",
     "name": "Unknown Actors Fail Closed",
-    "gloss": "Unresolvable authorization escalates non-Read operations to at least approval",
+    "gloss": "Unresolvable authorization escalates non-Read operations to at least approval, and Read too on confidential and restricted",
     "section_anchor": "#c-9",
     "rolls_up_to": []
   },
@@ -783,7 +843,7 @@
     "id": "C-14",
     "kind": "conformance",
     "name": "Reproducible Permanent Records",
-    "gloss": "Every adjudication emits a permanent record carrying all four reproducibility inputs",
+    "gloss": "Every adjudication emits a permanent record carrying all four reproducibility inputs, the log epoch names real state, and the pattern key or its six fields are kept",
     "section_anchor": "#c-14",
     "rolls_up_to": []
   },
@@ -807,7 +867,7 @@
     "id": "C-17",
     "kind": "conformance",
     "name": "The Envelope Is the Whole Input",
-    "gloss": "Only fields this specification and the schema define may grade an intent; a missing classification resolves to the most sensitive tier; a rollback claim never lowers the level (N-2, N-3, N-4)",
+    "gloss": "Only fields this specification and the schema define may grade an intent; a missing classification resolves to the most sensitive tier; a rollback claim never lowers the level",
     "section_anchor": "#c-17",
     "rolls_up_to": []
   },
@@ -815,7 +875,7 @@
     "id": "C-18",
     "kind": "conformance",
     "name": "Actors Are Recorded, Not Trusted",
-    "gloss": "Actor kind never changes the computed level, and no grade an actor asserts about itself is honoured (N-7, N-8)",
+    "gloss": "Actor kind never changes the computed level, and no grade an actor asserts about itself is honoured",
     "section_anchor": "#c-18",
     "rolls_up_to": []
   },
@@ -823,7 +883,7 @@
     "id": "C-19",
     "kind": "conformance",
     "name": "The Type Registry Is Flat",
-    "gloss": "Maturity is never a rank, and every registered type uses the common envelope and adjudication contract (N-9, N-10)",
+    "gloss": "Maturity is never a rank, and every registered type uses the common envelope and adjudication contract",
     "section_anchor": "#c-19",
     "rolls_up_to": []
   },
@@ -831,7 +891,7 @@
     "id": "C-20",
     "kind": "conformance",
     "name": "Bundles Take the Worst",
-    "gloss": "A bundle computes to the most restrictive level among itself and its children, and never softens a child (N-11)",
+    "gloss": "A bundle computes to the most restrictive level among itself and its children, never softens a child, and is decided only after every child is graded",
     "section_anchor": "#c-20",
     "rolls_up_to": []
   },
@@ -839,7 +899,7 @@
     "id": "C-21",
     "kind": "conformance",
     "name": "Prohibited Has Two Sources",
-    "gloss": "`prohibited` is reachable only as `pinned` or `extended`, and the pinned set is never narrowed (N-14b)",
+    "gloss": "`prohibited` is reachable only as `pinned` or `extended`, and the pinned set is never narrowed",
     "section_anchor": "#c-21",
     "rolls_up_to": []
   },
@@ -847,7 +907,7 @@
     "id": "C-22",
     "kind": "conformance",
     "name": "Impact Is Declared, Not Supplied",
-    "gloss": "Impact is the four-tier classification ordering, and any substitute is profile-declared and stamped into every record (N-15, N-16)",
+    "gloss": "Impact is the four-tier classification ordering, and any substitute is profile-declared and stamped into every record",
     "section_anchor": "#c-22",
     "rolls_up_to": []
   },
@@ -855,7 +915,7 @@
     "id": "C-23",
     "kind": "conformance",
     "name": "No Factor Subtracts",
-    "gloss": "No likelihood factor contributes negative steps or takes its value from the intent without attestation (N-19)",
+    "gloss": "No likelihood factor contributes negative steps",
     "section_anchor": "#c-23",
     "rolls_up_to": []
   },
@@ -863,7 +923,7 @@
     "id": "C-24",
     "kind": "conformance",
     "name": "One Target, One Class",
-    "gloss": "`target_class` is computed the same way every time, and a value the actor supplies never wins (N-23, N-24)",
+    "gloss": "`target_class` is computed the same way every time, and a value the actor supplies never wins",
     "section_anchor": "#c-24",
     "rolls_up_to": []
   },
@@ -879,7 +939,7 @@
     "id": "C-26",
     "kind": "conformance",
     "name": "Coverage Needs Every Condition",
-    "gloss": "A child is covered only when every one of the five coverage conditions holds (N-28)",
+    "gloss": "A child is covered only when every one of the six coverage conditions holds, including the profile and actor an exception names",
     "section_anchor": "#c-26",
     "rolls_up_to": []
   },
@@ -887,7 +947,7 @@
     "id": "C-27",
     "kind": "conformance",
     "name": "Grants End Cleanly",
-    "gloss": "Revocation takes effect immediately, and children already decided are recorded as affected (N-34, N-35)",
+    "gloss": "Revocation takes effect immediately, children already decided are recorded as affected, and every lifecycle change is traced",
     "section_anchor": "#c-27",
     "rolls_up_to": []
   },
@@ -895,7 +955,7 @@
     "id": "C-28",
     "kind": "conformance",
     "name": "Exceptions Stay Inside §12.5",
-    "gloss": "An exception tripping any of framework §12.5's five prohibitions is rejected, and adjudication never decides the grant (N-36, N-37)",
+    "gloss": "An exception tripping any of framework §12.5's five prohibitions is rejected, and adjudication never decides the grant",
     "section_anchor": "#c-28",
     "rolls_up_to": []
   },
@@ -903,7 +963,7 @@
     "id": "C-29",
     "kind": "conformance",
     "name": "Budgets and Demotion Escalate",
-    "gloss": "Budget standing comes from the bound profile, and breach and demotion escalate rather than deny or reduce (N-38, N-39, N-40)",
+    "gloss": "Budget standing comes from the bound profile, and breach and demotion escalate rather than deny or reduce",
     "section_anchor": "#c-29",
     "rolls_up_to": []
   },
@@ -911,7 +971,7 @@
     "id": "C-30",
     "kind": "conformance",
     "name": "Emergencies Only Raise Ceilings",
-    "gloss": "An emergency never lowers a level, waives a factor, or touches the pinned cells (N-42)",
+    "gloss": "An emergency never lowers a level, waives a factor, or touches the pinned cells",
     "section_anchor": "#c-30",
     "rolls_up_to": []
   },
@@ -919,7 +979,7 @@
     "id": "C-31",
     "kind": "conformance",
     "name": "One Joined Audit Trail",
-    "gloss": "Decision records join the interception audit trail on `intent_id` (N-45)",
+    "gloss": "Decision records join the interception audit trail on `intent_id`",
     "section_anchor": "#c-31",
     "rolls_up_to": []
   },
@@ -927,7 +987,7 @@
     "id": "C-32",
     "kind": "conformance",
     "name": "Reconciliation Classifies Everything",
-    "gloss": "Every executed action is classed into one of the four results, and divergence is recorded as a governance event (N-47, N-48)",
+    "gloss": "Every executed action is classed into one of the four results, and divergence is recorded as a governance event",
     "section_anchor": "#c-32",
     "rolls_up_to": []
   },
@@ -935,7 +995,7 @@
     "id": "C-33",
     "kind": "conformance",
     "name": "The Sequence Is Honoured",
-    "gloss": "Adjudication applies the §5.1 steps in order (N-50)",
+    "gloss": "Adjudication applies the §5.1 steps in order",
     "section_anchor": "#c-33",
     "rolls_up_to": []
   },
@@ -967,7 +1027,7 @@
     "id": "C-37",
     "kind": "conformance",
     "name": "Incident Keys Are Computed",
-    "gloss": "`dedup_key` is computed, and an actor-supplied key cannot mint a new incident",
+    "gloss": "`dedup_key` is computed, an actor-supplied key cannot mint a new incident, and a first report is never gated",
     "section_anchor": "#c-37",
     "rolls_up_to": []
   },
@@ -1017,6 +1077,14 @@
     "name": "Claimed Levels Are Stamped",
     "gloss": "A claimed implementation level appears in every decision record",
     "section_anchor": "#c-43",
+    "rolls_up_to": []
+  },
+  {
+    "id": "C-44",
+    "kind": "conformance",
+    "name": "Grants Are Graded by Their Reach",
+    "gloss": "A grant is graded by the most severe cell it can cover, never below its cap, and always gets a human decision",
+    "section_anchor": "#c-44",
     "rolls_up_to": []
   }
 ]

@@ -139,7 +139,8 @@ The framework therefore fixes an explicit safety invariant:
 
 > **First-report invariant.** Record-plane budgets and deduplication may
 > throttle repetition and volume. They may never delay, gate, or suppress the
-> first report of a distinct condition within its deduplication window.
+> first report of a distinct condition within its deduplication window —
+> N-70 (First Reports Are Never Gated).
 
 In practice a single incident from a well-behaved actor lands at the base
 matrix level — for most deployments Logged or Notification — and the record
@@ -215,8 +216,9 @@ Three rules are absolute:
    `pipeline` intent without a resolvable `on_behalf_of` is malformed —
    N-5 (Every Agent Has a Human).
 2. **Unknown actors fail closed.** An unresolvable authorization routes every
-   non-Read operation to Approval at minimum, regardless of what the matrix
-   would otherwise compute — N-6 (Fail Closed on Unknown Actors).
+   non-Read operation to Approval at minimum, and Read too on confidential or
+   restricted data, regardless of what the matrix would otherwise compute —
+   N-6 (Fail Closed on Unknown Actors).
 3. **Ratings are computed, never claimed** — by any actor, of any kind. An
    actor can misdeclare facts, which reconciliation detects and demotion
    punishes. An actor can never argue with the rating — N-8 (No Self-Assigned Rating).
@@ -344,8 +346,8 @@ interception is a correctly functioning system, not a contradiction — N-20
 
 Every adjudication produces a permanent decision record — the declared facts,
 the computed base and final levels, every escalation factor that fired, the
-matrix and policy versions, the log epoch, and any approver's recorded
-decision. It joins the same audit trail as interception decisions, on
+matrix, weight-table and policy versions, the log epoch, and any approver's
+recorded decision. It joins the same audit trail as interception decisions, on
 `intent_id` — N-43 (The Permanent Decision Record) and N-45 (One Audit Trail).
 Rejections are recorded too, in the same trail but never as decision records,
 so an auditor can count what was refused at the door as easily as what was
@@ -374,7 +376,13 @@ covered only when every condition holds:
   organization.
 
 A child that computes *above* the campaign's approved level is not covered and
-routes to a human individually. This is the same idea as an ITIL standard
+routes to a human individually. The grant itself is graded by the most severe
+cell its class can cover, never by facts the requester chose to write in the
+grant document, and never below the level it is capped at — N-66 (A Grant Is
+Graded by Its Reach), N-67 (A Grant Is Never Graded Below Its Cap). And it
+always receives a human decision, whatever level it computes to — N-68 (Every
+Grant Gets a Human Decision). An exception, likewise, covers only the profile
+and actor it names. This is the same idea as an ITIL standard
 change: still governed, its approval pre-granted by an approved model.
 
 Campaigns are the highest-leverage object in the model and therefore the most
@@ -389,9 +397,10 @@ children cannot spend the same capacity twice — N-55 (Caps Count Once).
 Autonomy budgets are not a new concept so much as enforcement for one the
 framework already carries. Profiles already declare `rate_limits`,
 `change_controls` and `max_blast_radius_percentage`. Intents make those
-declarations consequential: budget standing is a likelihood input, breach
-triggers automatic demotion, and demotion is expressed as escalation rather
-than as a new state.
+declarations consequential: budget standing is a likelihood input, so a
+breach escalates automatically for as long as the actor is over budget (N-39).
+Demotion, which follows a reconciliation mismatch, is the persistent form of
+the same escalation rather than a new state (N-40).
 
 ### 8.3 Emergencies raise ceilings; they never lower grades
 
@@ -416,7 +425,7 @@ instances and start governing:
 | Humans govern | Through | Instead of |
 |---|---|---|
 | Classes | Campaign grants | Approving each instance |
-| Envelopes | Autonomy budgets, with automatic demotion on breach | Watching each actor |
+| Envelopes | Autonomy budgets, which escalate on breach and demote on mismatch | Watching each actor |
 | Anomalies | Drift in the decision stream itself | Reading every decision |
 
 An intent landing at a human is reframed from workflow event to **policy defect
@@ -472,7 +481,7 @@ schemas. This section walks the production change through the nine steps of
 the adjudication algorithm (spec §5.1), so the machinery is visible end to
 end.
 
-The intent, abridged from
+The intent, abridged (justification, tags and provenance omitted) from
 [`change-production.json`](../schemas/examples/intents/change-production.json):
 a DevOps agent, acting for the platform team, wants to raise a connection-pool
 limit on the payments API in production.
@@ -481,10 +490,12 @@ limit on the payments API in production.
 {
   "intent_id": "int-chg-20260815-0031",
   "intent_type": "change",
+  "submitted_at": "2026-08-15T09:14:00Z",
   "valid_until": "2026-08-15T18:00:00Z",
   "actor": {
     "kind": "agent",
     "id": "devops-agent-007",
+    "authorization": "spiffe://corp/ns/agents/devops-agent-007",
     "on_behalf_of": "platform-team@company.com"
   },
   "declaration": {

@@ -1,6 +1,6 @@
 # RMACD Intent Specification
 
-**Version:** 2.2.0
+**Version:** 2.3.0
 **Status:** Binding — these are the rules an implementation has to follow
 **Companion to:** `RMACD_Framework_v1.4.md` (§2.4, §3, §12)
 **Plain-words companion:** [`intents.md`](intents.md) — the model and why it is built this way
@@ -53,6 +53,7 @@ headings may change at any revision; citations use the identifier.
 
 | Revision | Date | Change |
 |---|---|---|
+| 2.3.0 | 2026-10-07 | Grants are graded by their reach, never below their cap, and always by a human (§7.5: N-66, N-67, N-68). Exception coverage checks the profile and actor it names (N-28). An L1 register keeps the six pattern fields in place of the hash (N-69). The first-report invariant is a rule (N-70). Grant lifecycle changes are traced (N-71). `window` joins the reconciliation comparison set |
 | 2.2.0 | 2026-09-05 | Plain-language pass (jargon retired in favour of common words). The intent lifecycle (§2.3: N-57, N-58, N-59). One agreed byte form for the pattern key (N-56). The log epoch defined (N-60). Precedent aging (N-61). Deployments cite their window (N-62). Bundles decided children-first (N-63). Three implementation levels (§11.1: N-64, N-65). Security considerations (§12) |
 | 2.1.1 | 2026-08-31 | §1.1 and §1.2 define the vocabulary the type registry assumes; the `service_request` plane contradiction between the two documents resolved |
 | 2.1.0 | 2026-08-31 | Five design gaps closed together: N-51 to N-55, C-35 to C-38 |
@@ -110,7 +111,7 @@ vocabulary it uses.
 |---|---|
 | **Plane** | Which part of the estate a type acts on. It determines what obligations attach to that type — expiry, deduplication, caps — but never how much oversight a given action receives. That comes from the matrix and the likelihood factors. |
 | **Production plane** | Acts on infrastructure, applications or data. These types carry an expiry, because an approved-but-unexecuted change is otherwise a standing authorization (N-52). |
-| **Record plane** | Creates or updates ITSM records themselves — raising an incident, opening a problem. Adjudicated because a fleet raising fifty thousand incidents is a denial of service on human attention. Bounded by the first-report invariant: throttling may limit repeats, never the first report of a distinct condition. |
+| **Record plane** | Creates or updates ITSM records themselves — raising an incident, opening a problem. Adjudicated because a fleet raising fifty thousand incidents is a denial of service on human attention. Bounded by the first-report invariant: throttling may limit repeats, never the first report of a distinct condition (N-70). |
 | **Grant plane** | Pre-authorizes a bounded class of future work rather than performing any. `campaign` and `exception` only. Always carries caps and an expiry (§7). |
 | **Maturity** | How settled a type's required-field contract is. Deliberately not a trust signal — an `Incubating` type is enforced exactly as strictly as a `Stable` one (N-9). |
 | **Stable** | The required-field set is fixed. Changes need a major revision, so it is safe to build an integration against. |
@@ -211,7 +212,8 @@ party.
 adjudication authorizes nothing. An implementation **MUST NOT** permit execution
 once `valid_until` has passed, and **MUST** record the reconciliation result
 `unexecuted` where the intent was never executed. Where an intent cites a grant,
-the earlier of `valid_until` and the grant's `expires_at` governs.
+the earlier of `valid_until` and the grant's `expires_at` governs. `valid_until`
+**MUST** be later than `submitted_at`.
 
 ### 2.3 The intent lifecycle
 
@@ -355,6 +357,12 @@ the actor **MUST NOT** create a new incident identity; it **MAY** only join an
 existing one. Where a supplied key and a computed key disagree, the computed key
 governs and the discrepancy **MUST** be recorded.
 
+**N-70 (First Reports Are Never Gated).** <a id="n-70"></a>Record-plane
+budgets and deduplication **MAY** throttle repeats of a `dedup_key`. They
+**MUST NOT** delay, gate or suppress the first report of a distinct `dedup_key`
+within its deduplication window. Governing the record plane is a control on
+fleets, not a checkpoint on first responders.
+
 ---
 
 ## 5. The adjudication contract
@@ -377,6 +385,9 @@ apply these steps in the order given.
 8. Apply grant coverage, if any.                 → approves, never lowers     (N-27)
 9. Emit the decision record.                     → permanent, append-only     (N-43)
 ```
+
+For a grant, step 4 reads the cells the grant can cover rather than the grant's
+own declaration (N-66, §7.5).
 
 **N-12 (The Permanent No).** <a id="n-12"></a>Before any other computation, an implementation
 **MUST** return `prohibited` for any intent whose declared
@@ -606,6 +617,9 @@ fails, the child **MUST** route to a human for an individual decision:
    `max_blast_radius_percentage`.
 5. The child's computed level is not `prohibited`, whether pinned or extended
    (N-14b).
+6. For an `exception`, the child's bound profile is the exception's
+   `base_profile_id`, and the child's `actor.id` or `on_behalf_of` equals the
+   exception's. A widening of one profile is not claimable from another.
 
 **N-29 (No Grant Covers Prohibited).** <a id="n-29"></a>A grant **MUST NOT** cover a `prohibited` child under any
 circumstance, and **MUST NOT** be construed as an exception to framework §12.5.
@@ -656,6 +670,19 @@ lifecycle transitions **MUST** be totally ordered with respect to coverage
 decisions. Where an implementation cannot establish that order, the child
 **MUST** route to a human for an individual decision.
 
+A grant carries one field beyond the envelope that records where it is in its
+life:
+
+| Field | Required | Notes |
+|---|---|---|
+| `status` | No | `requested`, `active`, `expired`, `revoked` or `closed`. Set by the implementation as the grant moves through framework §12.3's steps; an actor submits `requested` or nothing |
+
+**N-71 (Lifecycle Changes Leave a Trace).** <a id="n-71"></a>An actor **MAY**
+submit a grant only as `requested`. Every later `status` transition **MUST** be
+made by the implementation and recorded in the audit trail with who made it and
+when. A transition changes no declared fact, so it is not a second intent under
+N-57 and does not touch the decision record under N-43.
+
 ### 7.4 The `exception` type
 
 The `exception` type expresses framework §12.3's five-step process. Framework
@@ -699,6 +726,36 @@ enforced by the implementation at grant submission.
 **N-37 (Scrutiny, Not the Decision).** <a id="n-37"></a>Adjudication of an `exception` computes the scrutiny the request
 requires. It **MUST NOT** decide whether the exception is granted; that
 decision belongs to the authority named in framework §12.2.
+
+### 7.5 Grading the grant itself
+
+A grant is an intent and is graded like one, with one difference: the facts
+that matter are the ones about what it can cover, not the ones the requester
+chose to write in its own declaration. Without that difference a requester
+could declare a harmless `declaration` on a campaign whose match rule reaches
+production, and have the grant itself land at a level no human looks at —
+self-rating one level up.
+
+**N-66 (A Grant Is Graded by Its Reach).** <a id="n-66"></a>A grant's base
+level **MUST** be the most restrictive effective-matrix cell among those its
+`class_predicate` or `escalated_permissions` grid can cover. It **MUST NOT** be
+read from the grant's own `declaration`. The likelihood factors then apply as
+they do to any other intent. A match rule that leaves `operation` or
+`data_classification` open covers every value of it and is graded accordingly;
+one that reaches a pinned cell computes to `prohibited` and is refused (N-29).
+
+**N-67 (A Grant Is Never Graded Below Its Cap).** <a id="n-67"></a>A grant's
+computed level **MUST** be at least as restrictive as its `caps.max_level`.
+Where the computation lands lower, the implementation **MUST** raise it to
+`caps.max_level` and record `grant_cap` as the escalation factor. The human
+who approves a grant at a level is the human the grant's own grading has to
+reach.
+
+**N-68 (Every Grant Gets a Human Decision).** <a id="n-68"></a>A grant
+**MUST NOT** become `active` without a recorded `disposition` whose outcome
+permits it, whatever level it computed to. A campaign that computes to `autonomous`
+still waits for a human: a grant is approval recorded in advance, and there is
+no approval to record if nobody gave one.
 
 ---
 
@@ -746,7 +803,8 @@ evidence artifact and the precedent memory.
 | `decision_id` | **Yes** | `^dec-[a-z0-9][a-z0-9-]*$` |
 | `intent_id` | **Yes** | The adjudicated intent; the join key for reconciliation |
 | `decided_at` | **Yes** | RFC 3339, UTC |
-| `action_pattern_key` | **Yes** | §6.1 |
+| `action_pattern_key` | Conditional | §6.1; required unless `implementation_level` is `L1` (N-69) |
+| `action_pattern_fields` | Conditional | The six §6.1 fields verbatim; required when `implementation_level` is `L1` (N-69) |
 | `base_level` | **Yes** | Before escalation |
 | `computed_level` | **Yes** | After escalation, the bundle floor, and the prohibited floor |
 | `escalation_factors` | **Yes** | Array of `{factor, steps, cause}`, `factor` and `steps` required; the five §5.4 factors plus `unresolved_authorization` (N-6) and `composition_floor` (N-11). Empty if none fired |
@@ -834,7 +892,7 @@ there is nothing for a checklist run to assert.
 | <a id="c-11"></a>C-11 | L3 | Match Rules Closed and Declarative | Class match rules match only the closed field set, all fields at once, with no executable code (N-30, N-31) |
 | <a id="c-12"></a>C-12 | L3 | Bounded and Expiring Grants | Every grant declares an expiry and a child cap; blanket and indefinite grants are rejected (N-32, N-33) |
 | <a id="c-13"></a>C-13 | L1 | Profile Ceiling Holds | Adjudication never grants permission the bound profile withholds (N-20) |
-| <a id="c-14"></a>C-14 | L1 | Reproducible Permanent Records | Every adjudication emits a permanent decision record carrying all four reproducibility inputs, and the log epoch names real state (N-21, N-43, N-60) |
+| <a id="c-14"></a>C-14 | L1 | Reproducible Permanent Records | Every adjudication emits a permanent decision record carrying all four reproducibility inputs, the log epoch names real state, and the record keeps `action_pattern_key` or, at L1, the six fields verbatim (N-21, N-43, N-60, N-69) |
 | <a id="c-15"></a>C-15 | L1 | Prohibition Source Recorded | Prohibited decisions distinguish `pinned` from `extended` (N-44) |
 | <a id="c-16"></a>C-16 | L2 | No False Matches | Unreconcilable executions are never recorded as `matched` (N-49) |
 | <a id="c-17"></a>C-17 | L1 | The Envelope Is the Whole Input | Only fields this specification and the schema define may grade an intent; a missing classification resolves to the most sensitive tier; a rollback claim never lowers the level (N-2, N-3, N-4) |
@@ -843,11 +901,11 @@ there is nothing for a checklist run to assert.
 | <a id="c-20"></a>C-20 | L1 | Bundles Take the Worst | A bundle computes to the most restrictive level among itself and its children, never softens a child, and is decided only after every child is graded (N-11, N-63) |
 | <a id="c-21"></a>C-21 | L1 | Prohibited Has Two Sources | `prohibited` is reachable only as `pinned` or `extended`, and the pinned set is never narrowed (N-14b) |
 | <a id="c-22"></a>C-22 | L1 | Impact Is Declared, Not Supplied | Impact is the four-tier classification ordering, and any substitute is profile-declared and stamped into every record (N-15, N-16) |
-| <a id="c-23"></a>C-23 | L1 | No Factor Subtracts | No likelihood factor contributes negative steps or takes its value from the intent without attestation (N-19) |
+| <a id="c-23"></a>C-23 | L1 | No Factor Subtracts | No likelihood factor contributes negative steps (N-19) |
 | <a id="c-24"></a>C-24 | L1 | One Target, One Class | `target_class` is computed the same way every time, and a value the actor supplies never wins (N-23, N-24) |
 | <a id="c-25"></a>C-25 | L2 | A Mismatch Clears Precedent | A material mismatch found at reconciliation clears the affected action pattern's precedent and demotes the actor (N-26) |
-| <a id="c-26"></a>C-26 | L3 | Coverage Needs Every Condition | A child is covered only when every one of the five coverage conditions holds; otherwise it routes to a human individually (N-28) |
-| <a id="c-27"></a>C-27 | L3 | Grants End Cleanly | Revocation takes effect immediately; children already decided are recorded as affected and marked for human review (N-34, N-35) |
+| <a id="c-26"></a>C-26 | L3 | Coverage Needs Every Condition | A child is covered only when every one of the six coverage conditions holds, including that an exception covers only the profile and actor it names; otherwise it routes to a human individually (N-28) |
+| <a id="c-27"></a>C-27 | L3 | Grants End Cleanly | Revocation takes effect immediately; children already decided are recorded as affected and marked for human review; every grant status transition is made by the implementation and recorded (N-34, N-35, N-71) |
 | <a id="c-28"></a>C-28 | L3 | Exceptions Stay Inside §12.5 | An exception tripping any of framework §12.5's five prohibitions is rejected, and adjudication never decides the grant (N-36, N-37) |
 | <a id="c-29"></a>C-29 | L2 | Budgets and Demotion Escalate | Budget standing comes from the bound profile, and breach and demotion escalate rather than deny or reduce (N-38, N-39, N-40) |
 | <a id="c-30"></a>C-30 | L1 | Emergencies Only Raise Ceilings | An emergency never lowers a level, waives a factor, or touches the pinned cells (N-42) |
@@ -857,13 +915,14 @@ there is nothing for a checklist run to assert.
 | <a id="c-34"></a>C-34 | L2 | The Intent ID Travels | Where both modes are deployed, `intent_id` is propagated into the execution path so interception records carry it (N-46) |
 | <a id="c-35"></a>C-35 | L2 | Intents Carry an Expiry | Production-plane intents declare `valid_until`; execution after it is refused and the intent reconciles as `unexecuted` (N-52) |
 | <a id="c-36"></a>C-36 | L2 | No Unchecked Self-Declaration | Any factor computed from a value the intent declares is attested by another party or compared against execution (N-51) |
-| <a id="c-37"></a>C-37 | L1 | Incident Keys Are Computed | `dedup_key` is computed deterministically and recorded; an actor-supplied key may only join an existing incident (N-53, N-54) |
+| <a id="c-37"></a>C-37 | L1 | Incident Keys Are Computed | `dedup_key` is computed deterministically and recorded; an actor-supplied key may only join an existing incident; the first report of a distinct key is never delayed or suppressed (N-53, N-54, N-70) |
 | <a id="c-38"></a>C-38 | L3 | Cap Checks Are Atomic | Grant cap checks consume atomically and lifecycle transitions are ordered against coverage; unresolvable order routes to a human (N-55) |
 | <a id="c-39"></a>C-39 | L1 | The Lifecycle Is Enforced | A duplicate intent_id is refused, and an emitted decision record is never replaced by a recomputed one (N-57, N-58) |
 | <a id="c-40"></a>C-40 | L1 | Rejections Are Recorded | Every rejection is recorded in the audit trail with its reason, and no rejection produces a decision record (N-59) |
 | <a id="c-41"></a>C-41 | L2 | Windows Bind Deployments | A deployment executed outside the maintenance window it cited reconciles as divergent (N-62) |
 | <a id="c-42"></a>C-42 | L1 | Graders Are Not Requesters | Where grading is done by hand, the grader is never the requesting actor or its accountable human (N-64) |
 | <a id="c-43"></a>C-43 | L1 | Claimed Levels Are Stamped | An implementation claiming a level stamps implementation_level into every decision record it emits (N-65) |
+| <a id="c-44"></a>C-44 | L3 | Grants Are Graded by Their Reach | A grant's base level comes from the most restrictive cell its match rule or permission grid can cover, its computed level is never below `caps.max_level`, and no grant becomes active without a recorded human decision (N-66, N-67, N-68) |
 
 ### 11.1 The three levels
 
@@ -889,7 +948,7 @@ nobody ever checks up on.
 Two boundaries are worth naming. The pattern-key hash sits at L2, not L1,
 because a SHA-256 over a canonical byte stream cannot be produced by hand: an
 L1 register records the six §6.1 fields verbatim in place of the hash, and
-computing the key from them is part of moving to L2. And the incident
+computing the key from them is part of moving to L2 (N-69). And the incident
 deduplication key stays at L1 because its default inputs (N-53) are two fields
 a person can copy into a ledger.
 
@@ -908,6 +967,13 @@ claiming a level **MUST** stamp `implementation_level` into every decision
 record it emits. A claim that appears nowhere in the evidence cannot be
 audited; one stamped into every record can be checked record by record.
 
+**N-69 (The Register Keeps the Six Fields).** <a id="n-69"></a>An
+implementation at L1 **MUST** record the six §6.1 fields verbatim in
+`action_pattern_fields` in place of `action_pattern_key`. An implementation at
+L2 or L3 **MUST** record `action_pattern_key`. Either way the record carries
+what the hash is computed from, so moving from L1 to L2 is a computation over
+existing records, not a migration.
+
 ---
 
 ## 12. Security considerations
@@ -922,10 +988,10 @@ binding rule elsewhere in this document, and this section only gathers them.
 | Self-rating | The actor words its declaration to earn a lower grade | Facts can only fail to add oversight, never subtract it (N-14, N-19); asserted grades are ignored (N-8); declared inputs are attested or checked (N-4, N-51) |
 | Scrutiny erosion | Small variations walk an action out of its pattern, or into a well-trodden one | The pattern key is closed over six fields and one byte form (N-22, N-56); the system derives `target_class`, and its derivation wins (N-23, N-24) |
 | Precedent farming | Submit many intents to manufacture standing | Only reconciled successes count (N-25); a mismatch wipes the pattern's standing and demotes (N-26, N-48) |
-| Privilege laundering | A loose grant turns one approval into standing permission | Match rules are closed, conjunctive and declarative (N-30, N-31); blanket and indefinite grants are refused (N-32, N-33); no grant reaches `prohibited` (N-29) |
-| Incident flooding | A fleet mints identities or buries humans in records | The system computes the deduplication key and its key wins (N-53, N-54); record-plane budgets bite at volume while the first-report invariant protects first reports (§1.1) |
+| Privilege laundering | A loose grant turns one approval into standing permission | Match rules are closed, conjunctive and declarative (N-30, N-31); blanket and indefinite grants are refused (N-32, N-33); no grant reaches `prohibited` (N-29); the grant itself is graded by its reach, never below its cap, and always by a human (N-66, N-67, N-68); an exception covers only the profile and actor it names (N-28) |
+| Incident flooding | A fleet mints identities or buries humans in records | The system computes the deduplication key and its key wins (N-53, N-54); record-plane budgets bite at volume while the first-report invariant protects first reports (N-70) |
 | Race conditions | Concurrent children spend a cap twice, or slip through a revocation | Cap checks consume atomically and lifecycle transitions are ordered (N-55); a duplicate id is refused (N-57); unresolvable order routes to a human |
-| Evidence tampering | A record is rewritten after the fact to match what happened | Records are append-only (N-43); rejections leave their own trace (N-59); the epoch pins what the grading read (N-60); one audit trail joins both modes (N-45) |
+| Evidence tampering | A record is rewritten after the fact to match what happened | Records are append-only (N-43); rejections leave their own trace (N-59); the epoch pins what the grading read (N-60); one audit trail joins both modes (N-45); grant lifecycle changes are made by the implementation and traced (N-71) |
 | Floor probing | Escalation, emergency or grant paths are tried against the §12.5 cells | The floor is checked before anything else and is unreachable from every path (N-12, N-14b, N-29, N-42) |
 
 Three limits are equally worth naming, because the specification does not
@@ -987,7 +1053,7 @@ Edit the registry, not the tables.
 | [N-25](#n-25) | Only Checked Successes Count | Precedent needs a recorded human decision permitting execution, a checked execution, and no material mismatch | §6.3 | [C-7](#c-7) |
 | [N-26](#n-26) | A Mismatch Wipes Precedent | A material mismatch clears the action pattern’s precedent and demotes the actor | §6.3 | [C-25](#c-25) |
 | [N-27](#n-27) | Grants Approve, Never Lower | A grant supplies the human approval in advance; it never changes the child's computed level | §7.1 | [C-10](#c-10) |
-| [N-28](#n-28) | Coverage Is All or Nothing | All five coverage conditions must hold, or the child routes to a human individually | §7.1 | [C-26](#c-26) |
+| [N-28](#n-28) | Coverage Is All or Nothing | All six coverage conditions must hold, or the child routes to a human individually | §7.1 | [C-26](#c-26) |
 | [N-29](#n-29) | No Grant Covers Prohibited | No grant reaches a prohibited child, and none is an exception to framework §12.5 | §7.1 | [C-10](#c-10) |
 | [N-30](#n-30) | The Closed Match-Rule Fields | A class match rule matches only on the seven named fields; the schema admits no other key | §7.2 | [C-11](#c-11) |
 | [N-31](#n-31) | Match All, Never Execute | Every named field must match; wildcards only in target_class, no free text and no code | §7.2 | [C-11](#c-11) |
@@ -1025,6 +1091,12 @@ Edit the registry, not the tables.
 | [N-63](#n-63) | Children Are Graded First | A bundle is not decided until every intent it composes or requires has been graded | §4 | [C-20](#c-20) |
 | [N-64](#n-64) | No One Grades Their Own Ask | Where grading is done by hand, the person grading is never the requesting actor or its accountable human | §11.1 | [C-42](#c-42) |
 | [N-65](#n-65) | Say the Level You Claim | An implementation claiming a level stamps that level into every decision record it emits | §11.1 | [C-43](#c-43) |
+| [N-66](#n-66) | A Grant Is Graded by Its Reach | A grant's base level is the most restrictive cell its match rule or permission grid can cover, never its own declaration | §7.5 | [C-44](#c-44) |
+| [N-67](#n-67) | A Grant Is Never Graded Below Its Cap | A grant's computed level is at least as restrictive as `caps.max_level`; a lower computation is raised to it and recorded | §7.5 | [C-44](#c-44) |
+| [N-68](#n-68) | Every Grant Gets a Human Decision | No grant becomes active without a recorded human decision permitting it, whatever level it computed to | §7.5 | [C-44](#c-44) |
+| [N-69](#n-69) | The Register Keeps the Six Fields | An L1 record keeps the six pattern fields verbatim in place of the hash; L2 and L3 records keep the hash | §11.1 | [C-14](#c-14) |
+| [N-70](#n-70) | First Reports Are Never Gated | Record-plane throttling may limit repeats of a `dedup_key`, never the first report of a distinct one within its window | §4 | [C-37](#c-37) |
+| [N-71](#n-71) | Lifecycle Changes Leave a Trace | A grant is submitted only as `requested`; every later status transition is made by the implementation and recorded | §7.3 | [C-27](#c-27) |
 
 Every **MUST** and **MUST NOT** above is checked by an item in §11. The
 entries showing — (N-41) leave a choice open rather than
@@ -1042,45 +1114,46 @@ L3 item needs the grant machinery; §11.1 defines the levels.
 | [C-3](#c-3) | L1 | Single Source Matrix | One effective matrix supplies the base level; no second matrix exists | [N-13](#n-13) |
 | [C-4](#c-4) | L1 | Never Less Restrictive | No mechanism produces a level below base | [N-14](#n-14) |
 | [C-4a](#c-4a) | L1 | Escalation Stops Early | Escalation stops at `elevated_approval`; likelihood never reaches `prohibited` | [N-14a](#n-14a) |
-| [C-5](#c-5) | L1 | Five Factors, No Negatives | All five likelihood factors are implemented and every weight is non-negative | [N-17](#n-17), [N-18](#n-18), [N-61](#n-61) |
-| [C-6](#c-6) | L2 | Pattern Key Exactly Six | The action pattern key covers the six §6.1 fields, no more and no fewer | [N-22](#n-22), [N-56](#n-56) |
+| [C-5](#c-5) | L1 | Five Factors, No Negatives | All five likelihood factors are implemented, no weight is negative, and any precedent age bound lives in the versioned weight table | [N-17](#n-17), [N-18](#n-18), [N-61](#n-61) |
+| [C-6](#c-6) | L2 | Pattern Key Exactly Six | The action pattern key covers the six §6.1 fields, no more and no fewer, serialized per RFC 8785 | [N-22](#n-22), [N-56](#n-56) |
 | [C-7](#c-7) | L2 | Precedent Comes From Checks | Precedent comes only from executions that were checked and succeeded | [N-25](#n-25) |
 | [C-8](#c-8) | L1 | Accountable Human Required | Non-human actors without a resolvable `on_behalf_of` are rejected | [N-5](#n-5) |
-| [C-9](#c-9) | L1 | Unknown Actors Fail Closed | Unresolvable authorization escalates non-Read operations to at least approval | [N-6](#n-6) |
+| [C-9](#c-9) | L1 | Unknown Actors Fail Closed | Unresolvable authorization escalates non-Read operations to at least approval, and Read too on confidential and restricted | [N-6](#n-6) |
 | [C-10](#c-10) | L3 | Grants Never Change Levels | Grants leave computed levels untouched and never cover `prohibited` | [N-27](#n-27), [N-29](#n-29) |
 | [C-11](#c-11) | L3 | Match Rules Closed and Declarative | Match rules match the closed field set, all fields at once, with no executable code | [N-30](#n-30), [N-31](#n-31) |
 | [C-12](#c-12) | L3 | Bounded and Expiring Grants | Every grant carries an expiry and a child cap; blanket and indefinite grants are rejected | [N-32](#n-32), [N-33](#n-33) |
 | [C-13](#c-13) | L1 | Profile Ceiling Holds | Adjudication never grants what the bound profile withholds | [N-20](#n-20) |
-| [C-14](#c-14) | L1 | Reproducible Permanent Records | Every adjudication emits a permanent record carrying all four reproducibility inputs | [N-21](#n-21), [N-43](#n-43), [N-60](#n-60) |
+| [C-14](#c-14) | L1 | Reproducible Permanent Records | Every adjudication emits a permanent record carrying all four reproducibility inputs, the log epoch names real state, and the pattern key or its six fields are kept | [N-21](#n-21), [N-43](#n-43), [N-60](#n-60), [N-69](#n-69) |
 | [C-15](#c-15) | L1 | Prohibition Source Recorded | Prohibited decisions distinguish `pinned` from `extended` | [N-44](#n-44) |
 | [C-16](#c-16) | L2 | No False Matches | Unreconcilable executions are never recorded as `matched` | [N-49](#n-49) |
-| [C-17](#c-17) | L1 | The Envelope Is the Whole Input | Only fields this specification and the schema define may grade an intent; a missing classification resolves to the most sensitive tier; a rollback claim never lowers the level (N-2, N-3, N-4) | [N-2](#n-2), [N-3](#n-3), [N-4](#n-4) |
-| [C-18](#c-18) | L1 | Actors Are Recorded, Not Trusted | Actor kind never changes the computed level, and no grade an actor asserts about itself is honoured (N-7, N-8) | [N-7](#n-7), [N-8](#n-8) |
-| [C-19](#c-19) | L1 | The Type Registry Is Flat | Maturity is never a rank, and every registered type uses the common envelope and adjudication contract (N-9, N-10) | [N-9](#n-9), [N-10](#n-10) |
-| [C-20](#c-20) | L1 | Bundles Take the Worst | A bundle computes to the most restrictive level among itself and its children, and never softens a child (N-11) | [N-11](#n-11), [N-63](#n-63) |
-| [C-21](#c-21) | L1 | Prohibited Has Two Sources | `prohibited` is reachable only as `pinned` or `extended`, and the pinned set is never narrowed (N-14b) | [N-14b](#n-14b) |
-| [C-22](#c-22) | L1 | Impact Is Declared, Not Supplied | Impact is the four-tier classification ordering, and any substitute is profile-declared and stamped into every record (N-15, N-16) | [N-15](#n-15), [N-16](#n-16) |
-| [C-23](#c-23) | L1 | No Factor Subtracts | No likelihood factor contributes negative steps or takes its value from the intent without attestation (N-19) | [N-19](#n-19) |
-| [C-24](#c-24) | L1 | One Target, One Class | `target_class` is computed the same way every time, and a value the actor supplies never wins (N-23, N-24) | [N-23](#n-23), [N-24](#n-24) |
+| [C-17](#c-17) | L1 | The Envelope Is the Whole Input | Only fields this specification and the schema define may grade an intent; a missing classification resolves to the most sensitive tier; a rollback claim never lowers the level | [N-2](#n-2), [N-3](#n-3), [N-4](#n-4) |
+| [C-18](#c-18) | L1 | Actors Are Recorded, Not Trusted | Actor kind never changes the computed level, and no grade an actor asserts about itself is honoured | [N-7](#n-7), [N-8](#n-8) |
+| [C-19](#c-19) | L1 | The Type Registry Is Flat | Maturity is never a rank, and every registered type uses the common envelope and adjudication contract | [N-9](#n-9), [N-10](#n-10) |
+| [C-20](#c-20) | L1 | Bundles Take the Worst | A bundle computes to the most restrictive level among itself and its children, never softens a child, and is decided only after every child is graded | [N-11](#n-11), [N-63](#n-63) |
+| [C-21](#c-21) | L1 | Prohibited Has Two Sources | `prohibited` is reachable only as `pinned` or `extended`, and the pinned set is never narrowed | [N-14b](#n-14b) |
+| [C-22](#c-22) | L1 | Impact Is Declared, Not Supplied | Impact is the four-tier classification ordering, and any substitute is profile-declared and stamped into every record | [N-15](#n-15), [N-16](#n-16) |
+| [C-23](#c-23) | L1 | No Factor Subtracts | No likelihood factor contributes negative steps | [N-19](#n-19) |
+| [C-24](#c-24) | L1 | One Target, One Class | `target_class` is computed the same way every time, and a value the actor supplies never wins | [N-23](#n-23), [N-24](#n-24) |
 | [C-25](#c-25) | L2 | A Mismatch Clears Precedent | A material mismatch clears the action pattern's precedent and demotes the actor | [N-26](#n-26) |
-| [C-26](#c-26) | L3 | Coverage Needs Every Condition | A child is covered only when every one of the five coverage conditions holds (N-28) | [N-28](#n-28) |
-| [C-27](#c-27) | L3 | Grants End Cleanly | Revocation takes effect immediately, and children already decided are recorded as affected (N-34, N-35) | [N-34](#n-34), [N-35](#n-35) |
-| [C-28](#c-28) | L3 | Exceptions Stay Inside §12.5 | An exception tripping any of framework §12.5's five prohibitions is rejected, and adjudication never decides the grant (N-36, N-37) | [N-36](#n-36), [N-37](#n-37) |
-| [C-29](#c-29) | L2 | Budgets and Demotion Escalate | Budget standing comes from the bound profile, and breach and demotion escalate rather than deny or reduce (N-38, N-39, N-40) | [N-38](#n-38), [N-39](#n-39), [N-40](#n-40) |
-| [C-30](#c-30) | L1 | Emergencies Only Raise Ceilings | An emergency never lowers a level, waives a factor, or touches the pinned cells (N-42) | [N-42](#n-42) |
-| [C-31](#c-31) | L2 | One Joined Audit Trail | Decision records join the interception audit trail on `intent_id` (N-45) | [N-45](#n-45) |
-| [C-32](#c-32) | L2 | Reconciliation Classifies Everything | Every executed action is classed into one of the four results, and divergence is recorded as a governance event (N-47, N-48) | [N-47](#n-47), [N-48](#n-48) |
-| [C-33](#c-33) | L1 | The Sequence Is Honoured | Adjudication applies the §5.1 steps in order (N-50) | [N-50](#n-50) |
+| [C-26](#c-26) | L3 | Coverage Needs Every Condition | A child is covered only when every one of the six coverage conditions holds, including the profile and actor an exception names | [N-28](#n-28) |
+| [C-27](#c-27) | L3 | Grants End Cleanly | Revocation takes effect immediately, children already decided are recorded as affected, and every lifecycle change is traced | [N-34](#n-34), [N-35](#n-35), [N-71](#n-71) |
+| [C-28](#c-28) | L3 | Exceptions Stay Inside §12.5 | An exception tripping any of framework §12.5's five prohibitions is rejected, and adjudication never decides the grant | [N-36](#n-36), [N-37](#n-37) |
+| [C-29](#c-29) | L2 | Budgets and Demotion Escalate | Budget standing comes from the bound profile, and breach and demotion escalate rather than deny or reduce | [N-38](#n-38), [N-39](#n-39), [N-40](#n-40) |
+| [C-30](#c-30) | L1 | Emergencies Only Raise Ceilings | An emergency never lowers a level, waives a factor, or touches the pinned cells | [N-42](#n-42) |
+| [C-31](#c-31) | L2 | One Joined Audit Trail | Decision records join the interception audit trail on `intent_id` | [N-45](#n-45) |
+| [C-32](#c-32) | L2 | Reconciliation Classifies Everything | Every executed action is classed into one of the four results, and divergence is recorded as a governance event | [N-47](#n-47), [N-48](#n-48) |
+| [C-33](#c-33) | L1 | The Sequence Is Honoured | Adjudication applies the §5.1 steps in order | [N-50](#n-50) |
 | [C-34](#c-34) | L2 | The Intent ID Travels | Where both modes are deployed, `intent_id` reaches the interception record | [N-46](#n-46) |
 | [C-35](#c-35) | L2 | Intents Carry an Expiry | Production-plane intents declare an expiry, and nothing executes after it | [N-52](#n-52) |
 | [C-36](#c-36) | L2 | No Unchecked Self-Declaration | A factor reading a declared value is attested or reconciled | [N-51](#n-51) |
-| [C-37](#c-37) | L1 | Incident Keys Are Computed | `dedup_key` is computed, and an actor-supplied key cannot mint a new incident | [N-53](#n-53), [N-54](#n-54) |
+| [C-37](#c-37) | L1 | Incident Keys Are Computed | `dedup_key` is computed, an actor-supplied key cannot mint a new incident, and a first report is never gated | [N-53](#n-53), [N-54](#n-54), [N-70](#n-70) |
 | [C-38](#c-38) | L3 | Cap Checks Are Atomic | Cap consumption and revocation are ordered, and unresolvable order fails closed | [N-55](#n-55) |
 | [C-39](#c-39) | L1 | The Lifecycle Is Enforced | Ids are accepted once and emitted decision records are never re-graded | [N-57](#n-57), [N-58](#n-58) |
 | [C-40](#c-40) | L1 | Rejections Are Recorded | Every rejection lands in the audit trail; none produces a decision record | [N-59](#n-59) |
 | [C-41](#c-41) | L2 | Windows Bind Deployments | A deployment that cites a maintenance window is held to it at reconciliation | [N-62](#n-62) |
 | [C-42](#c-42) | L1 | Graders Are Not Requesters | Hand grading is never done by the actor who asked | [N-64](#n-64) |
 | [C-43](#c-43) | L1 | Claimed Levels Are Stamped | A claimed implementation level appears in every decision record | [N-65](#n-65) |
+| [C-44](#c-44) | L3 | Grants Are Graded by Their Reach | A grant is graded by the most severe cell it can cover, never below its cap, and always gets a human decision | [N-66](#n-66), [N-67](#n-67), [N-68](#n-68) |
 
 ---
 

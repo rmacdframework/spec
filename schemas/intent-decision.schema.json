@@ -2,13 +2,12 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://rmacd-framework.org/schema/v2/intent-decision.json",
   "title": "RMACD Intent Decision Record",
-  "description": "The durable evidence artifact produced by every adjudication. Simultaneously the audit record and the precedent memory that feeds likelihood. See docs/intent-specification.md §9.",
+  "description": "The permanent evidence artifact produced by every adjudication. Simultaneously the audit record and the precedent memory that feeds likelihood. See docs/intent-specification.md §9.",
   "type": "object",
   "required": [
     "decision_id",
     "intent_id",
     "decided_at",
-    "action_pattern_key",
     "base_level",
     "computed_level",
     "escalation_factors",
@@ -39,15 +38,65 @@
     },
     "action_pattern_key": {
       "type": "string",
-      "description": "SHA-256 over the canonical serialization of exactly the six fields in specification §6.1.",
+      "description": "SHA-256 over the RFC 8785 canonical serialization of exactly the six fields in specification §6.1 (N-22, N-56). Required unless implementation_level is L1 (N-69).",
       "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "action_pattern_fields": {
+      "type": "object",
+      "description": "The six specification §6.1 fields verbatim, kept by an L1 implementation in place of the hash (N-69). Moving to L2 is a computation over these, not a migration.",
+      "required": [
+        "intent_type",
+        "operation",
+        "environment",
+        "target_class",
+        "actor_kind"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "intent_type": {
+          "type": "string"
+        },
+        "operation": {
+          "type": "string",
+          "enum": [
+            "R",
+            "M",
+            "A",
+            "C",
+            "D"
+          ]
+        },
+        "data_classification": {
+          "type": "string",
+          "enum": [
+            "public",
+            "internal",
+            "confidential",
+            "restricted"
+          ]
+        },
+        "environment": {
+          "type": "string"
+        },
+        "target_class": {
+          "type": "string"
+        },
+        "actor_kind": {
+          "type": "string",
+          "enum": [
+            "agent",
+            "pipeline",
+            "human"
+          ]
+        }
+      }
     },
     "base_level": {
       "description": "The level the framework's effective matrix required, before escalation. Sourced from the §3.1 matrix as adjusted by the bound profile; never from a second matrix (N-13).",
       "$ref": "#/$defs/autonomyLevel"
     },
     "computed_level": {
-      "description": "The level after escalation, composition floor and immutable floor. Never less restrictive than base_level (N-14). Escalation saturates at elevated_approval; prohibited arises only from the pinned or extended floor (N-14a).",
+      "description": "The level after escalation, composition floor and immutable floor. Never less restrictive than base_level (N-14). Escalation stops at elevated_approval; prohibited arises only from the pinned or extended floor (N-14a).",
       "$ref": "#/$defs/autonomyLevel"
     },
     "escalation_factors": {
@@ -108,7 +157,7 @@
     },
     "grant_ref": {
       "type": "string",
-      "description": "The grant that discharged approval, if any. A grant discharges; it never lowers computed_level (N-27).",
+      "description": "The grant that satisfied approval in advance, if any. A grant satisfies approval; it never lowers computed_level (N-27).",
       "pattern": "^int-[a-z0-9][a-z0-9-]*$"
     },
     "disposition": {
@@ -143,7 +192,7 @@
     },
     "prohibition_source": {
       "type": "string",
-      "description": "Required when computed_level is prohibited. 'pinned' is the framework §12.5 floor and can never be removed or narrowed; 'extended' is an organization's own declared prohibition, which extends the floor outward but never shrinks it. Escalation is never a source: likelihood saturates at elevated_approval and cannot reach prohibited (N-14a, N-14b, N-44).",
+      "description": "Required when computed_level is prohibited. 'pinned' is the framework §12.5 floor and can never be removed or narrowed; 'extended' is an organization's own declared prohibition, which extends the floor outward but never shrinks it. Escalation is never a source: likelihood stops at elevated_approval and cannot reach prohibited (N-14a, N-14b, N-44).",
       "enum": [
         "pinned",
         "extended"
@@ -176,7 +225,7 @@
         },
         "discrepancies": {
           "type": "array",
-          "description": "Fields where the executed action differed from the declared intent. The comparison set is fixed by N-47: scope is included so a self-declared blast radius is checked rather than trusted (N-51).",
+          "description": "Fields where the executed action differed from the declared intent. The comparison set is fixed by N-47: scope is included so a self-declared blast radius is checked rather than trusted (N-51), and window so a deployment is held to the maintenance window it cited (N-62).",
           "items": {
             "type": "object",
             "required": [
@@ -191,7 +240,8 @@
                   "target_class",
                   "data_classification",
                   "environment",
-                  "scope"
+                  "scope",
+                  "window"
                 ]
               },
               "declared": {
@@ -224,6 +274,29 @@
           "prohibition_source"
         ]
       }
+    },
+    {
+      "$comment": "N-69: an L1 record keeps the six pattern fields verbatim; every other record keeps the hash.",
+      "if": {
+        "properties": {
+          "implementation_level": {
+            "const": "L1"
+          }
+        },
+        "required": [
+          "implementation_level"
+        ]
+      },
+      "then": {
+        "required": [
+          "action_pattern_fields"
+        ]
+      },
+      "else": {
+        "required": [
+          "action_pattern_key"
+        ]
+      }
     }
   ],
   "$defs": {
@@ -249,7 +322,7 @@
       "properties": {
         "factor": {
           "type": "string",
-          "description": "The five likelihood factors of specification §5.4, plus the fail-closed factor of N-6 and the composition floor of N-11.",
+          "description": "The five likelihood factors of specification §5.4, plus the fail-closed factor of N-6, the composition floor of N-11 and the grant cap of N-67.",
           "enum": [
             "precedent",
             "reversibility",
@@ -257,7 +330,8 @@
             "budget_standing",
             "blast_radius",
             "unresolved_authorization",
-            "composition_floor"
+            "composition_floor",
+            "grant_cap"
           ]
         },
         "steps": {
