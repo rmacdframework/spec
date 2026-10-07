@@ -70,7 +70,7 @@ Please read and follow our [Code of Conduct](CODE_OF_CONDUCT.md).
 
 ### JSON Schemas
 
-- Use camelCase for property names
+- Use snake_case for property names — every schema in the repository does
 - Include descriptions for all properties
 - Provide default values where appropriate
 - Follow JSON Schema Draft 2020-12
