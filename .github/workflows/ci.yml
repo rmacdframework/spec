@@ -79,6 +79,42 @@ jobs:
       - name: Mutation-test the gates
         run: python tools/test_gates.py
 
+  intents-engine:
+    # The adjudication engine is a separate distribution that depends on the
+    # SDK, never the other way round. It is installed against the SDK from the
+    # local path so an unreleased evaluator change is exercised before it ships.
+    name: Intents engine (Python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.14"]
+    defaults:
+      run:
+        working-directory: sdk/python-intents
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+          cache-dependency-path: sdk/python-intents/pyproject.toml
+
+      - name: Install the SDK from the local path, then the engine
+        run: |
+          pip install -e ../python
+          pip install -e ".[dev]"
+
+      - name: Lint (ruff)
+        run: ruff check rmacd_intents tests
+
+      - name: Type-check (mypy strict)
+        run: mypy rmacd_intents
+
+      - name: Test
+        run: pytest tests/
+
   validate-profiles:
     # Dogfood of integrations/github-action: same `rmacd validate` step the
     # action runs, but installing the SDK from the local path (not PyPI) to

@@ -68,7 +68,14 @@ class StaticActorResolver:
     def resolve(self, actor: Actor) -> Resolution:
         bound = self._bindings.get(actor.authorization)
         if bound is None:
-            return Resolution(authorized=False, profile=None, accountable=False)
+            # Unknown authorization: that is N-6's fail-closed path, not a rejection.
+            # With nothing to resolve on_behalf_of against, its presence is what N-5
+            # can still check.
+            return Resolution(
+                authorized=False,
+                profile=None,
+                accountable=actor.kind is ActorKind.HUMAN or bool(actor.on_behalf_of),
+            )
         if actor.kind is ActorKind.HUMAN:
             return Resolution(authorized=True, profile=bound.profile, accountable=True)
         accountable = bool(actor.on_behalf_of) and (
