@@ -107,7 +107,8 @@ advises: dict[str, list[str]] = {}
 # schemas track the framework's. They are deliberately on different majors, and
 # a stray edit that unifies them is a bug, not a tidy-up.
 SCHEMA_FAMILIES = {
-    "v2": ("intent.schema.json", "intent-decision.schema.json"),
+    "v2": ("intent.schema.json", "intent-decision.schema.json",
+           "intent-log-entry.schema.json", "adjudication-log-entry.schema.json"),
     "v1": ("profile-2d.schema.json", "profile-3d.schema.json",
            "profile-dc2d.schema.json", "pack.schema.json"),
 }
@@ -402,7 +403,7 @@ def run_gates(doc: str, norm: dict, conf: dict, rolls: dict, rec: dict) -> list[
             for item in node:
                 _collect(item)
 
-    for name in ("intent.schema.json", "intent-decision.schema.json"):
+    for name in SCHEMA_FAMILIES["v2"]:
         path = ROOT / "schemas" / name
         if path.exists():
             _collect(json.loads(path.read_text(encoding="utf-8")))
@@ -417,7 +418,7 @@ def run_gates(doc: str, norm: dict, conf: dict, rolls: dict, rec: dict) -> list[
         # in the document. `status` shipped in the schema for three revisions
         # with no table row and no rule saying who may set it, because this
         # check only ran one way.
-        for name in ("intent.schema.json", "intent-decision.schema.json"):
+        for name in SCHEMA_FAMILIES["v2"]:
             path = ROOT / "schemas" / name
             if not path.exists():
                 continue
@@ -434,7 +435,7 @@ def run_gates(doc: str, norm: dict, conf: dict, rolls: dict, rec: dict) -> list[
         scanned.append(("docs/intents.md", companion.read_text(encoding="utf-8")))
     for ex in sorted((ROOT / "schemas" / "examples" / "intents").glob("*")):
         scanned.append((f"schemas/examples/intents/{ex.name}", ex.read_text(encoding="utf-8")))
-    for name in ("intent.schema.json", "intent-decision.schema.json"):
+    for name in SCHEMA_FAMILIES["v2"]:
         path = ROOT / "schemas" / name
         if path.exists():
             scanned.append((f"schemas/{name}", path.read_text(encoding="utf-8")))

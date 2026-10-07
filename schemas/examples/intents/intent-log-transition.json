@@ -1,0 +1,10 @@
+{
+  "$schema": "https://rmacd-framework.org/schema/v2/intent-log-entry.json",
+  "seq": 884301,
+  "logged_at": "2026-08-15T14:00:00Z",
+  "kind": "transition",
+  "intent_id": "int-cmp-20260801-0002",
+  "from_status": "requested",
+  "to_status": "active",
+  "changed_by": "cab@company.com"
+}

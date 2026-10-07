@@ -728,6 +728,56 @@
     ]
   },
   {
+    "id": "N-72",
+    "kind": "normative",
+    "name": "Two Logs, Never One",
+    "gloss": "The intent log and the adjudication log are distinct append-only streams; a rejection goes to the first and never the second",
+    "section_anchor": "#n-72",
+    "rolls_up_to": [
+      "C-45"
+    ]
+  },
+  {
+    "id": "N-73",
+    "kind": "normative",
+    "name": "Logged as Received",
+    "gloss": "Every submission is written to the intent log exactly as received; unparseable input is kept as text",
+    "section_anchor": "#n-73",
+    "rolls_up_to": [
+      "C-45"
+    ]
+  },
+  {
+    "id": "N-74",
+    "kind": "normative",
+    "name": "The Adjudication Log Holds Only Decisions",
+    "gloss": "The adjudication log holds decision records and single disposition or reconciliation attachments that cite their decision, nothing else",
+    "section_anchor": "#n-74",
+    "rolls_up_to": [
+      "C-45"
+    ]
+  },
+  {
+    "id": "N-75",
+    "kind": "normative",
+    "name": "The Epoch Is a Sequence Number",
+    "gloss": "`log_epoch` is `seq-` plus the shared sequence number of the latest log entry the grading read",
+    "section_anchor": "#n-75",
+    "rolls_up_to": [
+      "C-14"
+    ]
+  },
+  {
+    "id": "N-76",
+    "kind": "normative",
+    "name": "One Counter Orders Both Logs",
+    "gloss": "Every entry in either log carries a `seq` from one shared, strictly increasing counter assigned at write",
+    "section_anchor": "#n-76",
+    "rolls_up_to": [
+      "C-45"
+    ]
+  },
+  {
     "id": "C-1",
     "kind": "conformance",
     "name": "Malformed Intents Rejected",
@@ -843,7 +893,7 @@
     "id": "C-14",
     "kind": "conformance",
     "name": "Reproducible Permanent Records",
-    "gloss": "Every adjudication emits a permanent record carrying all four reproducibility inputs, the log epoch names real state, and the pattern key or its six fields are kept",
+    "gloss": "Every adjudication emits a permanent record carrying all four reproducibility inputs, the log epoch names a real log prefix, and the pattern key or its six fields are kept",
     "section_anchor": "#c-14",
     "rolls_up_to": []
   },
@@ -1085,6 +1135,14 @@
     "name": "Grants Are Graded by Their Reach",
     "gloss": "A grant is graded by the most severe cell it can cover, never below its cap, and always gets a human decision",
     "section_anchor": "#c-44",
+    "rolls_up_to": []
+  },
+  {
+    "id": "C-45",
+    "kind": "conformance",
+    "name": "The Logs Are Kept",
+    "gloss": "Two append-only logs on one counter: submissions as received in one, decisions and their attachments in the other",
+    "section_anchor": "#c-45",
     "rolls_up_to": []
   }
 ]

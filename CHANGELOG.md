@@ -23,6 +23,59 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `docs/audit-evidence.md` §1.3. `EvaluationContext` is now exported from the
   package root.
 
+## [Intent Specification 2.4.0] — 2026-10-07
+
+### Intent Specification 2.4.0
+
+The two logs, named and given formats. The rules already required rejections
+to be recorded, decision records to be append-only, grant transitions to be
+traced and the epoch to name the decision-log state — but "the audit trail"
+was one undifferentiated phrase, a rejection entry had three required facts
+and no schema, a lifecycle event had none, and the epoch had no format. Every
+identifier from 2.3.x is unchanged; five rules and one checklist item are
+added (78 rules, 46 items).
+
+#### Added
+
+- **§9.1 The two logs.** The *intent log* holds every submission as received,
+  every rejection, and every grant status transition. The *adjudication log*
+  holds decision records and the two attachments N-43 permits, and nothing
+  else. The interception audit trail is the third stream, owned by the
+  enforcement side. A table states what each holds and what it joins to, on
+  `intent_id`. **N-72 (Two Logs, Never One)**, **N-73 (Logged as Received)**.
+- **§9.2 The adjudication log.** Attachments are how N-43's two permitted
+  additions reach an append-only stream: a `disposition` or `reconciliation`
+  entry cites its `decision_id`, and the record itself is never rewritten.
+  **N-74 (The Adjudication Log Holds Only Decisions)**.
+- **§9.3 The epoch.** `log_epoch` is `seq-` plus the shared sequence number
+  of the latest entry the grading read — **N-75 (The Epoch Is a Sequence
+  Number)** — and every entry in either log carries a `seq` from one counter
+  — **N-76 (One Counter Orders Both Logs)**. One counter is what gives N-55
+  its total order: a grant transition and the coverage decision that raced it
+  are ordered whichever log each landed in.
+- New **C-45 (The Logs Are Kept)**, L1; N-75 rolls into **C-14**.
+- **Schemas:** `intent-log-entry.schema.json` (`submission` | `rejection` |
+  `transition`, with per-kind required fields; a submission's `document` is
+  validated against `intent.json` by reference) and
+  `adjudication-log-entry.schema.json` (`decision` | `disposition` |
+  `reconciliation`, referencing `intent-decision.json` and its two attachment
+  definitions by pointer). Both published under `schema/v2/`.
+- **Five worked log entries** in `schemas/examples/intents/`: a submission, a
+  rejection, a transition, a decision entry and a disposition attachment.
+
+#### Changed
+
+- `intent-decision.schema.json` now constrains `log_epoch` to `^seq-[0-9]+$`;
+  `decision-record.json` updated to match. This is the one tightening in an
+  otherwise additive revision, under the stated policy that v2 is amendable
+  until the first engine ships.
+
+#### Gates
+
+Gates 6, 7 and 8 read the schema family from one list, so the two log schemas
+are held to the retired-vocabulary, schema-version and prose/schema
+agreement checks. `tools/test_gates.py` covers 25 injected faults, all caught.
+
 ## [Intent Specification 2.3.0] — 2026-10-07
 
 ### Intent Specification 2.3.0

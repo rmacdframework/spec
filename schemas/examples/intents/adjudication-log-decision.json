@@ -1,0 +1,37 @@
+{
+  "$schema": "https://rmacd-framework.org/schema/v2/adjudication-log-entry.json",
+  "seq": 884218,
+  "logged_at": "2026-08-15T10:03:12Z",
+  "kind": "decision",
+  "decision_id": "dec-20260815-0114",
+  "record": {
+    "$schema": "https://rmacd-framework.org/schema/v2/intent-decision.json",
+    "decision_id": "dec-20260815-0114",
+    "intent_id": "int-chg-20260815-0032",
+    "decided_at": "2026-08-15T10:03:12Z",
+    "action_pattern_key": "sha256:6f1c2a9d4b83e0577c1de92a4f60b8d35ac7194e2f8b06d3a5c74e19bf2d80a6",
+    "base_level": "approval",
+    "computed_level": "elevated_approval",
+    "escalation_factors": [
+      {
+        "factor": "precedent",
+        "steps": 1,
+        "cause": "No confirmed prior success for this action pattern; the decision log holds 0 reconciled successes."
+      },
+      {
+        "factor": "environment",
+        "steps": 1,
+        "cause": "Declared environment is production."
+      }
+    ],
+    "impact_basis": {
+      "scheme": "data_classification",
+      "value": "internal"
+    },
+    "profile_id": "rmacd-3d-devops-v1",
+    "matrix_version": "1.4.0",
+    "likelihood_weights_version": "default-1.0.0",
+    "policy_version": "corp-policy-2026.08",
+    "log_epoch": "seq-884217"
+  }
+}

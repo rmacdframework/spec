@@ -166,7 +166,7 @@ Read [The Intent Model](docs/intents.md) for the model and its rationale, and th
 | [Runtime Architecture Diagram](docs/RMACD_Runtime_Architecture.drawio.png) ([source](docs/RMACD_Runtime_Architecture.drawio)) | PDP / PEP / Audit / Approval, with the SDK class overlay |
 | [Governance Packs Diagram](docs/RMACD_Governance_Packs.drawio.png) ([source](docs/RMACD_Governance_Packs.drawio)) | How packs are authored (AI-assisted, signed) and enforced deterministically |
 | [JSON Schema Templates](schemas/) | `profile-2d`, `profile-3d`, `profile-dc2d` + [example profiles](schemas/examples/) |
-| [Intent Schemas](schemas/) | [`intent`](schemas/intent.schema.json) (the envelope and its ten registered types) and [`intent-decision`](schemas/intent-decision.schema.json) (the decision record) + [worked intents](schemas/examples/intents/) |
+| [Intent Schemas](schemas/) | [`intent`](schemas/intent.schema.json) (the envelope and its ten registered types), [`intent-decision`](schemas/intent-decision.schema.json) (the decision record), [`intent-log-entry`](schemas/intent-log-entry.schema.json) and [`adjudication-log-entry`](schemas/adjudication-log-entry.schema.json) (the two logs) + [worked intents](schemas/examples/intents/) |
 
 ### Guides and runtime reference
 
@@ -175,7 +175,7 @@ Read [The Intent Model](docs/intents.md) for the model and its rationale, and th
 | [Implementation Guide](docs/implementation.md) | Step-by-step adoption: choose a shape, define profiles, wire enforcement, approvals, rollout |
 | [Runtime Patterns](docs/runtime-patterns.md) | How an agent runtime consumes RMACD: profile binding, classification lookup, approval-wait, error contract, agent self-restriction, DC2D |
 | [RMACD Intents — the Intent Model](docs/intents.md) | The second, out-of-band mode: adjudication before execution. The intent ladder, the production and record planes, the ten-type registry, campaigns, budgets, and how likelihood escalates the §3.1 matrix without introducing a second one |
-| [Intent Specification](docs/intent-specification.md) | The rules (RFC 2119): the intent envelope, the actor model, the adjudication contract, action patterns and precedent, grants, the decision record, reconciliation with interception, a 45-item checklist and three implementation levels |
+| [Intent Specification](docs/intent-specification.md) | The rules (RFC 2119): the intent envelope, the actor model, the adjudication contract, action patterns and precedent, grants, the decision record, reconciliation with interception, a 46-item checklist and three implementation levels |
 | [Framework adapters](docs/framework-adapters.md) | Registry-backed `enforce_tool_call` for OpenAI Agents SDK, Microsoft Agent Framework, Claude Agent SDK, LangChain, AutoGen, CrewAI — plus RMACD as an MCP server |
 | [Claude Code integration](docs/claude-code.md) | Governing the Claude Code session itself: `SessionStart` notice, `PreToolUse` decision hook, `PostToolUse` audit trail (`.claude/rmacd-audit.jsonl`), fail-closed behaviour when a profile is bound but the SDK is missing, the `rmacd` plugin, and enterprise managed-settings rollout |
 | [Audit evidence](docs/audit-evidence.md) | `rmacd audit summarize` reports, SIEM shipping recipes, SOC 2 / ISO 27001 / GDPR mapping |

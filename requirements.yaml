@@ -374,6 +374,31 @@ requirements:
   name: "Lifecycle Changes Leave a Trace"
   gloss: "A grant is submitted only as `requested`; every later status transition is made by the implementation and recorded"
   section: '7.3'
+- id: N-72
+  kind: normative
+  name: "Two Logs, Never One"
+  gloss: "The intent log and the adjudication log are distinct append-only streams; a rejection goes to the first and never the second"
+  section: '9.1'
+- id: N-73
+  kind: normative
+  name: "Logged as Received"
+  gloss: "Every submission is written to the intent log exactly as received; unparseable input is kept as text"
+  section: '9.1'
+- id: N-74
+  kind: normative
+  name: "The Adjudication Log Holds Only Decisions"
+  gloss: "The adjudication log holds decision records and single disposition or reconciliation attachments that cite their decision, nothing else"
+  section: '9.2'
+- id: N-75
+  kind: normative
+  name: "The Epoch Is a Sequence Number"
+  gloss: "`log_epoch` is `seq-` plus the shared sequence number of the latest log entry the grading read"
+  section: '9.3'
+- id: N-76
+  kind: normative
+  name: "One Counter Orders Both Logs"
+  gloss: "Every entry in either log carries a `seq` from one shared, strictly increasing counter assigned at write"
+  section: '9.3'
 - id: C-1
   kind: conformance
   name: "Malformed Intents Rejected"
@@ -495,14 +520,15 @@ requirements:
 - id: C-14
   kind: conformance
   name: "Reproducible Permanent Records"
-  gloss: "Every adjudication emits a permanent record carrying all four reproducibility inputs, the log epoch names real state, and the pattern key or its six fields are kept"
+  gloss: "Every adjudication emits a permanent record carrying all four reproducibility inputs, the log epoch names a real log prefix, and the pattern key or its six fields are kept"
   level: 1
   bundles:
   - N-21
   - N-43
   - N-60
   - N-69
-  conformance_text: "Every adjudication emits a permanent decision record carrying all four reproducibility inputs, the log epoch names real state, and the record keeps `action_pattern_key` or, at L1, the six fields verbatim (N-21, N-43, N-60, N-69)"
+  - N-75
+  conformance_text: "Every adjudication emits a permanent decision record carrying all four reproducibility inputs, the log epoch is the shared sequence number the grading read, and the record keeps `action_pattern_key` or, at L1, the six fields verbatim (N-21, N-43, N-60, N-69, N-75)"
 - id: C-15
   kind: conformance
   name: "Prohibition Source Recorded"
@@ -761,3 +787,14 @@ requirements:
   - N-67
   - N-68
   conformance_text: "A grant's base level comes from the most restrictive cell its match rule or permission grid can cover, its computed level is never below `caps.max_level`, and no grant becomes active without a recorded human decision (N-66, N-67, N-68)"
+- id: C-45
+  kind: conformance
+  name: "The Logs Are Kept"
+  gloss: "Two append-only logs on one counter: submissions as received in one, decisions and their attachments in the other"
+  level: 1
+  bundles:
+  - N-72
+  - N-73
+  - N-74
+  - N-76
+  conformance_text: "The intent log and the adjudication log are distinct append-only streams sharing one sequence counter; every submission is logged as received, rejections never enter the adjudication log, and it holds only decision records and their single attachments (N-72, N-73, N-74, N-76)"

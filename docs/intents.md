@@ -349,9 +349,13 @@ the computed base and final levels, every escalation factor that fired, the
 matrix, weight-table and policy versions, the log epoch, and any approver's
 recorded decision. It joins the same audit trail as interception decisions, on
 `intent_id` — N-43 (The Permanent Decision Record) and N-45 (One Audit Trail).
-Rejections are recorded too, in the same trail but never as decision records,
-so an auditor can count what was refused at the door as easily as what was
-graded — N-59 (Rejections Leave a Trace).
+Rejections are recorded too, but never as decision records: the engine keeps
+two logs, an *intent log* of everything submitted as it was submitted and an
+*adjudication log* of decision records and their attachments, on one shared
+sequence counter, so an auditor can count what was refused at the door as
+easily as what was graded — N-59 (Rejections Leave a Trace), N-72 (Two Logs,
+Never One). The epoch a record stamps is that counter's position (N-75), so
+"what did the engine know when it graded this?" has an exact answer.
 
 ---
 

@@ -1,0 +1,25 @@
+{
+  "$schema": "https://rmacd-framework.org/schema/v2/intent-log-entry.json",
+  "seq": 884213,
+  "logged_at": "2026-08-15T09:20:01Z",
+  "kind": "rejection",
+  "intent_id": "int-chg-20260815-0034",
+  "document": {
+    "$schema": "https://rmacd-framework.org/schema/v2/intent.json",
+    "intent_id": "int-chg-20260815-0034",
+    "intent_type": "change",
+    "submitted_at": "2026-08-15T09:20:00Z",
+    "actor": {
+      "kind": "agent",
+      "id": "devops-agent-009",
+      "authorization": "spiffe://corp/ns/agents/devops-agent-009"
+    },
+    "declaration": {
+      "operation": "C",
+      "target": "svc://payments-api/config/timeouts",
+      "data_classification": "confidential",
+      "environment": "production"
+    }
+  },
+  "failure": "actor.on_behalf_of is required when actor.kind is 'agent' (N-5); valid_until is required on a production-plane type (N-52)"
+}

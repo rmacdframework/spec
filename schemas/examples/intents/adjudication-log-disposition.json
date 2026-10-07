@@ -1,0 +1,13 @@
+{
+  "$schema": "https://rmacd-framework.org/schema/v2/adjudication-log-entry.json",
+  "seq": 884260,
+  "logged_at": "2026-08-15T11:40:00Z",
+  "kind": "disposition",
+  "decision_id": "dec-20260815-0114",
+  "disposition": {
+    "outcome": "approved",
+    "approver": "cab@company.com",
+    "decided_at": "2026-08-15T11:40:00Z",
+    "note": "Dependency bump reviewed alongside the payments 2026.8.3 release manifest."
+  }
+}

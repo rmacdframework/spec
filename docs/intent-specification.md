@@ -1,10 +1,11 @@
 # RMACD Intent Specification
 
-**Version:** 2.3.0
+**Version:** 2.4.0
 **Status:** Binding — these are the rules an implementation has to follow
 **Companion to:** `RMACD_Framework_v1.4.md` (§2.4, §3, §12)
 **Plain-words companion:** [`intents.md`](intents.md) — the model and why it is built this way
-**Schemas:** `schemas/intent.schema.json`, `schemas/intent-decision.schema.json`
+**Schemas:** `schemas/intent.schema.json`, `schemas/intent-decision.schema.json`,
+`schemas/intent-log-entry.schema.json`, `schemas/adjudication-log-entry.schema.json`
 (published as `schema/v2/`; the field rename in 2.0.0 is not backward compatible)
 
 This document specifies the intent envelope, the actor model, the adjudication
@@ -53,6 +54,7 @@ headings may change at any revision; citations use the identifier.
 
 | Revision | Date | Change |
 |---|---|---|
+| 2.4.0 | 2026-10-07 | The two logs named and given schemas (§9.1: N-72, N-73, N-74, N-76). The epoch pinned to a shared sequence number (§9.3: N-75). The three-stream join stated |
 | 2.3.0 | 2026-10-07 | Grants are graded by their reach, never below their cap, and always by a human (§7.5: N-66, N-67, N-68). Exception coverage checks the profile and actor it names (N-28). An L1 register keeps the six pattern fields in place of the hash (N-69). The first-report invariant is a rule (N-70). Grant lifecycle changes are traced (N-71). `window` joins the reconciliation comparison set |
 | 2.2.0 | 2026-09-05 | Plain-language pass (jargon retired in favour of common words). The intent lifecycle (§2.3: N-57, N-58, N-59). One agreed byte form for the pattern key (N-56). The log epoch defined (N-60). Precedent aging (N-61). Deployments cite their window (N-62). Bundles decided children-first (N-63). Three implementation levels (§11.1: N-64, N-65). Security considerations (§12) |
 | 2.1.1 | 2026-08-31 | §1.1 and §1.2 define the vocabulary the type registry assumes; the `service_request` plane contradiction between the two documents resolved |
@@ -812,7 +814,7 @@ evidence artifact and the precedent memory.
 | `matrix_version` | **Yes** | Reproducibility input |
 | `likelihood_weights_version` | **Yes** | Reproducibility input |
 | `policy_version` | **Yes** | Reproducibility input |
-| `log_epoch` | **Yes** | Reproducibility input (N-60) |
+| `log_epoch` | **Yes** | Reproducibility input (N-60); `seq-` and the shared sequence number the grading read (N-75) |
 | `profile_id` | **Yes** | The bound profile that supplied the ceiling |
 | `implementation_level` | Conditional | `L1`, `L2` or `L3` — required where the implementation claims a level (N-65, §11.1) |
 | `grant_ref` | No | The grant that satisfied approval in advance, if any |
@@ -832,6 +834,95 @@ source: likelihood cannot reach `prohibited` (N-14a).
 
 **N-45 (One Audit Trail).** <a id="n-45"></a>Decision records **MUST** join the same audit trail as interception
 records, on `intent_id`.
+
+### 9.1 The two logs
+
+An implementation keeps two append-only streams of its own, and joins both to
+a third it does not own. The **intent log** holds everything that was
+submitted, as it was submitted, whether it was accepted or not, and every
+later change to a grant's standing. The **adjudication log** holds decision
+records and the two attachments N-43 permits, and nothing else. The
+**interception audit trail** is the framework's Appendix C.6 record stream,
+written by the enforcement side; its records carry `intent_id` where both
+modes run (N-46). The three join on one key:
+
+| Stream | Entry key | Holds | Joins to |
+|---|---|---|---|
+| Intent log | `intent_id` | Submissions, rejections, grant status transitions | The adjudication log, on `intent_id` |
+| Adjudication log | `decision_id` | Decision records, `disposition` and `reconciliation` attachments | The intent log and the audit trail, on `intent_id` |
+| Interception audit trail | record id | Appendix C.6 records, with `extra.intent_id` | The adjudication log, on `intent_id` |
+
+Each question an auditor asks is then one join. What was asked and refused at
+the door is the intent log alone. What was graded, and how, is the
+adjudication log. Whether what ran matched what was declared is the
+adjudication log against the audit trail, which is reconciliation (§10).
+Precedent is a count over the adjudication log restricted to reconciled
+successes (N-25).
+
+An intent-log entry conforms to `schemas/intent-log-entry.schema.json`:
+
+| Field | Required | Notes |
+|---|---|---|
+| `seq` | **Yes** | From the counter both logs share (N-76) |
+| `logged_at` | **Yes** | RFC 3339, UTC |
+| `kind` | **Yes** | `submission`, `rejection` or `transition` |
+| `intent_id` | Conditional | Required for `submission` and `transition`; a rejection records it where the document carried one |
+| `document` | Conditional | The intent exactly as received; required for `submission`, and for `rejection` where the submission parsed as JSON |
+| `raw` | Conditional | The submission as text, for a `rejection` of something that was not JSON |
+| `failure` | Conditional | Why validation failed; required for `rejection` |
+| `from_status` | No | The grant's `status` before a `transition` |
+| `to_status` | Conditional | The grant's `status` after a `transition`; required for `transition` |
+| `changed_by` | Conditional | Who made the `transition` (N-71); required for `transition` |
+
+**N-72 (Two Logs, Never One).** <a id="n-72"></a>An implementation **MUST**
+keep the intent log and the adjudication log as distinct append-only streams.
+A rejection **MUST** be written to the intent log and **MUST NOT** be written
+to the adjudication log. Keeping the streams apart is what makes N-59's
+distinction impossible to blur: nothing in the adjudication log can be
+mistaken for a refusal, and nothing in the intent log for a grade.
+
+**N-73 (Logged as Received).** <a id="n-73"></a>Every submission **MUST** be
+written to the intent log as an entry carrying the document exactly as
+received. Where the submission was not valid JSON, the implementation **MUST**
+keep it as text in `raw`. A replay under N-21 starts from the bytes the actor
+sent, never from a parsed and re-serialized copy.
+
+### 9.2 The adjudication log
+
+An adjudication-log entry conforms to
+`schemas/adjudication-log-entry.schema.json`:
+
+| Field | Required | Notes |
+|---|---|---|
+| `seq` | **Yes** | From the counter both logs share (N-76) |
+| `logged_at` | **Yes** | RFC 3339, UTC |
+| `kind` | **Yes** | `decision`, `disposition` or `reconciliation` |
+| `decision_id` | **Yes** | The decision record this entry is, or attaches to |
+| `record` | Conditional | The decision record as emitted (§9); required for `decision` |
+| `disposition` | Conditional | The human decision; required for a `disposition` attachment |
+| `reconciliation` | Conditional | The reconciliation result (§10); required for a `reconciliation` attachment |
+
+**N-74 (The Adjudication Log Holds Only Decisions).** <a id="n-74"></a>Every
+entry in the adjudication log **MUST** be a decision record, a `disposition`
+attachment or a `reconciliation` attachment. An attachment **MUST** cite the
+`decision_id` it attaches to, and an implementation **MUST NOT** attach a
+second `disposition` or a second `reconciliation` to one decision. The
+attachments are how N-43's two permitted additions reach an append-only
+stream: the record itself is never rewritten.
+
+### 9.3 The epoch
+
+**N-75 (The Epoch Is a Sequence Number).** <a id="n-75"></a>`log_epoch`
+**MUST** be the string `seq-` followed by the `seq` of the latest entry, in
+either log, that the grading read. Two engines that agree on the logs then
+agree on the epoch, and a recorded epoch names an exact prefix of both logs.
+
+**N-76 (One Counter Orders Both Logs).** <a id="n-76"></a>Every entry in
+either log **MUST** carry a `seq` drawn from one counter shared by both logs,
+assigned at write and strictly increasing. One counter is what gives N-55 its
+total order and N-75 its meaning: a grant's transition and the coverage
+decision that raced it are ordered by their sequence numbers, whichever log
+each landed in.
 
 ---
 
@@ -892,7 +983,7 @@ there is nothing for a checklist run to assert.
 | <a id="c-11"></a>C-11 | L3 | Match Rules Closed and Declarative | Class match rules match only the closed field set, all fields at once, with no executable code (N-30, N-31) |
 | <a id="c-12"></a>C-12 | L3 | Bounded and Expiring Grants | Every grant declares an expiry and a child cap; blanket and indefinite grants are rejected (N-32, N-33) |
 | <a id="c-13"></a>C-13 | L1 | Profile Ceiling Holds | Adjudication never grants permission the bound profile withholds (N-20) |
-| <a id="c-14"></a>C-14 | L1 | Reproducible Permanent Records | Every adjudication emits a permanent decision record carrying all four reproducibility inputs, the log epoch names real state, and the record keeps `action_pattern_key` or, at L1, the six fields verbatim (N-21, N-43, N-60, N-69) |
+| <a id="c-14"></a>C-14 | L1 | Reproducible Permanent Records | Every adjudication emits a permanent decision record carrying all four reproducibility inputs, the log epoch is the shared sequence number the grading read, and the record keeps `action_pattern_key` or, at L1, the six fields verbatim (N-21, N-43, N-60, N-69, N-75) |
 | <a id="c-15"></a>C-15 | L1 | Prohibition Source Recorded | Prohibited decisions distinguish `pinned` from `extended` (N-44) |
 | <a id="c-16"></a>C-16 | L2 | No False Matches | Unreconcilable executions are never recorded as `matched` (N-49) |
 | <a id="c-17"></a>C-17 | L1 | The Envelope Is the Whole Input | Only fields this specification and the schema define may grade an intent; a missing classification resolves to the most sensitive tier; a rollback claim never lowers the level (N-2, N-3, N-4) |
@@ -923,6 +1014,7 @@ there is nothing for a checklist run to assert.
 | <a id="c-42"></a>C-42 | L1 | Graders Are Not Requesters | Where grading is done by hand, the grader is never the requesting actor or its accountable human (N-64) |
 | <a id="c-43"></a>C-43 | L1 | Claimed Levels Are Stamped | An implementation claiming a level stamps implementation_level into every decision record it emits (N-65) |
 | <a id="c-44"></a>C-44 | L3 | Grants Are Graded by Their Reach | A grant's base level comes from the most restrictive cell its match rule or permission grid can cover, its computed level is never below `caps.max_level`, and no grant becomes active without a recorded human decision (N-66, N-67, N-68) |
+| <a id="c-45"></a>C-45 | L1 | The Logs Are Kept | The intent log and the adjudication log are distinct append-only streams sharing one sequence counter; every submission is logged as received, rejections never enter the adjudication log, and it holds only decision records and their single attachments (N-72, N-73, N-74, N-76) |
 
 ### 11.1 The three levels
 
@@ -991,7 +1083,7 @@ binding rule elsewhere in this document, and this section only gathers them.
 | Privilege laundering | A loose grant turns one approval into standing permission | Match rules are closed, conjunctive and declarative (N-30, N-31); blanket and indefinite grants are refused (N-32, N-33); no grant reaches `prohibited` (N-29); the grant itself is graded by its reach, never below its cap, and always by a human (N-66, N-67, N-68); an exception covers only the profile and actor it names (N-28) |
 | Incident flooding | A fleet mints identities or buries humans in records | The system computes the deduplication key and its key wins (N-53, N-54); record-plane budgets bite at volume while the first-report invariant protects first reports (N-70) |
 | Race conditions | Concurrent children spend a cap twice, or slip through a revocation | Cap checks consume atomically and lifecycle transitions are ordered (N-55); a duplicate id is refused (N-57); unresolvable order routes to a human |
-| Evidence tampering | A record is rewritten after the fact to match what happened | Records are append-only (N-43); rejections leave their own trace (N-59); the epoch pins what the grading read (N-60); one audit trail joins both modes (N-45); grant lifecycle changes are made by the implementation and traced (N-71) |
+| Evidence tampering | A record is rewritten after the fact to match what happened | Records are append-only (N-43); rejections leave their own trace (N-59); the epoch pins what the grading read (N-60) and names a prefix of two logs that share one counter (N-75, N-76); rejections and grades live in separate streams, logged as received (N-72, N-73, N-74); one audit trail joins both modes (N-45); grant lifecycle changes are made by the implementation and traced (N-71) |
 | Floor probing | Escalation, emergency or grant paths are tried against the §12.5 cells | The floor is checked before anything else and is unreachable from every path (N-12, N-14b, N-29, N-42) |
 
 Three limits are equally worth naming, because the specification does not
@@ -1097,6 +1189,11 @@ Edit the registry, not the tables.
 | [N-69](#n-69) | The Register Keeps the Six Fields | An L1 record keeps the six pattern fields verbatim in place of the hash; L2 and L3 records keep the hash | §11.1 | [C-14](#c-14) |
 | [N-70](#n-70) | First Reports Are Never Gated | Record-plane throttling may limit repeats of a `dedup_key`, never the first report of a distinct one within its window | §4 | [C-37](#c-37) |
 | [N-71](#n-71) | Lifecycle Changes Leave a Trace | A grant is submitted only as `requested`; every later status transition is made by the implementation and recorded | §7.3 | [C-27](#c-27) |
+| [N-72](#n-72) | Two Logs, Never One | The intent log and the adjudication log are distinct append-only streams; a rejection goes to the first and never the second | §9.1 | [C-45](#c-45) |
+| [N-73](#n-73) | Logged as Received | Every submission is written to the intent log exactly as received; unparseable input is kept as text | §9.1 | [C-45](#c-45) |
+| [N-74](#n-74) | The Adjudication Log Holds Only Decisions | The adjudication log holds decision records and single disposition or reconciliation attachments that cite their decision, nothing else | §9.2 | [C-45](#c-45) |
+| [N-75](#n-75) | The Epoch Is a Sequence Number | `log_epoch` is `seq-` plus the shared sequence number of the latest log entry the grading read | §9.3 | [C-14](#c-14) |
+| [N-76](#n-76) | One Counter Orders Both Logs | Every entry in either log carries a `seq` from one shared, strictly increasing counter assigned at write | §9.3 | [C-45](#c-45) |
 
 Every **MUST** and **MUST NOT** above is checked by an item in §11. The
 entries showing — (N-41) leave a choice open rather than
@@ -1123,7 +1220,7 @@ L3 item needs the grant machinery; §11.1 defines the levels.
 | [C-11](#c-11) | L3 | Match Rules Closed and Declarative | Match rules match the closed field set, all fields at once, with no executable code | [N-30](#n-30), [N-31](#n-31) |
 | [C-12](#c-12) | L3 | Bounded and Expiring Grants | Every grant carries an expiry and a child cap; blanket and indefinite grants are rejected | [N-32](#n-32), [N-33](#n-33) |
 | [C-13](#c-13) | L1 | Profile Ceiling Holds | Adjudication never grants what the bound profile withholds | [N-20](#n-20) |
-| [C-14](#c-14) | L1 | Reproducible Permanent Records | Every adjudication emits a permanent record carrying all four reproducibility inputs, the log epoch names real state, and the pattern key or its six fields are kept | [N-21](#n-21), [N-43](#n-43), [N-60](#n-60), [N-69](#n-69) |
+| [C-14](#c-14) | L1 | Reproducible Permanent Records | Every adjudication emits a permanent record carrying all four reproducibility inputs, the log epoch names a real log prefix, and the pattern key or its six fields are kept | [N-21](#n-21), [N-43](#n-43), [N-60](#n-60), [N-69](#n-69), [N-75](#n-75) |
 | [C-15](#c-15) | L1 | Prohibition Source Recorded | Prohibited decisions distinguish `pinned` from `extended` | [N-44](#n-44) |
 | [C-16](#c-16) | L2 | No False Matches | Unreconcilable executions are never recorded as `matched` | [N-49](#n-49) |
 | [C-17](#c-17) | L1 | The Envelope Is the Whole Input | Only fields this specification and the schema define may grade an intent; a missing classification resolves to the most sensitive tier; a rollback claim never lowers the level | [N-2](#n-2), [N-3](#n-3), [N-4](#n-4) |
@@ -1154,6 +1251,7 @@ L3 item needs the grant machinery; §11.1 defines the levels.
 | [C-42](#c-42) | L1 | Graders Are Not Requesters | Hand grading is never done by the actor who asked | [N-64](#n-64) |
 | [C-43](#c-43) | L1 | Claimed Levels Are Stamped | A claimed implementation level appears in every decision record | [N-65](#n-65) |
 | [C-44](#c-44) | L3 | Grants Are Graded by Their Reach | A grant is graded by the most severe cell it can cover, never below its cap, and always gets a human decision | [N-66](#n-66), [N-67](#n-67), [N-68](#n-68) |
+| [C-45](#c-45) | L1 | The Logs Are Kept | Two append-only logs on one counter: submissions as received in one, decisions and their attachments in the other | [N-72](#n-72), [N-73](#n-73), [N-74](#n-74), [N-76](#n-76) |
 
 ---
 
@@ -1164,6 +1262,8 @@ L3 item needs the grant machinery; §11.1 defines the levels.
   example, and how to adopt the model in stages.
 - `schemas/intent.schema.json` — the intent envelope and per-type constraints.
 - `schemas/intent-decision.schema.json` — the decision record.
+- `schemas/intent-log-entry.schema.json` and
+  `schemas/adjudication-log-entry.schema.json` — the two logs (§9.1, §9.2).
 - `docs/audit-evidence.md` — the audit trail decision records join (N-45).
 - `RMACD_Framework_v1.4.md` §2.4 (autonomy levels), §3 (the matrix),
   §12 (exceptions and the immutable floor).
