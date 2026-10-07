@@ -1,6 +1,6 @@
 # RMACD Intent Specification
 
-**Version:** 2.4.0
+**Version:** 2.5.0
 **Status:** Binding — these are the rules an implementation has to follow
 **Companion to:** `RMACD_Framework_v1.4.md` (§2.4, §3, §12)
 **Plain-words companion:** [`intents.md`](intents.md) — the model and why it is built this way
@@ -54,6 +54,7 @@ headings may change at any revision; citations use the identifier.
 
 | Revision | Date | Change |
 |---|---|---|
+| 2.5.0 | 2026-10-07 | Three things the rules required recorded with no field to hold them, found by the first engine: the decision record gains `normalization` (N-3, N-23, N-24); the intent log gains `demotion`, `demotion_lifted` and `review` entries (N-77, N-78, amending N-35 and N-40) |
 | 2.4.0 | 2026-10-07 | The two logs named and given schemas (§9.1: N-72, N-73, N-74, N-76). The epoch pinned to a shared sequence number (§9.3: N-75). The three-stream join stated |
 | 2.3.0 | 2026-10-07 | Grants are graded by their reach, never below their cap, and always by a human (§7.5: N-66, N-67, N-68). Exception coverage checks the profile and actor it names (N-28). An L1 register keeps the six pattern fields in place of the hash (N-69). The first-report invariant is a rule (N-70). Grant lifecycle changes are traced (N-71). `window` joins the reconciliation comparison set |
 | 2.2.0 | 2026-09-05 | Plain-language pass (jargon retired in favour of common words). The intent lifecycle (§2.3: N-57, N-58, N-59). One agreed byte form for the pattern key (N-56). The log epoch defined (N-60). Precedent aging (N-61). Deployments cite their window (N-62). Bundles decided children-first (N-63). Three implementation levels (§11.1: N-64, N-65). Security considerations (§12) |
@@ -201,7 +202,8 @@ decision record, never supplied by the actor (N-8, N-16, §5.3).
 **N-3 (Classification Required, Never Guessed).** <a id="n-3"></a>In a 3D or
 DC2D deployment, `data_classification` **MUST** be present. Where a
 classification is missing, an implementation **MUST** treat it as the most
-sensitive tier the deployment recognizes.
+sensitive tier the deployment recognizes, and **MUST** record that it did so
+in `normalization.classification_assumed`.
 
 **N-4 (Rollback Buys No Discount).** <a id="n-4"></a>
 `reversibility.rollback_declared` **MUST NOT** lower a computed level. The base
@@ -556,11 +558,13 @@ loses its meaning across implementations.
 be computed the same way every time. Where a Governance Pack rule or profile
 constraint matched, it is the target pattern that rule declared. Otherwise it
 is the target with its final identifier segment replaced by `*`. An
-implementation **MUST** record which rule produced the normalization.
+implementation **MUST** record which rule produced the normalization, in
+`normalization.target_class_rule`.
 
 **N-24 (The System's Class Wins).** <a id="n-24"></a>An implementation **MUST NOT** accept a `target_class` supplied by the
 actor in preference to a derived one. Where both exist and disagree, the derived
-value governs and the discrepancy **MUST** be recorded.
+value governs and the discrepancy **MUST** be recorded, in
+`normalization.supplied_target_class`.
 
 ### 6.3 What counts as a confirmed success
 
@@ -664,7 +668,9 @@ revocation **MUST NOT** be covered.
 
 **N-35 (Past Dispositions Stand).** <a id="n-35"></a>A child already decided
 when the grant is revoked stays validly decided. The implementation **MUST**
-record it as affected by the revocation and mark it for human review.
+record it as affected by the revocation and mark it for human review, as a
+`review` entry in the intent log naming the child and the revoked grant
+(N-78).
 
 **N-55 (Caps Count Once).** <a id="n-55"></a>Checking a grant's caps and
 consuming capacity against them **MUST** be one atomic operation. A grant's
@@ -778,7 +784,7 @@ denial and never a reduction.
 **N-40 (Demotion Is Escalation).** <a id="n-40"></a>Demotion **MUST** be expressed as escalation, not as a new state. A
 demoted actor's intents escalate by the L4 weight until the demotion expires or
 is lifted. The decision record **MUST** record demotion as an escalation factor
-with its cause.
+with its cause. Demotion standing is read from the intent log (N-77).
 
 ### 8.3 Emergencies
 
@@ -811,6 +817,7 @@ evidence artifact and the precedent memory.
 | `computed_level` | **Yes** | After escalation, the bundle floor, and the prohibited floor |
 | `escalation_factors` | **Yes** | Array of `{factor, steps, cause}`, `factor` and `steps` required; the five §5.4 factors plus `unresolved_authorization` (N-6) and `composition_floor` (N-11). Empty if none fired |
 | `impact_basis` | **Yes** | Classification, or the declared substitute (N-16) |
+| `normalization` | **Yes** | How the engine derived what it graded: `target_class_rule` (N-23), `supplied_target_class` where the actor's differed (N-24), `classification_assumed` where N-3 applied |
 | `matrix_version` | **Yes** | Reproducibility input |
 | `likelihood_weights_version` | **Yes** | Reproducibility input |
 | `policy_version` | **Yes** | Reproducibility input |
@@ -865,14 +872,17 @@ An intent-log entry conforms to `schemas/intent-log-entry.schema.json`:
 |---|---|---|
 | `seq` | **Yes** | From the counter both logs share (N-76) |
 | `logged_at` | **Yes** | RFC 3339, UTC |
-| `kind` | **Yes** | `submission`, `rejection` or `transition` |
+| `kind` | **Yes** | `submission`, `rejection`, `transition`, `demotion`, `demotion_lifted` or `review` |
 | `intent_id` | Conditional | Required for `submission` and `transition`; a rejection records it where the document carried one |
 | `document` | Conditional | The intent exactly as received; required for `submission`, and for `rejection` where the submission parsed as JSON |
 | `raw` | Conditional | The submission as text, for a `rejection` of something that was not JSON |
 | `failure` | Conditional | Why validation failed; required for `rejection` |
 | `from_status` | No | The grant's `status` before a `transition` |
 | `to_status` | Conditional | The grant's `status` after a `transition`; required for `transition` |
-| `changed_by` | Conditional | Who made the `transition` (N-71); required for `transition` |
+| `changed_by` | Conditional | Who made the `transition`, lifted the `demotion`, or revoked the grant behind a `review`; required for `transition` and `demotion_lifted` |
+| `actor_id` | Conditional | The demoted actor; required for `demotion` and `demotion_lifted` |
+| `cause` | Conditional | Why: the reconciliation result behind a `demotion`, or the revoked grant behind a `review`; required for both |
+| `until` | No | When a `demotion` expires by the declared age bound, where one applies |
 
 **N-72 (Two Logs, Never One).** <a id="n-72"></a>An implementation **MUST**
 keep the intent log and the adjudication log as distinct append-only streams.
@@ -886,6 +896,18 @@ written to the intent log as an entry carrying the document exactly as
 received. Where the submission was not valid JSON, the implementation **MUST**
 keep it as text in `raw`. A replay under N-21 starts from the bytes the actor
 sent, never from a parsed and re-serialized copy.
+
+**N-77 (Demotion Leaves a Trace).** <a id="n-77"></a>A demotion **MUST** begin
+with a `demotion` entry naming the actor and the reconciliation result that
+caused it. It **MUST** end only with a `demotion_lifted` entry or by reaching
+the `until` the entry declared. An actor is demoted while the latest such entry
+for it is a `demotion` that has not expired; grading reads that standing for
+factor L4 (N-40). Nothing else demotes, and nothing else lifts.
+
+**N-78 (Revocation Marks Its Children).** <a id="n-78"></a>When a grant is
+revoked, every child it covered that was already decided **MUST** receive a
+`review` entry naming the child and the revoked grant (N-35). The entry is
+the mark; what a human does with it is workflow, outside this specification.
 
 ### 9.2 The adjudication log
 
@@ -993,12 +1015,12 @@ there is nothing for a checklist run to assert.
 | <a id="c-21"></a>C-21 | L1 | Prohibited Has Two Sources | `prohibited` is reachable only as `pinned` or `extended`, and the pinned set is never narrowed (N-14b) |
 | <a id="c-22"></a>C-22 | L1 | Impact Is Declared, Not Supplied | Impact is the four-tier classification ordering, and any substitute is profile-declared and stamped into every record (N-15, N-16) |
 | <a id="c-23"></a>C-23 | L1 | No Factor Subtracts | No likelihood factor contributes negative steps (N-19) |
-| <a id="c-24"></a>C-24 | L1 | One Target, One Class | `target_class` is computed the same way every time, and a value the actor supplies never wins (N-23, N-24) |
+| <a id="c-24"></a>C-24 | L1 | One Target, One Class | `target_class` is computed the same way every time, the record carries the rule that produced it and any actor-supplied value it overrode, and the actor's value never wins (N-23, N-24) |
 | <a id="c-25"></a>C-25 | L2 | A Mismatch Clears Precedent | A material mismatch found at reconciliation clears the affected action pattern's precedent and demotes the actor (N-26) |
 | <a id="c-26"></a>C-26 | L3 | Coverage Needs Every Condition | A child is covered only when every one of the six coverage conditions holds, including that an exception covers only the profile and actor it names; otherwise it routes to a human individually (N-28) |
-| <a id="c-27"></a>C-27 | L3 | Grants End Cleanly | Revocation takes effect immediately; children already decided are recorded as affected and marked for human review; every grant status transition is made by the implementation and recorded (N-34, N-35, N-71) |
+| <a id="c-27"></a>C-27 | L3 | Grants End Cleanly | Revocation takes effect immediately; children already decided receive a review entry naming the revoked grant; every grant status transition is made by the implementation and recorded (N-34, N-35, N-71, N-78) |
 | <a id="c-28"></a>C-28 | L3 | Exceptions Stay Inside §12.5 | An exception tripping any of framework §12.5's five prohibitions is rejected, and adjudication never decides the grant (N-36, N-37) |
-| <a id="c-29"></a>C-29 | L2 | Budgets and Demotion Escalate | Budget standing comes from the bound profile, and breach and demotion escalate rather than deny or reduce (N-38, N-39, N-40) |
+| <a id="c-29"></a>C-29 | L2 | Budgets and Demotion Escalate | Budget standing comes from the bound profile, breach and demotion escalate rather than deny or reduce, and demotion begins and ends only as intent-log entries (N-38, N-39, N-40, N-77) |
 | <a id="c-30"></a>C-30 | L1 | Emergencies Only Raise Ceilings | An emergency never lowers a level, waives a factor, or touches the pinned cells (N-42) |
 | <a id="c-31"></a>C-31 | L2 | One Joined Audit Trail | Decision records join the interception audit trail on `intent_id` (N-45) |
 | <a id="c-32"></a>C-32 | L2 | Reconciliation Classifies Everything | Every executed action is classed into one of the four results, including a scope comparison; divergence is recorded as a governance event, clears precedent and demotes (N-47, N-48) |
@@ -1083,7 +1105,7 @@ binding rule elsewhere in this document, and this section only gathers them.
 | Privilege laundering | A loose grant turns one approval into standing permission | Match rules are closed, conjunctive and declarative (N-30, N-31); blanket and indefinite grants are refused (N-32, N-33); no grant reaches `prohibited` (N-29); the grant itself is graded by its reach, never below its cap, and always by a human (N-66, N-67, N-68); an exception covers only the profile and actor it names (N-28) |
 | Incident flooding | A fleet mints identities or buries humans in records | The system computes the deduplication key and its key wins (N-53, N-54); record-plane budgets bite at volume while the first-report invariant protects first reports (N-70) |
 | Race conditions | Concurrent children spend a cap twice, or slip through a revocation | Cap checks consume atomically and lifecycle transitions are ordered (N-55); a duplicate id is refused (N-57); unresolvable order routes to a human |
-| Evidence tampering | A record is rewritten after the fact to match what happened | Records are append-only (N-43); rejections leave their own trace (N-59); the epoch pins what the grading read (N-60) and names a prefix of two logs that share one counter (N-75, N-76); rejections and grades live in separate streams, logged as received (N-72, N-73, N-74); one audit trail joins both modes (N-45); grant lifecycle changes are made by the implementation and traced (N-71) |
+| Evidence tampering | A record is rewritten after the fact to match what happened | Records are append-only (N-43); rejections leave their own trace (N-59); the epoch pins what the grading read (N-60) and names a prefix of two logs that share one counter (N-75, N-76); rejections and grades live in separate streams, logged as received (N-72, N-73, N-74); one audit trail joins both modes (N-45); grant lifecycle changes are made by the implementation and traced (N-71); demotion and revocation reviews are log entries, never engine state (N-77, N-78) |
 | Floor probing | Escalation, emergency or grant paths are tried against the §12.5 cells | The floor is checked before anything else and is unreachable from every path (N-12, N-14b, N-29, N-42) |
 
 Three limits are equally worth naming, because the specification does not
@@ -1194,6 +1216,8 @@ Edit the registry, not the tables.
 | [N-74](#n-74) | The Adjudication Log Holds Only Decisions | The adjudication log holds decision records and single disposition or reconciliation attachments that cite their decision, nothing else | §9.2 | [C-45](#c-45) |
 | [N-75](#n-75) | The Epoch Is a Sequence Number | `log_epoch` is `seq-` plus the shared sequence number of the latest log entry the grading read | §9.3 | [C-14](#c-14) |
 | [N-76](#n-76) | One Counter Orders Both Logs | Every entry in either log carries a `seq` from one shared, strictly increasing counter assigned at write | §9.3 | [C-45](#c-45) |
+| [N-77](#n-77) | Demotion Leaves a Trace | Demotion begins with a `demotion` entry and ends only with `demotion_lifted` or its declared `until`; grading reads that standing | §9.1 | [C-29](#c-29) |
+| [N-78](#n-78) | Revocation Marks Its Children | Every already-decided child of a revoked grant gets a `review` entry naming it and the grant | §9.1 | [C-27](#c-27) |
 
 Every **MUST** and **MUST NOT** above is checked by an item in §11. The
 entries showing — (N-41) leave a choice open rather than
@@ -1230,12 +1254,12 @@ L3 item needs the grant machinery; §11.1 defines the levels.
 | [C-21](#c-21) | L1 | Prohibited Has Two Sources | `prohibited` is reachable only as `pinned` or `extended`, and the pinned set is never narrowed | [N-14b](#n-14b) |
 | [C-22](#c-22) | L1 | Impact Is Declared, Not Supplied | Impact is the four-tier classification ordering, and any substitute is profile-declared and stamped into every record | [N-15](#n-15), [N-16](#n-16) |
 | [C-23](#c-23) | L1 | No Factor Subtracts | No likelihood factor contributes negative steps | [N-19](#n-19) |
-| [C-24](#c-24) | L1 | One Target, One Class | `target_class` is computed the same way every time, and a value the actor supplies never wins | [N-23](#n-23), [N-24](#n-24) |
+| [C-24](#c-24) | L1 | One Target, One Class | `target_class` is computed the same way every time, the rule and any supplied value are recorded, and the actor's value never wins | [N-23](#n-23), [N-24](#n-24) |
 | [C-25](#c-25) | L2 | A Mismatch Clears Precedent | A material mismatch clears the action pattern's precedent and demotes the actor | [N-26](#n-26) |
 | [C-26](#c-26) | L3 | Coverage Needs Every Condition | A child is covered only when every one of the six coverage conditions holds, including the profile and actor an exception names | [N-28](#n-28) |
-| [C-27](#c-27) | L3 | Grants End Cleanly | Revocation takes effect immediately, children already decided are recorded as affected, and every lifecycle change is traced | [N-34](#n-34), [N-35](#n-35), [N-71](#n-71) |
+| [C-27](#c-27) | L3 | Grants End Cleanly | Revocation takes effect immediately, children already decided get a review entry, and every lifecycle change is traced | [N-34](#n-34), [N-35](#n-35), [N-71](#n-71), [N-78](#n-78) |
 | [C-28](#c-28) | L3 | Exceptions Stay Inside §12.5 | An exception tripping any of framework §12.5's five prohibitions is rejected, and adjudication never decides the grant | [N-36](#n-36), [N-37](#n-37) |
-| [C-29](#c-29) | L2 | Budgets and Demotion Escalate | Budget standing comes from the bound profile, and breach and demotion escalate rather than deny or reduce | [N-38](#n-38), [N-39](#n-39), [N-40](#n-40) |
+| [C-29](#c-29) | L2 | Budgets and Demotion Escalate | Budget standing comes from the bound profile, breach and demotion escalate rather than deny or reduce, and demotion standing is read from the log | [N-38](#n-38), [N-39](#n-39), [N-40](#n-40), [N-77](#n-77) |
 | [C-30](#c-30) | L1 | Emergencies Only Raise Ceilings | An emergency never lowers a level, waives a factor, or touches the pinned cells | [N-42](#n-42) |
 | [C-31](#c-31) | L2 | One Joined Audit Trail | Decision records join the interception audit trail on `intent_id` | [N-45](#n-45) |
 | [C-32](#c-32) | L2 | Reconciliation Classifies Everything | Every executed action is classed into one of the four results, and divergence is recorded as a governance event | [N-47](#n-47), [N-48](#n-48) |

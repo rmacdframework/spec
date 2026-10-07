@@ -34,9 +34,11 @@ from .envelope import (
     assert_valid,
     validate_submission,
 )
+from .grants import evaluate_coverage, is_blanket
 from .models import (
     ESCALATION_CEILING,
     LADDER,
+    ActionPatternFields,
     ActorKind,
     AdjudicationLogEntry,
     DecisionRecord,
@@ -47,9 +49,10 @@ from .models import (
     ImpactBasis,
     Intent,
     IntentLogEntry,
+    Normalization,
     Rejection,
 )
-from .pattern import action_pattern_key, pattern_fields, resolve_target_class
+from .pattern import action_pattern_key, derive_target_class, pattern_fields
 from .store import Store
 from .weights import DEFAULT_WEIGHTS, WeightTable
 
@@ -96,7 +99,7 @@ class Engine:
         weights: WeightTable = DEFAULT_WEIGHTS,
         policy_version: str = "unversioned",
         matrix_version: str = "1.4",
-        implementation_level: Level = "L1",
+        implementation_level: Level = "L3",
         extended_prohibitions: Iterable[Cell] = (),
         default_profile: AnyProfile | None = None,
         clock: Callable[[], datetime] = _utcnow,
@@ -207,6 +210,11 @@ class Engine:
         # Grants are graded by what they can cover, not what they declare
         # (N-66); a reach that touches a pinned cell is refused outright (N-29).
         if intent.is_grant:
+            blanket = is_blanket(intent)
+            if blanket is not None:
+                return self._log_rejection(
+                    Rejection(intent_id=intent.intent_id, failure=blanket, document=document)
+                )
             reach = self._grant_reach(intent)
             if any(cell in IMMUTABLE_PROHIBITIONS for cell in reach):
                 return self._log_rejection(
@@ -264,16 +272,21 @@ class Engine:
         authorized: bool,
     ) -> DecisionRecord:
         factors: list[EscalationFactor] = []
-        causes: list[str] = []
         op = intent.declaration.operation
         tier, tier_note = self._classification(intent, profile)
-        if tier_note:
-            causes.append(tier_note)
 
-        target_class, class_note = resolve_target_class(intent)
-        if class_note:
-            causes.append(class_note)
+        # N-23, N-24, N-3: derive, and record how (normalization, 2.5.0).
+        target_class, rule = derive_target_class(intent.declaration.target)
+        supplied = intent.declaration.target_class
+        normalization = Normalization(
+            target_class_rule=rule,
+            supplied_target_class=(
+                supplied if supplied is not None and supplied != target_class else None
+            ),
+            classification_assumed=True if tier_note else None,
+        )
         fields = pattern_fields(intent, target_class)
+        key = action_pattern_key(fields)
 
         prohibition: Literal["pinned", "extended"] | None = None
         # 3. The prohibited floor, pinned then extended, before anything else (N-12, N-14b).
@@ -298,17 +311,15 @@ class Engine:
             computed = AutonomyLevel.PROHIBITED
         else:
             # 5. Likelihood factors, each ≥ 0 (N-17, N-19).
-            factors.extend(
-                self._factors(intent, profile, fields.model_dump(mode="json"), authorized, base)
-            )
+            factors.extend(self._factors(intent, profile, fields, key, authorized, base))
             steps = sum(f.steps for f in factors)
             # 6. Escalate one way, stopping below prohibited (N-14, N-14a).
             computed = escalate(base, steps)
             # 7. Bundle floor: the most restrictive level among the children (N-11).
             computed = self._bundle_floor(intent, computed, factors)
-            # 8. Grant coverage approves in advance, never lowers (N-27, N-28) — L3;
-            # at L1 a cited grant is simply not consulted and the intent routes to a
-            # human. A grant's own level is never below its cap (N-67).
+            # 8. A grant's own level is never below its cap (N-67). Coverage of a
+            # child that cites a grant is resolved at emission, where the child
+            # cap can be consumed atomically (N-28, N-55).
             if intent.is_grant and intent.caps is not None:
                 cap = intent.caps.max_level
                 if level_index(cap) > level_index(computed):
@@ -322,6 +333,13 @@ class Engine:
                     computed = cap
 
         # 9. Emit the record (N-43, N-21, N-60, N-65, N-69, N-75).
+        coverage_grant: str | None = None
+        max_children: int | None = None
+        if intent.grant_ref is not None and prohibition is None:
+            coverage_grant, max_children = self._coverage(
+                intent, target_class, tier, computed, profile.profile_id
+            )
+
         epoch = self.store.epoch()
         seq = self.store.next_seq()
         now = self.clock()
@@ -330,9 +348,7 @@ class Engine:
             decision_id=decision_id,
             intent_id=intent.intent_id,
             decided_at=now,
-            action_pattern_key=(
-                None if self.implementation_level == "L1" else action_pattern_key(fields)
-            ),
+            action_pattern_key=None if self.implementation_level == "L1" else key,
             action_pattern_fields=fields if self.implementation_level == "L1" else None,
             base_level=base,
             computed_level=computed,
@@ -340,6 +356,8 @@ class Engine:
             impact_basis=ImpactBasis(
                 scheme="data_classification", value=tier.value if tier else "unclassified"
             ),
+            normalization=normalization,
+            grant_ref=coverage_grant,
             profile_id=profile.profile_id,
             implementation_level=self.implementation_level,
             matrix_version=self.matrix_version,
@@ -348,23 +366,61 @@ class Engine:
             log_epoch=epoch,
             prohibition_source=prohibition,
         )
-        for note in causes:
-            # N-3 and N-24 want these recorded; the decision schema has no field
-            # for a normalization note yet, so they go to the engine log for now.
-            logger.info("%s: %s", intent.intent_id, note)
         assert_valid(DECISION_SCHEMA_ID, record.to_json_dict())
         entry = AdjudicationLogEntry(
             seq=seq, logged_at=now, kind="decision", decision_id=decision_id, record=record
         )
         assert_valid(ADJUDICATION_LOG_SCHEMA_ID, entry.to_json_dict())
+        if coverage_grant is not None and max_children is not None:
+            # N-55: check the child cap and consume it in one locked step. A
+            # full grant leaves the child uncovered and routed to a human.
+            if not self.store.append_decision_if_cap(entry, coverage_grant, max_children):
+                logger.info("%s: grant %s child cap exhausted", intent.intent_id, coverage_grant)
+                record = record.model_copy(update={"grant_ref": None})
+                entry = entry.model_copy(update={"record": record})
+                self.store.append_decision(entry)
+            return record
         self.store.append_decision(entry)
         return record
+
+    def _coverage(
+        self,
+        child: Intent,
+        child_target_class: str,
+        child_tier: DataClassification | None,
+        child_level: AutonomyLevel,
+        child_profile_id: str,
+    ) -> tuple[str | None, int | None]:
+        """N-28's pure conditions; returns ``(grant_id, max_children)`` when covered."""
+        assert child.grant_ref is not None
+        sub = self.store.submission(child.grant_ref)
+        if sub is None or sub.document is None:
+            logger.info("%s: cited grant %s is unknown", child.intent_id, child.grant_ref)
+            return None, None
+        grant = Intent.model_validate(sub.document)
+        result = evaluate_coverage(
+            grant,
+            self.store.grant_status(grant.intent_id),
+            child,
+            child_target_class,
+            child_tier,
+            child_level,
+            child_profile_id,
+            self.clock(),
+        )
+        if not result.covered:
+            logger.info(
+                "%s: not covered by %s: %s", child.intent_id, grant.intent_id, result.reason
+            )
+            return None, None
+        return grant.intent_id, result.max_children
 
     def _factors(
         self,
         intent: Intent,
         profile: AnyProfile,
-        fields: dict[str, Any],
+        fields: ActionPatternFields,
+        key: str,
         authorized: bool,
         base: AutonomyLevel,
     ) -> list[EscalationFactor]:
@@ -392,7 +448,7 @@ class Engine:
                 )
 
         # L1 Unprecedented: no reconciled success for this pattern (N-25, N-61).
-        successes = self.store.reconciled_successes(fields)
+        successes = self.store.reconciled_successes(fields, key)
         if successes == 0:
             out.append(
                 EscalationFactor(
@@ -431,9 +487,19 @@ class Engine:
                 )
             )
 
-        # L4 Budget standing: at or over the profile's operations_per_hour (N-38, N-39).
+        # L4 Budget standing: demoted (N-40, N-77), or at or over the profile's
+        # operations_per_hour (N-38, N-39).
+        demotion = self.store.demotion(intent.actor.id, self.clock())
+        if demotion is not None:
+            out.append(
+                EscalationFactor(
+                    factor="budget_standing",
+                    steps=w.budget_standing,
+                    cause=f"actor is demoted: {demotion.cause}",
+                )
+            )
         limit = _operations_per_hour(profile)
-        if limit is not None:
+        if demotion is None and limit is not None:
             recent = self.store.accepted_by_actor_since(
                 intent.actor.id, self.clock() - timedelta(hours=1)
             )
@@ -568,6 +634,34 @@ class Engine:
             intent_id=intent_id,
             from_status=self.store.grant_status(intent_id),
             to_status=to_status,
+            changed_by=changed_by,
+        )
+        assert_valid(INTENT_LOG_SCHEMA_ID, entry.to_json_dict())
+        self.store.append_intent(entry)
+        if to_status is GrantStatus.REVOKED:
+            # N-35, N-78: every decided child the grant covered gets a review mark.
+            for child in self.store.covered_by(intent_id):
+                mark = IntentLogEntry(
+                    seq=self.store.next_seq(),
+                    logged_at=self.clock(),
+                    kind="review",
+                    intent_id=child.intent_id,
+                    cause=f"covered by {intent_id}, revoked {entry.logged_at.isoformat()}",
+                    changed_by=changed_by,
+                )
+                assert_valid(INTENT_LOG_SCHEMA_ID, mark.to_json_dict())
+                self.store.append_intent(mark)
+        return entry
+
+    def lift_demotion(self, actor_id: str, changed_by: str) -> IntentLogEntry:
+        """N-77: a demotion ends only with this entry or by its declared bound."""
+        if self.store.demotion(actor_id, self.clock()) is None:
+            raise ValueError(f"{actor_id} is not demoted")
+        entry = IntentLogEntry(
+            seq=self.store.next_seq(),
+            logged_at=self.clock(),
+            kind="demotion_lifted",
+            actor_id=actor_id,
             changed_by=changed_by,
         )
         assert_valid(INTENT_LOG_SCHEMA_ID, entry.to_json_dict())

@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "rmacd-intents"
-version = "2.4.0"
+version = "2.5.0"
 description = "RMACD Intents adjudication engine — declare first, grade deterministically, decide where the grade demands it"
 readme = "README.md"
 license = "CC-BY-4.0"

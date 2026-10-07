@@ -399,6 +399,16 @@ requirements:
   name: "One Counter Orders Both Logs"
   gloss: "Every entry in either log carries a `seq` from one shared, strictly increasing counter assigned at write"
   section: '9.3'
+- id: N-77
+  kind: normative
+  name: "Demotion Leaves a Trace"
+  gloss: "Demotion begins with a `demotion` entry and ends only with `demotion_lifted` or its declared `until`; grading reads that standing"
+  section: '9.1'
+- id: N-78
+  kind: normative
+  name: "Revocation Marks Its Children"
+  gloss: "Every already-decided child of a revoked grant gets a `review` entry naming it and the grant"
+  section: '9.1'
 - id: C-1
   kind: conformance
   name: "Malformed Intents Rejected"
@@ -610,12 +620,12 @@ requirements:
 - id: C-24
   kind: conformance
   name: "One Target, One Class"
-  gloss: "`target_class` is computed the same way every time, and a value the actor supplies never wins"
+  gloss: "`target_class` is computed the same way every time, the rule and any supplied value are recorded, and the actor's value never wins"
   level: 1
   bundles:
   - N-23
   - N-24
-  conformance_text: "`target_class` is computed the same way every time, and a value the actor supplies never wins (N-23, N-24)"
+  conformance_text: "`target_class` is computed the same way every time, the record carries the rule that produced it and any actor-supplied value it overrode, and the actor's value never wins (N-23, N-24)"
 - id: C-25
   kind: conformance
   name: "A Mismatch Clears Precedent"
@@ -635,13 +645,14 @@ requirements:
 - id: C-27
   kind: conformance
   name: "Grants End Cleanly"
-  gloss: "Revocation takes effect immediately, children already decided are recorded as affected, and every lifecycle change is traced"
+  gloss: "Revocation takes effect immediately, children already decided get a review entry, and every lifecycle change is traced"
   level: 3
   bundles:
   - N-34
   - N-35
   - N-71
-  conformance_text: "Revocation takes effect immediately; children already decided are recorded as affected and marked for human review; every grant status transition is made by the implementation and recorded (N-34, N-35, N-71)"
+  - N-78
+  conformance_text: "Revocation takes effect immediately; children already decided receive a review entry naming the revoked grant; every grant status transition is made by the implementation and recorded (N-34, N-35, N-71, N-78)"
 - id: C-28
   kind: conformance
   name: "Exceptions Stay Inside §12.5"
@@ -654,13 +665,14 @@ requirements:
 - id: C-29
   kind: conformance
   name: "Budgets and Demotion Escalate"
-  gloss: "Budget standing comes from the bound profile, and breach and demotion escalate rather than deny or reduce"
+  gloss: "Budget standing comes from the bound profile, breach and demotion escalate rather than deny or reduce, and demotion standing is read from the log"
   level: 2
   bundles:
   - N-38
   - N-39
   - N-40
-  conformance_text: "Budget standing comes from the bound profile, and breach and demotion escalate rather than deny or reduce (N-38, N-39, N-40)"
+  - N-77
+  conformance_text: "Budget standing comes from the bound profile, breach and demotion escalate rather than deny or reduce, and demotion begins and ends only as intent-log entries (N-38, N-39, N-40, N-77)"
 - id: C-30
   kind: conformance
   name: "Emergencies Only Raise Ceilings"

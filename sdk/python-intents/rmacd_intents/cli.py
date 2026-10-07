@@ -55,7 +55,7 @@ def load_engine(config_path: Path) -> Engine:
         weights=WeightTable.model_validate(cfg.get("weights", {})),
         policy_version=cfg.get("policy_version", "unversioned"),
         matrix_version=cfg.get("matrix_version", "1.4"),
-        implementation_level=cfg.get("implementation_level", "L1"),
+        implementation_level=cfg.get("implementation_level", "L3"),
         default_profile=default_profile,
     )
 
@@ -83,6 +83,15 @@ def main(argv: list[str] | None = None) -> int:
     t.add_argument("intent_id")
     t.add_argument("--to", required=True, choices=[s.value for s in GrantStatus])
     t.add_argument("--by", required=True)
+
+    rc = sub.add_parser("reconcile", help="join an Appendix C.6 audit trail to the decision log")
+    rc.add_argument("audit_jsonl", type=Path)
+    rc.add_argument("--undeclared", choices=["demote", "report"], default="demote",
+                    help="what an executed action with no intent_id does to its agent (N-48)")
+
+    ld = sub.add_parser("lift-demotion", help="end an actor's demotion (N-77)")
+    ld.add_argument("actor_id")
+    ld.add_argument("--by", required=True)
 
     lg = sub.add_parser("log", help="print a log")
     lg.add_argument("which", choices=["intents", "adjudications"])
@@ -117,6 +126,20 @@ def main(argv: list[str] | None = None) -> int:
         try:
             entry = engine.transition(args.intent_id, GrantStatus(args.to), args.by)
         except (KeyError, ValueError) as exc:
+            print(f"refused: {exc}", file=sys.stderr)
+            return 2
+        _emit(entry.to_json_dict())
+        return 0
+    if args.cmd == "reconcile":
+        from .reconcile import Reconciler
+
+        report = Reconciler(engine).run(args.audit_jsonl, undeclared=args.undeclared)
+        _emit(report.__dict__)
+        return 0
+    if args.cmd == "lift-demotion":
+        try:
+            entry = engine.lift_demotion(args.actor_id, args.by)
+        except ValueError as exc:
             print(f"refused: {exc}", file=sys.stderr)
             return 2
         _emit(entry.to_json_dict())

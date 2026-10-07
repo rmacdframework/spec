@@ -33,9 +33,10 @@ def test_the_worked_example_in_intents_md_section_11(engine: Engine) -> None:
     # Both factors fired and are recorded even though the ceiling absorbed them.
     assert factors_of(rec) == {"precedent": 1, "environment": 1}
     assert rec.profile_id == "rmacd-3d-devops-v1"
-    assert rec.implementation_level == "L1"
-    assert rec.action_pattern_key is None and rec.action_pattern_fields is not None  # N-69
-    assert rec.action_pattern_fields.target_class == "svc://payments-api/config/*"
+    assert rec.implementation_level == "L3"
+    assert rec.action_pattern_key is not None and rec.action_pattern_fields is None  # N-69
+    assert rec.normalization.target_class_rule == "last-segment-wildcard"
+    assert rec.normalization.supplied_target_class is None  # the actor's matched
 
 
 def test_the_neighbouring_internal_change_moves_from_approval_to_elevated(engine: Engine) -> None:

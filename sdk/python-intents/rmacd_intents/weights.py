@@ -24,6 +24,9 @@ class WeightTable(BaseModel):
     near_cap_fraction: float = Field(default=0.8, ge=0, le=1)
     #: Precedent expires after this many days, or never when None (N-61).
     precedent_max_age_days: int | None = Field(default=None, ge=1)
+    #: A demotion caused by a mismatch expires after this many days unless
+    #: lifted first; None means it lasts until lifted (N-77).
+    demotion_days: int | None = Field(default=30, ge=1)
 
 
 DEFAULT_WEIGHTS = WeightTable()

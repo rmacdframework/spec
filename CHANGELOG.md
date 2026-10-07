@@ -39,6 +39,47 @@ callers that use neither; audit records stay byte-identical to Appendix C.6.
   the permission, and reading the cell through `evaluate` would fold the two
   together. DC2D reads the tier policy and requires a tier; 2D ignores one.
 
+## [Intent Specification 2.5.0] — 2026-10-07
+
+### Intent Specification 2.5.0
+
+Three things the rules required recorded with no field to hold them, found
+by building the first engine against 2.4.0. Every identifier from 2.4.x is
+unchanged; two rules are added (80 rules, 46 items), one decision-record
+field becomes required, and the intent log gains three entry kinds.
+
+#### Added
+
+- **`normalization` on the decision record** (required): `target_class_rule`
+  names the derivation that produced `target_class` (N-23),
+  `supplied_target_class` is present only where the actor's value differed
+  and was overridden (N-24), and `classification_assumed` is true where a
+  missing classification was graded as the most sensitive tier (N-3). All
+  three rules already demanded the recording; the schema now has the field.
+- **N-77 (Demotion Leaves a Trace).** N-40 defined demotion as escalation
+  "until the demotion expires or is lifted" and gave the state no home. A
+  demotion now begins with a `demotion` intent-log entry naming the actor,
+  the cause and an optional `until`, and ends only with `demotion_lifted` or
+  by reaching that bound; grading reads the log for factor L4. Rolls into
+  **C-29**.
+- **N-78 (Revocation Marks Its Children).** N-35 required a decided child of
+  a revoked grant to be "recorded as affected and marked for human review"
+  with no artifact to do it in. It is now a `review` entry naming the child
+  and the revoked grant. Rolls into **C-27**.
+- **Schema:** `intent-log-entry.schema.json` adds the kinds `demotion`,
+  `demotion_lifted` and `review`, with `actor_id`, `cause` and `until`, each
+  gated to its kind; `intent-decision.schema.json` adds `normalization`.
+  Two worked entries, a demotion and a review, join the examples.
+
+#### Changed
+
+- N-3, N-23, N-24, N-35 and N-40 now say where the thing they require
+  recorded goes. C-24, C-27 and C-29 widened to match.
+- `normalization` is required, which is the one non-additive change: a 2.4.0
+  decision record without it no longer validates. The policy that v2 is
+  amendable until the first engine ships was invoked for the last time; the
+  engine that found these gaps is the one that ships against this revision.
+
 ## [Intent Specification 2.4.0] — 2026-10-07
 
 ### Intent Specification 2.4.0

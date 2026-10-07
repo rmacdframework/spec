@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://rmacd-framework.org/schema/v2/intent-log-entry.json",
   "title": "RMACD Intent Log Entry",
-  "description": "One entry in the intent log: a submission as received, a rejection, or a grant status transition. The intent log and the adjudication log are distinct append-only streams sharing one sequence counter. See docs/intent-specification.md §9.1.",
+  "description": "One entry in the intent log: a submission as received, a rejection, a grant status transition, a demotion or its lifting, or a review mark left by a revocation. The intent log and the adjudication log are distinct append-only streams sharing one sequence counter. See docs/intent-specification.md §9.1.",
   "type": "object",
   "required": [
     "seq",
@@ -29,7 +29,10 @@
       "enum": [
         "submission",
         "rejection",
-        "transition"
+        "transition",
+        "demotion",
+        "demotion_lifted",
+        "review"
       ]
     },
     "intent_id": {
@@ -74,7 +77,22 @@
     "changed_by": {
       "type": "string",
       "minLength": 1,
-      "description": "Who made the transition — the implementation or the authority acting through it (N-71)."
+      "description": "Who made the transition, lifted the demotion, or revoked the grant behind a review (N-71, N-77, N-78)."
+    },
+    "actor_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The demoted actor (N-77)."
+    },
+    "cause": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The reconciliation result behind a demotion, or the revoked grant behind a review (N-77, N-78)."
+    },
+    "until": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When a demotion expires by the declared age bound (N-77)."
     }
   },
   "allOf": [
@@ -150,7 +168,68 @@
       }
     },
     {
-      "$comment": "Transition fields belong only to transitions; a submission or rejection cannot assert a grant status.",
+      "if": {
+        "properties": {
+          "kind": {
+            "enum": [
+              "demotion"
+            ]
+          }
+        },
+        "required": [
+          "kind"
+        ]
+      },
+      "then": {
+        "required": [
+          "actor_id",
+          "cause"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "enum": [
+              "demotion_lifted"
+            ]
+          }
+        },
+        "required": [
+          "kind"
+        ]
+      },
+      "then": {
+        "required": [
+          "actor_id",
+          "changed_by"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "enum": [
+              "review"
+            ]
+          }
+        },
+        "required": [
+          "kind"
+        ]
+      },
+      "then": {
+        "required": [
+          "intent_id",
+          "cause",
+          "changed_by"
+        ]
+      }
+    },
+    {
+      "$comment": "Fields belong to their kinds: a submission or rejection cannot assert a status, a demotion or a review.",
       "if": {
         "properties": {
           "kind": {
@@ -184,6 +263,27 @@
             "not": {
               "required": [
                 "changed_by"
+              ]
+            }
+          },
+          {
+            "not": {
+              "required": [
+                "actor_id"
+              ]
+            }
+          },
+          {
+            "not": {
+              "required": [
+                "cause"
+              ]
+            }
+          },
+          {
+            "not": {
+              "required": [
+                "until"
               ]
             }
           }

@@ -22,5 +22,7 @@ reach.
 | `intent-log-submission.json` | log entry | The intent log: a submission kept exactly as received (N-73) |
 | `intent-log-rejection.json` | log entry | A rejection, with the document and the failure, in the intent log and never the adjudication log (N-59, N-72) |
 | `intent-log-transition.json` | log entry | A grant moving from `requested` to `active`, made by the implementation and traced (N-71) |
+| `intent-log-demotion.json` | log entry | A demotion begins as an entry naming the actor, the cause and when it expires (N-77) |
+| `intent-log-review.json` | log entry | A decided child of a revoked grant, marked for review (N-35, N-78) |
 | `adjudication-log-decision.json` | log entry | The adjudication log: a decision record as emitted, without attachments (N-74) |
 | `adjudication-log-disposition.json` | log entry | A disposition attached later as its own entry, citing the decision; the record is never rewritten (N-43, N-74) |

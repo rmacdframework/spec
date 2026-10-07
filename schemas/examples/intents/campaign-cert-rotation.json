@@ -20,7 +20,7 @@
     "operation": "C",
     "data_classification": "internal",
     "environment": "production",
-    "target_class": "fleet://edge-nodes/*/tls-cert",
+    "target_class": "fleet://edge-nodes/*",
     "on_behalf_of": "platform-team@company.com"
   },
   "caps": {
@@ -32,6 +32,6 @@
   "status": "active",
   "justification": "Quarterly TLS certificate rotation across the edge fleet. One human decision governs the class; matching child changes adjudicate against this grant.",
   "metadata": {
-    "note": "Coverage is approval in advance, not reduction (N-27). A child computing above 'approval' — say, one that lands on elevated_approval because the action pattern is unprecedented and no rollback is attested — is not covered and routes to a human individually."
+    "note": "Coverage is approval in advance, not reduction (N-27). A child computing above 'approval' — say, one that lands on elevated_approval because the action pattern is unprecedented and no rollback is attested — is not covered and routes to a human individually. The match rule's target_class is a pattern over the *derived* class (N-23, N-30): a child targeting fleet://edge-nodes/node-17/tls-cert derives to fleet://edge-nodes/node-17/*, which this pattern covers."
   }
 }

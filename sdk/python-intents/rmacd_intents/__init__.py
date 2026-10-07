@@ -5,7 +5,8 @@ of ``rmacd-framework``: the base level for every intent comes from the SDK's
 ``PolicyEvaluator.required_autonomy`` (N-13), and the engine owns escalation,
 precedent, grants, the two logs and the decision record.
 
-Wave 1 (this revision) targets implementation level L1 — Adjudicating.
+This revision implements all three levels (L1 Adjudicating, L2 Reconciling,
+L3 Delegating) against Intent Specification 2.5.0 and claims L3 by default.
 """
 
 from __future__ import annotations
@@ -14,6 +15,7 @@ from importlib import metadata as _metadata
 
 from .actors import ActorResolver, Resolution, ResolvedActor, StaticActorResolver
 from .envelope import validate_submission
+from .grading import Engine, escalate
 from .models import (
     ActionPatternFields,
     AdjudicationLogEntry,
@@ -22,9 +24,11 @@ from .models import (
     EscalationFactor,
     Intent,
     IntentLogEntry,
+    Normalization,
     Rejection,
 )
 from .pattern import action_pattern_key, derive_target_class, pattern_fields
+from .reconcile import Reconciler, ReconcileReport
 from .store import JSONLStore, MemoryStore, Store
 from .weights import DEFAULT_WEIGHTS, WeightTable
 
@@ -39,12 +43,16 @@ __all__ = [
     "AdjudicationLogEntry",
     "DEFAULT_WEIGHTS",
     "DecisionRecord",
+    "Engine",
     "Disposition",
     "EscalationFactor",
     "Intent",
     "IntentLogEntry",
     "JSONLStore",
     "MemoryStore",
+    "Normalization",
+    "ReconcileReport",
+    "Reconciler",
     "Rejection",
     "ResolvedActor",
     "Resolution",
@@ -54,6 +62,7 @@ __all__ = [
     "__version__",
     "action_pattern_key",
     "derive_target_class",
+    "escalate",
     "pattern_fields",
     "validate_submission",
 ]

@@ -54,7 +54,7 @@ MAX_WORDS = 32
 # enum values, profile-side constraints, and vocabulary defined elsewhere.
 KNOWN_NON_FIELDS = {
     "autonomy_overrides", "change_controls", "composition_floor", "cooldown_minutes",
-    "grant_cap",
+    "grant_cap", "demotion_lifted",
     "disaster_recovery", "elevated_approval", "emergency_escalation", "max_duration_minutes",
     "rate_limits", "require_post_incident_review", "trigger_conditions", "unresolved_authorization",
 }

@@ -28,6 +28,9 @@
       "scheme": "data_classification",
       "value": "internal"
     },
+    "normalization": {
+      "target_class_rule": "last-segment-wildcard"
+    },
     "profile_id": "rmacd-3d-devops-v1",
     "matrix_version": "1.4.0",
     "likelihood_weights_version": "default-1.0.0",

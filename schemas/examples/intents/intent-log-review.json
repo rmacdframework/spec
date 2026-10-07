@@ -1,0 +1,9 @@
+{
+  "$schema": "https://rmacd-framework.org/schema/v2/intent-log-entry.json",
+  "seq": 884510,
+  "logged_at": "2026-08-20T15:00:00Z",
+  "kind": "review",
+  "intent_id": "int-chg-20260818-0077",
+  "cause": "covered by int-cmp-20260801-0002, revoked 2026-08-20T14:58:00Z",
+  "changed_by": "cab@company.com"
+}

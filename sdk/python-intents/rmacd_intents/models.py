@@ -221,6 +221,14 @@ class ActionPatternFields(_Strict):
     actor_kind: ActorKind
 
 
+class Normalization(_Strict):
+    """How the engine derived what it graded (N-3, N-23, N-24)."""
+
+    target_class_rule: str = Field(min_length=1)
+    supplied_target_class: str | None = None
+    classification_assumed: bool | None = None
+
+
 class Disposition(_Strict):
     outcome: Literal["approved", "approved_with_modifications", "deferred", "denied"]
     approver: str | None = None
@@ -260,6 +268,7 @@ class DecisionRecord(BaseModel):
     computed_level: AutonomyLevel
     escalation_factors: list[EscalationFactor]
     impact_basis: ImpactBasis
+    normalization: Normalization
     profile_id: str
     implementation_level: Literal["L1", "L2", "L3"] | None = None
     matrix_version: str
@@ -286,7 +295,7 @@ class IntentLogEntry(BaseModel):
     schema_url: str | None = Field(default=None, alias="$schema")
     seq: int = Field(ge=1)
     logged_at: datetime
-    kind: Literal["submission", "rejection", "transition"]
+    kind: Literal["submission", "rejection", "transition", "demotion", "demotion_lifted", "review"]
     intent_id: str | None = Field(default=None, pattern=INTENT_ID)
     document: dict[str, Any] | None = None
     raw: str | None = None
@@ -294,6 +303,9 @@ class IntentLogEntry(BaseModel):
     from_status: GrantStatus | None = None
     to_status: GrantStatus | None = None
     changed_by: str | None = None
+    actor_id: str | None = None
+    cause: str | None = None
+    until: datetime | None = None
 
     def to_json_dict(self) -> dict[str, Any]:
         return self.model_dump(mode="json", by_alias=True, exclude_none=True)
@@ -315,6 +327,42 @@ class AdjudicationLogEntry(BaseModel):
 
     def to_json_dict(self) -> dict[str, Any]:
         return self.model_dump(mode="json", by_alias=True, exclude_none=True)
+
+
+class InterceptionRecord(BaseModel):
+    """The slice of a framework Appendix C.6 audit record reconciliation reads.
+
+    Everything else in the record is tolerated and ignored; a record is the
+    SDK's to shape, and this view only has to find the join key and the facts
+    N-47 compares.
+    """
+
+    model_config = ConfigDict(extra="ignore")
+
+    record_id: str
+    timestamp: datetime
+    agent_id: str
+    operation: dict[str, Any]
+    policy_decision: dict[str, Any]
+    execution: dict[str, Any] | None = None
+    extra: dict[str, Any] | None = None
+
+    @property
+    def intent_id(self) -> str | None:
+        value = (self.extra or {}).get("intent_id")
+        return value if isinstance(value, str) else None
+
+    @property
+    def executed_successfully(self) -> bool:
+        result = self.policy_decision.get("result")
+        if result == "EXECUTED":
+            return (self.execution or {}).get("status") == "SUCCESS"
+        return False
+
+    @property
+    def is_execution_evidence(self) -> bool:
+        """An EXECUTED record, or an ALLOW where the integration writes no outcome row."""
+        return self.policy_decision.get("result") in ("EXECUTED", "ALLOW")
 
 
 class Rejection(_Strict):

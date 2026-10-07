@@ -1,0 +1,9 @@
+{
+  "$schema": "https://rmacd-framework.org/schema/v2/intent-log-entry.json",
+  "seq": 884402,
+  "logged_at": "2026-08-16T09:12:00Z",
+  "kind": "demotion",
+  "actor_id": "devops-agent-007",
+  "cause": "divergent: int-chg-20260815-0040 declared C on svc://payments-api/config/*, executed D (dec-20260815-0130)",
+  "until": "2026-09-15T09:12:00Z"
+}

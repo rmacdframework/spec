@@ -12,6 +12,7 @@
     "computed_level",
     "escalation_factors",
     "impact_basis",
+    "normalization",
     "profile_id",
     "matrix_version",
     "likelihood_weights_version",
@@ -122,6 +123,26 @@
         },
         "value": {
           "type": "string"
+        }
+      }
+    },
+    "normalization": {
+      "type": "object",
+      "description": "How the engine derived what it graded. target_class_rule names the normalization that produced target_class (N-23); supplied_target_class is present only where the actor's value differed and was overridden (N-24); classification_assumed is true where a missing classification was graded as the most sensitive tier (N-3).",
+      "required": [
+        "target_class_rule"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "target_class_rule": {
+          "type": "string",
+          "minLength": 1
+        },
+        "supplied_target_class": {
+          "type": "string"
+        },
+        "classification_assumed": {
+          "type": "boolean"
         }
       }
     },
