@@ -7,7 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.16.0] — 2026-10-07
+
 ### SDK
+
+Two additions, both prerequisites for the adjudication engine
+(`rmacd-intents`, designed but not yet built): the SDK now carries the
+interception half of the intent reconciliation join, and exposes the
+effective-matrix cell the engine grades from. No behaviour changes for
+callers that use neither; audit records stay byte-identical to Appendix C.6.
 
 #### Added
 
