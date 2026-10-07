@@ -936,9 +936,10 @@ stated:
 Carrying the decision forward also keeps the post-execution path cheap: it needs
 no profile, no registry, and no re-evaluation.
 
-Records MAY carry an `extra` block for context outside the C.6 shape — session
-and call identifiers, and the agent identity when the call originated in a
-subagent. Consumers MUST tolerate its absence.
+Records MAY carry an `extra` block for context outside the C.6 format — session
+and call identifiers, the agent identity when the call originated in a
+subagent, and the `intent_id` of an adjudicated intent the call executes
+(`docs/intent-specification.md` N-46). Consumers MUST tolerate its absence.
 
 The reference SDK provides `rmacd audit summarize`, which produces an
 operation × classification matrix of decisions, denial counts by cause, and

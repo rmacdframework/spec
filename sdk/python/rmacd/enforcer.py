@@ -244,6 +244,7 @@ class PolicyEnforcer:
             data_classification=tier,
             context=context or self._default_context(),
         )
+        extra = self._correlation(context)
 
         # Hard failures: profile doesn't grant, autonomy says prohibited,
         # constraints (env / time / quota) blocked it.
@@ -254,6 +255,7 @@ class PolicyEnforcer:
                 classification=tier,
                 decision=decision,
                 result="DENY",
+                extra=extra,
             )
             raise self._classify_denial(decision)
 
@@ -277,6 +279,7 @@ class PolicyEnforcer:
                 decision=decision,
                 result="QUEUED",
                 approval_id=req.request_id,
+                extra=extra,
             )
             try:
                 approval = self.approval_gateway.request(req)
@@ -288,12 +291,13 @@ class PolicyEnforcer:
                     decision=decision,
                     result="DENY",
                     approval_id=req.request_id,
+                    extra=extra,
                 )
                 raise RMACDApprovalRequiredError(
                     f"Approval gateway raised while requesting approval: {exc}",
                     decision=decision,
                 ) from exc
-            self._handle_approval_outcome(approval, decision, op, target, tier, req)
+            self._handle_approval_outcome(approval, decision, op, target, tier, req, extra)
 
         # Allowed (or just-approved). Final audit record + return.
         self._audit(
@@ -302,6 +306,7 @@ class PolicyEnforcer:
             classification=tier,
             decision=decision,
             result="ALLOW",
+            extra=extra,
         )
         return decision
 
@@ -377,6 +382,7 @@ class PolicyEnforcer:
                 classification=resolved.tier,
                 decision=decision,
                 result="DENY",
+                extra=self._correlation(context),
             )
             raise RMACDToolCapabilityError(cap_reason, decision=decision)
 
@@ -524,8 +530,14 @@ class PolicyEnforcer:
         classifier: ClassifierFn,
         *,
         justification: str | None = None,
+        context: EvaluationContext | None = None,
     ) -> Callable[[F], F]:
         """Decorator that enforces RMACD before the wrapped function runs.
+
+        ``context`` is passed through to :meth:`enforce` and its ``intent_id``,
+        when set, is stamped into the execution record too — a guarded tool
+        that runs under an adjudicated intent leaves records on both sides of
+        the reconciliation join.
 
         ``classifier`` receives the same kwargs the wrapped function was
         called with and returns ``(target, classification)``. This is how the
@@ -572,6 +584,7 @@ class PolicyEnforcer:
                         target=target,
                         classification=tier,
                         justification=justification,
+                        context=context,
                     )
                     # Start the clock after enforcement so the recorded duration
                     # measures the tool, not any approval round-trip.
@@ -587,6 +600,7 @@ class PolicyEnforcer:
                             status="FAILURE",
                             duration_ms=int((time.perf_counter() - start) * 1000),
                             error=str(exc),
+                            extra=self._correlation(context),
                         )
                         raise
                     self._audit_execution(
@@ -596,6 +610,7 @@ class PolicyEnforcer:
                         decision=decision,
                         status="SUCCESS",
                         duration_ms=int((time.perf_counter() - start) * 1000),
+                        extra=self._correlation(context),
                     )
                     return result
 
@@ -609,6 +624,7 @@ class PolicyEnforcer:
                     target=target,
                     classification=tier,
                     justification=justification,
+                    context=context,
                 )
                 start = time.perf_counter()
                 # Run the wrapped function and record execution outcome.
@@ -623,6 +639,7 @@ class PolicyEnforcer:
                         status="FAILURE",
                         duration_ms=int((time.perf_counter() - start) * 1000),
                         error=str(exc),
+                        extra=self._correlation(context),
                     )
                     raise
                 self._audit_execution(
@@ -632,6 +649,7 @@ class PolicyEnforcer:
                     decision=decision,
                     status="SUCCESS",
                     duration_ms=int((time.perf_counter() - start) * 1000),
+                    extra=self._correlation(context),
                 )
                 return result
 
@@ -706,6 +724,7 @@ class PolicyEnforcer:
         target: str,
         tier: DataClassification | None,
         req: ApprovalRequest,
+        extra: dict[str, Any] | None = None,
     ) -> None:
         if approval.outcome == ApprovalOutcome.APPROVED:
             self._audit(
@@ -717,6 +736,7 @@ class PolicyEnforcer:
                 approval_id=req.request_id,
                 approver=approval.approver,
                 approved_at=approval.decided_at,
+                extra=extra,
             )
             return
         if approval.outcome == ApprovalOutcome.TIMEOUT:
@@ -727,6 +747,7 @@ class PolicyEnforcer:
                 decision=decision,
                 result="DENY",
                 approval_id=req.request_id,
+                extra=extra,
             )
             raise RMACDApprovalTimeoutError(
                 f"Approval for {op.value} on {target} timed out.",
@@ -743,6 +764,7 @@ class PolicyEnforcer:
             approval_id=req.request_id,
             approver=approval.approver,
             approved_at=approval.decided_at,
+            extra=extra,
         )
         raise RMACDApprovalDeniedError(
             f"Approval for {op.value} on {target} was denied"
@@ -764,6 +786,7 @@ class PolicyEnforcer:
         approval_id: str | None = None,
         approver: str | None = None,
         approved_at: datetime | None = None,
+        extra: dict[str, Any] | None = None,
     ) -> None:
         try:
             record = build_audit_record(
@@ -778,6 +801,7 @@ class PolicyEnforcer:
                 approver=approver,
                 approved_at=approved_at,
                 compliance_tags=self._compliance_tags,
+                extra=extra,
             )
             self.audit_logger.log(record)
         except Exception:  # pragma: no cover - audit must never block enforcement
@@ -799,6 +823,7 @@ class PolicyEnforcer:
         duration_ms: int,
         decision: PolicyDecision,
         error: str | None = None,
+        extra: dict[str, Any] | None = None,
     ) -> None:
         """Record that a guarded call ran, under the decision that allowed it.
 
@@ -827,6 +852,7 @@ class PolicyEnforcer:
                 result="EXECUTED",
                 execution=execution,
                 compliance_tags=self._compliance_tags,
+                extra=extra,
             )
             self.audit_logger.log(record)
         except Exception:  # pragma: no cover
@@ -834,6 +860,21 @@ class PolicyEnforcer:
                 "RMACD execution audit logging failed for %s on %s",
                 operation, target, exc_info=True,
             )
+
+    @staticmethod
+    def _correlation(context: EvaluationContext | None) -> dict[str, Any] | None:
+        """The ``extra`` block for a call, or ``None`` when there is nothing to say.
+
+        Today it carries one key: ``intent_id``, the adjudicated intent this
+        call executes. It is what lets an interception record be joined back
+        to its decision record (Intent Specification N-45, N-46) — without it
+        "declared one thing, did another" is undetectable. ``None`` rather than
+        ``{}`` keeps records from callers that use no intents byte-identical to
+        Appendix C.6.
+        """
+        if context is None or context.intent_id is None:
+            return None
+        return {"intent_id": context.intent_id}
 
     @staticmethod
     def _extract_compliance_tags(profile: AnyProfile) -> list[str]:

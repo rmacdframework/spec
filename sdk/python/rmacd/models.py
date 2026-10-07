@@ -376,6 +376,16 @@ class EvaluationContext(BaseModel):
     emergency_active: bool = False
     emergency_trigger: TriggerCondition | None = None
     request_metadata: dict[str, str] | None = None
+    intent_id: str | None = Field(
+        default=None,
+        pattern=r"^int-[a-z0-9][a-z0-9-]*$",
+        description=(
+            "The RMACD Intent this call executes, if one was adjudicated first. "
+            "Carried into every audit record's `extra.intent_id` so interception "
+            "records join the decision log (Intent Specification N-45, N-46). "
+            "Never an evaluation input."
+        ),
+    )
 
 
 # --- DC2D (Data-Classification Two-Dimensional) variant ---

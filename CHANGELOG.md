@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### SDK
+
+#### Added
+
+- **`EvaluationContext.intent_id` — the interception half of the reconciliation
+  join.** Set it on the context passed to `enforce`, `enforce_tool_call` or
+  `guard` (which gains a `context` keyword) and every audit record the call
+  produces — `QUEUED`, `APPROVED`, `ALLOW`, `DENY`, `REJECTED` and the
+  `EXECUTED` outcome — carries `extra.intent_id`, so an interception record
+  can be joined back to its decision record (Intent Specification N-45,
+  N-46). The value is validated against the intent-id pattern and is never
+  an evaluation input. A call with no intent writes no `extra` block, so
+  existing records stay byte-identical to Appendix C.6. Documented in
+  `docs/audit-evidence.md` §1.3. `EvaluationContext` is now exported from the
+  package root.
+
 ## [Intent Specification 2.3.0] — 2026-10-07
 
 ### Intent Specification 2.3.0

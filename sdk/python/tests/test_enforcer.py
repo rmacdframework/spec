@@ -373,3 +373,89 @@ def test_execution_record_of_an_autonomous_call_still_says_autonomous(admin_prof
         if line.strip() and json.loads(line)["policy_decision"]["result"] == "EXECUTED"
     ]
     assert executed[0]["policy_decision"]["autonomy_level"] == "autonomous"
+
+
+# ---- Intent correlation (Intent Specification N-45 / N-46) -----------------
+
+
+def audit_extras(buf: io.StringIO) -> list[dict | None]:
+    return [json.loads(line).get("extra") for line in buf.getvalue().splitlines()]
+
+
+def test_intent_id_reaches_every_record_of_an_approval_flow(admin_profile, buf):
+    from rmacd import EvaluationContext
+
+    enforcer = make_enforcer(admin_profile, gateway=AutoApproveGateway(), audit_sink=buf)
+    ctx = EvaluationContext(intent_id="int-chg-20261007-0001")
+    enforcer.enforce("A", "server://prod/db-01", "confidential", context=ctx)
+    assert audit_results(buf) == ["QUEUED", "APPROVED", "ALLOW"]
+    # The join key is on all three, not just the terminal record.
+    assert audit_extras(buf) == [{"intent_id": "int-chg-20261007-0001"}] * 3
+
+
+def test_intent_id_reaches_denial_and_rejection_records(admin_profile, observer_profile, buf):
+    from rmacd import EvaluationContext
+
+    ctx = EvaluationContext(intent_id="int-chg-20261007-0002")
+    denied = make_enforcer(observer_profile, audit_sink=buf)
+    with pytest.raises(RMACDPermissionDeniedError):
+        denied.enforce("D", "server://prod/db-01", "internal", context=ctx)
+    rejected = make_enforcer(admin_profile, gateway=RejectAllApprovalGateway(), audit_sink=buf)
+    with pytest.raises(RMACDApprovalDeniedError):
+        rejected.enforce("A", "server://prod/db-01", "confidential", context=ctx)
+    assert audit_results(buf) == ["DENY", "QUEUED", "REJECTED"]
+    assert all(e == {"intent_id": "int-chg-20261007-0002"} for e in audit_extras(buf))
+
+
+def test_no_intent_leaves_records_in_the_bare_c6_shape(admin_profile, buf):
+    from rmacd import EvaluationContext
+
+    enforcer = make_enforcer(admin_profile, audit_sink=buf)
+    enforcer.enforce("R", "doc://public/readme", "public")
+    enforcer.enforce("R", "doc://public/readme", "public", context=EvaluationContext())
+    for line in buf.getvalue().splitlines():
+        assert "extra" not in json.loads(line)
+
+
+def test_guard_stamps_intent_id_on_decision_and_execution_records(admin_profile, buf):
+    from rmacd import EvaluationContext
+
+    enforcer = make_enforcer(admin_profile, audit_sink=buf)
+    ctx = EvaluationContext(intent_id="int-chg-20261007-0003")
+
+    @enforcer.guard("R", classifier=lambda **_: ("doc://public/x", "public"), context=ctx)
+    def read_doc() -> str:
+        return "ok"
+
+    assert read_doc() == "ok"
+    assert audit_results(buf) == ["ALLOW", "EXECUTED"]
+    assert audit_extras(buf) == [{"intent_id": "int-chg-20261007-0003"}] * 2
+
+
+def test_guard_stamps_intent_id_on_a_failed_execution_too(admin_profile, buf):
+    from rmacd import EvaluationContext
+
+    enforcer = make_enforcer(admin_profile, audit_sink=buf)
+    ctx = EvaluationContext(intent_id="int-chg-20261007-0004")
+
+    @enforcer.guard("R", classifier=lambda **_: ("doc://public/x", "public"), context=ctx)
+    def read_doc() -> str:
+        raise RuntimeError("boom")
+
+    with pytest.raises(RuntimeError):
+        read_doc()
+    records = [json.loads(line) for line in buf.getvalue().splitlines()]
+    assert records[-1]["policy_decision"]["result"] == "EXECUTED"
+    assert records[-1]["execution"]["status"] == "FAILURE"
+    assert records[-1]["extra"] == {"intent_id": "int-chg-20261007-0004"}
+
+
+def test_intent_id_must_look_like_an_intent_id():
+    from pydantic import ValidationError
+
+    from rmacd import EvaluationContext
+
+    with pytest.raises(ValidationError):
+        EvaluationContext(intent_id="not-an-intent")
+    with pytest.raises(ValidationError):
+        EvaluationContext(intent_id="int-Upper")

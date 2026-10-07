@@ -565,7 +565,10 @@ log starts accumulating the precedent that later stages spend.
 **Stage 2 — Reconcile (L2).** Join execution back to declarations. This is
 where interception and adjudication meet: `intent_id` travels into the
 execution path, interception records join the decision log, and
-declared-one-thing-did-another becomes a detectable event. Precedent becomes
+declared-one-thing-did-another becomes a detectable event. The reference SDK
+already carries the key: set `intent_id` on the `EvaluationContext` of a call
+and every interception record it produces carries `extra.intent_id` (see
+`docs/audit-evidence.md` §1.3). Precedent becomes
 trustworthy at exactly this point — which is why the specification refuses to
 count unreconciled successes at any level (N-25). What you get: the
 unprecedented factor starts retiring itself, and routine work stops costing

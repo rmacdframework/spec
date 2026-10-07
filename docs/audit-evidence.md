@@ -111,6 +111,46 @@ results only:
 counts `EXECUTED` on its own line so executions never dilute the decision
 percentages.
 
+### 1.3 Joining records to an adjudicated intent
+
+Where an action was declared and graded as an [RMACD Intent](intents.md)
+before it ran, the interception records it produces carry the intent's id so
+the two decision streams join on one key — Intent Specification N-45 (One
+Audit Trail) and N-46 (Carry the Intent ID Through). The join is what turns
+"declared one thing, did another" from invisible into a citable event.
+
+The SDK carries it in `extra.intent_id`. Set `intent_id` on the
+`EvaluationContext` you pass to `enforce`, `enforce_tool_call` or `guard`, and
+every record the call produces — `QUEUED`, `APPROVED`, `ALLOW`, `DENY`,
+`REJECTED` and the `EXECUTED` outcome — carries the same key:
+
+```python
+from rmacd import EvaluationContext
+
+ctx = EvaluationContext(intent_id="int-chg-20260815-0031")
+enforcer.enforce("C", "svc://payments-api/config/connection-pool", "confidential", context=ctx)
+```
+
+```json
+{"record_id": "aud-…", "policy_decision": {"result": "ALLOW", "...": "..."},
+ "extra": {"intent_id": "int-chg-20260815-0031"}}
+```
+
+Three things to know about the key:
+
+- **It is correlation, never an input.** `intent_id` does not change the
+  decision; the profile, the matrix and the §12.5 floor gate the call exactly
+  as they would without it (Intent Specification N-20).
+- **Absence is honest.** A call made with no intent writes no `extra` block at
+  all, so the record stays byte-for-byte Appendix C.6. A reconciler must treat
+  a record with no `intent_id` as `undeclared`, never as matched — which is
+  the N-49 rule applied from the interception side.
+- **The adjudication side is not in this SDK yet.** The SDK emits the
+  interception half of the join; the decision records it joins against are
+  defined by `intent-decision.schema.json`, and no reference adjudication
+  engine ships with this revision. Carrying the key now means the records a
+  deployment writes today will reconcile against an engine adopted later.
+
 ## 2. Records from a governed Claude Code session
 
 The second producer is the Claude Code plugin
