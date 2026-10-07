@@ -1,0 +1,152 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rmacd-framework.org/schema/v2/adjudication-log-entry.json",
+  "title": "RMACD Adjudication Log Entry",
+  "description": "One entry in the adjudication log: a decision record as emitted, or one of the two attachments N-43 permits — a disposition or a reconciliation result — citing the decision it attaches to. The record itself is never rewritten. See docs/intent-specification.md §9.2.",
+  "type": "object",
+  "required": [
+    "seq",
+    "logged_at",
+    "kind",
+    "decision_id"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "seq": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Position in the counter shared by both logs (N-76)."
+    },
+    "logged_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "kind": {
+      "type": "string",
+      "enum": [
+        "decision",
+        "disposition",
+        "reconciliation"
+      ]
+    },
+    "decision_id": {
+      "type": "string",
+      "pattern": "^dec-[a-z0-9][a-z0-9-]*$",
+      "description": "The decision record this entry is, or attaches to (N-74)."
+    },
+    "record": {
+      "$ref": "https://rmacd-framework.org/schema/v2/intent-decision.json",
+      "description": "The decision record as emitted, without attachments."
+    },
+    "disposition": {
+      "$ref": "https://rmacd-framework.org/schema/v2/intent-decision.json#/properties/disposition"
+    },
+    "reconciliation": {
+      "$ref": "https://rmacd-framework.org/schema/v2/intent-decision.json#/properties/reconciliation"
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "decision"
+          }
+        },
+        "required": [
+          "kind"
+        ]
+      },
+      "then": {
+        "required": [
+          "record"
+        ],
+        "allOf": [
+          {
+            "not": {
+              "required": [
+                "disposition"
+              ]
+            }
+          },
+          {
+            "not": {
+              "required": [
+                "reconciliation"
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "disposition"
+          }
+        },
+        "required": [
+          "kind"
+        ]
+      },
+      "then": {
+        "required": [
+          "disposition"
+        ],
+        "allOf": [
+          {
+            "not": {
+              "required": [
+                "record"
+              ]
+            }
+          },
+          {
+            "not": {
+              "required": [
+                "reconciliation"
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "reconciliation"
+          }
+        },
+        "required": [
+          "kind"
+        ]
+      },
+      "then": {
+        "required": [
+          "reconciliation"
+        ],
+        "allOf": [
+          {
+            "not": {
+              "required": [
+                "record"
+              ]
+            }
+          },
+          {
+            "not": {
+              "required": [
+                "disposition"
+              ]
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,72 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "rmacd-intents"
+version = "2.4.0"
+description = "RMACD Intents adjudication engine — declare first, grade deterministically, decide where the grade demands it"
+readme = "README.md"
+license = "CC-BY-4.0"
+requires-python = ">=3.10"
+authors = [
+    { name = "RMACD Framework Team", email = "rmacdframework@users.noreply.github.com" }
+]
+keywords = ["rmacd", "intents", "adjudication", "governance", "autonomous-agents"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: Free To Use But Restricted",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Security",
+    "Typing :: Typed",
+]
+
+# The engine never reimplements the matrix: the base level comes from
+# rmacd-framework's PolicyEvaluator.required_autonomy (0.16.0+), so the §12.5
+# floor and every profile override are inherited rather than copied.
+dependencies = [
+    "rmacd-framework>=0.16",
+    "pydantic>=2.0",
+    "jsonschema>=4.20",
+    "rfc8785>=0.1",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "ruff>=0.4",
+    "mypy>=1.8",
+    "types-jsonschema",
+]
+
+[project.scripts]
+rmacd-intents = "rmacd_intents.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["rmacd_intents"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+filterwarnings = ["error"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.mypy]
+strict = true
+python_version = "3.10"
+
+[[tool.mypy.overrides]]
+module = ["rfc8785", "rfc8785.*"]
+ignore_missing_imports = true

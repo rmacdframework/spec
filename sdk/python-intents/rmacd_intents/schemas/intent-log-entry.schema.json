@@ -1,0 +1,194 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rmacd-framework.org/schema/v2/intent-log-entry.json",
+  "title": "RMACD Intent Log Entry",
+  "description": "One entry in the intent log: a submission as received, a rejection, or a grant status transition. The intent log and the adjudication log are distinct append-only streams sharing one sequence counter. See docs/intent-specification.md §9.1.",
+  "type": "object",
+  "required": [
+    "seq",
+    "logged_at",
+    "kind"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "seq": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Position in the counter shared by both logs, assigned at write and strictly increasing (N-76)."
+    },
+    "logged_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "RFC 3339 UTC timestamp of the write."
+    },
+    "kind": {
+      "type": "string",
+      "enum": [
+        "submission",
+        "rejection",
+        "transition"
+      ]
+    },
+    "intent_id": {
+      "type": "string",
+      "pattern": "^int-[a-z0-9][a-z0-9-]*$",
+      "description": "Required for submission and transition. A rejection records it where the document carried one."
+    },
+    "document": {
+      "type": "object",
+      "description": "The intent exactly as received (N-73). For a submission it conforms to intent.json; for a rejection it is whatever parsed."
+    },
+    "raw": {
+      "type": "string",
+      "description": "The submission as text, where it was not valid JSON (N-73)."
+    },
+    "failure": {
+      "type": "string",
+      "description": "Why validation failed (N-59)."
+    },
+    "from_status": {
+      "type": "string",
+      "enum": [
+        "requested",
+        "active",
+        "expired",
+        "revoked",
+        "closed"
+      ],
+      "description": "The grant's status before a transition."
+    },
+    "to_status": {
+      "type": "string",
+      "enum": [
+        "requested",
+        "active",
+        "expired",
+        "revoked",
+        "closed"
+      ],
+      "description": "The grant's status after a transition (N-71)."
+    },
+    "changed_by": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Who made the transition — the implementation or the authority acting through it (N-71)."
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "submission"
+          }
+        },
+        "required": [
+          "kind"
+        ]
+      },
+      "then": {
+        "required": [
+          "intent_id",
+          "document"
+        ],
+        "properties": {
+          "document": {
+            "$ref": "https://rmacd-framework.org/schema/v2/intent.json"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "rejection"
+          }
+        },
+        "required": [
+          "kind"
+        ]
+      },
+      "then": {
+        "required": [
+          "failure"
+        ],
+        "anyOf": [
+          {
+            "required": [
+              "document"
+            ]
+          },
+          {
+            "required": [
+              "raw"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "transition"
+          }
+        },
+        "required": [
+          "kind"
+        ]
+      },
+      "then": {
+        "required": [
+          "intent_id",
+          "to_status",
+          "changed_by"
+        ]
+      }
+    },
+    {
+      "$comment": "Transition fields belong only to transitions; a submission or rejection cannot assert a grant status.",
+      "if": {
+        "properties": {
+          "kind": {
+            "enum": [
+              "submission",
+              "rejection"
+            ]
+          }
+        },
+        "required": [
+          "kind"
+        ]
+      },
+      "then": {
+        "allOf": [
+          {
+            "not": {
+              "required": [
+                "from_status"
+              ]
+            }
+          },
+          {
+            "not": {
+              "required": [
+                "to_status"
+              ]
+            }
+          },
+          {
+            "not": {
+              "required": [
+                "changed_by"
+              ]
+            }
+          }
+        ]
+      }
+    }
+  ]
+}
